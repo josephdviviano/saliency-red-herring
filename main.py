@@ -1,27 +1,13 @@
 
 from __future__ import print_function
-from ipywidgets import interact, interactive, fixed, interact_manual
-import ipywidgets as widgets
-
 import torch
-import torch.nn as nn
 from torch.autograd import Variable
-import torch.utils.data as Data
 import torchvision
 import numpy as np
 import sklearn, sklearn.model_selection
 import random
-import os, sys
 import pickle
-
-import sys
 import argparse
-from torch.utils import data
-import os
-import skimage, skimage.transform
-from skimage.io import imread, imsave
-from PIL import Image
-import skimage.filters
 import datasets.TNTDataset
 import models.simple_cnn
 
