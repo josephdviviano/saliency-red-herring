@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('-maxmasks', type=int, nargs='?', default=0, help='Number of masks to use for train')
     parser.add_argument('-lr', type=float, default=0.001)
     parser.add_argument('-thing', default=False, action='store_true', help='Do the thing')
-    parser.add_argument('-data-path', default=None, help='Path to data.')
+    #parser.add_argument('-data-path', default=None, help='Path to data.')
 
     args = parser.parse_args()
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         torchvision.transforms.Resize(100),
         torchvision.transforms.ToTensor()])
 
-    train = datasets.TNTDataset.TNTDataset(args.data_path,
+    train = datasets.TNTDataset.TNTDataset('/export/datasets/brats2013_tumor-notumor/',
                        transform=mytransform,
                        blur=3)
 
