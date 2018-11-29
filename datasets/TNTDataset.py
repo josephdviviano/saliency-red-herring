@@ -9,13 +9,14 @@ class TNTDataset(Dataset):
 
     'Tumor-NoTumor Dataset loader for PyTorch'
 
-    def __init__(self, tntpath, subset="train", maxmasks=999999, transform=None, blur=0):
+    def __init__(self, tntpath, subset="train", mask_idx=[], transform=None, blur=0):
         self.tntpath = tntpath
         self.subset = subset
-        self.datapath = self.tntpath + "/" + self.subset + "/"
+        self.datapath = os.path.join(self.tntpath, self.subset)
         self.imgs = sorted(os.listdir(self.datapath + "/flair"))
         self.transform = transform
         self.blur = blur
+        self.mask_idx = set(mask_idx)
 
     def __len__(self):
         return len(self.imgs)
@@ -24,7 +25,7 @@ class TNTDataset(Dataset):
         # Select sample
         filename = self.imgs[index]
 
-        flair = imread(self.datapath + "/flair/" + filename)
+        flair = imread(os.path.join(self.datapath, "flair", filename))
         flair = Image.fromarray(flair)
         if self.transform != None:
             flair = self.transform(flair)
@@ -49,4 +50,4 @@ class TNTDataset(Dataset):
 
         has_tumor = ("True" in filename)
 
-        return (flair, flair, seg), has_tumor
+        return (flair, flair, seg), has_tumor, float(index in self.mask_idx)
