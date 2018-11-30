@@ -19,6 +19,8 @@ if __name__ == '__main__':
     parser.add_argument('-seed', type=int, nargs='?', default=0, help='random seed for split and init')
     parser.add_argument('-nsamples', type=int, nargs='?', default=64, help='Number of samples for train')
     parser.add_argument('-maxmasks', type=int, nargs='?', default=0, help='Number of masks to use for train')
+    parser.add_argument('-maskblur', type=int, nargs='?', default=3, help='std for blur applied to each mask')
+    parser.add_argument('-annealinglambda', type=float, default=1.0, help='Annealing')
     parser.add_argument('-lr', type=float, default=0.001)
     parser.add_argument('-thing', default=False, action='store_true', help='Do the thing')
     #parser.add_argument('-data-path', default=None, help='Path to data.')
@@ -39,13 +41,13 @@ if __name__ == '__main__':
         torchvision.transforms.Resize(100),
         torchvision.transforms.ToTensor()])
 
-    train = datasets.TNTDataset.TNTDataset('/export/datasets/brats2013_tumor-notumor/',
+    train = datasets.TNTDataset.TNTDataset('/data/lisa/data/brats2013_tumor-notumor/',
                        transform=mytransform,
-                       blur=3)
+                       blur=args.maskblur)
 
     tosplit = np.asarray([("True" in name) for name in train.imgs])
     idx = range(tosplit.shape[0])
-    train_idx, valid_idx = sklearn.model_selection.train_test_split(idx, stratify=tosplit, train_size=0.75,
+    train_idx, valid_idx = sklearn.model_selection.train_test_split(idx, stratify=tosplit, train_size=0.75, test_size=0.25,
                                                                     random_state=args.seed)
     train_idx = train_idx[:args.nsamples]
     mask_idx = train_idx[:args.maxmasks]
@@ -55,14 +57,16 @@ if __name__ == '__main__':
 
     train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=BATCH_SIZE,
                                                sampler=torch.utils.data.sampler.SubsetRandomSampler(train_idx),
-                                               num_workers=0)
+                                               num_workers=8)
     valid_loader = torch.utils.data.DataLoader(dataset=train, batch_size=len(valid_idx),
                                                sampler=torch.utils.data.sampler.SubsetRandomSampler(valid_idx),
-                                               num_workers=0)
+                                               num_workers=8)
 
+    print("Building valid set")
     valid_data = list(valid_loader)
     valid_x = Variable(valid_data[0][0][0]).cuda()
     valid_y = valid_data[0][1].cuda()
+    print("done")
 
     cnn = models.simple_cnn.CNN()
     if cuda:
@@ -105,7 +109,7 @@ if __name__ == '__main__':
                 input_grads = b_y.float().reshape(-1, 1, 1, 1) * input_grads
 
                 res = input_grads * (1 - seg_x.float())
-                gradmask_loss = epoch * (res ** 2)
+                gradmask_loss = (res ** 2)
                 #gradmask_loss = res ** 2
 
                 # Simulate that we only have some masks
@@ -113,6 +117,7 @@ if __name__ == '__main__':
                 gradmask_loss = use_mask.reshape(-1, 1).float() * gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
 
                 gradmask_loss = gradmask_loss.sum()
+                gradmask_loss = epoch * args.annealinglambda * gradmask_loss
                 loss = loss + gradmask_loss
 
             optimizer.zero_grad()
@@ -134,4 +139,7 @@ if __name__ == '__main__':
         stats.append(stat)
         print('Epoch: ', epoch, '| train loss: %.4f' % np.asarray(batch_loss).mean(), '| valid auc: %.2f' % auc)
         # os.mkdir("stats")
-        pickle.dump(stats, open("stats/" + exp_id + ".pkl", "wb"))
+        if (epoch % 20) == 0: # 20 times faster 
+            pickle.dump(stats, open("stats/" + exp_id + ".pkl", "wb"))
+        
+    print("script complete")
