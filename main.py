@@ -80,7 +80,7 @@ if __name__ == '__main__':
     use_gradmask = args.thing
     stats = []
 
-    for epoch in range(500):
+    for epoch in range(800):
         batch_loss = []
         for step, (x, y, use_mask) in enumerate(train_loader):
 
@@ -141,5 +141,6 @@ if __name__ == '__main__':
         # os.mkdir("stats")
         if (epoch % 20) == 0: # 20 times faster 
             pickle.dump(stats, open("stats/" + exp_id + ".pkl", "wb"))
-        
+            
+    pickle.dump(stats, open("stats/" + exp_id + ".pkl", "wb"))
     print("script complete")
