@@ -56,7 +56,9 @@ if __name__ == '__main__':
     parser.add_argument('-maskblur', type=int, nargs='?', default=3, help='std for blur applied to each mask')
     parser.add_argument('-annealinglambda', type=float, default=1.0, help='Annealing')
     parser.add_argument('-lr', type=float, default=0.001)
+    parser.add_argument('-batchsize', type=int, default=16)
     parser.add_argument('-thing', default=False, action='store_true', help='Do the thing')
+    parser.add_argument('-thingstyle', type=int, default=1, help='Do the thing style')
     parser.add_argument('-dataset', type=str, default="tnt", help='name of dataset')
     #parser.add_argument('-data-path', default=None, help='Path to data.')
 
@@ -70,8 +72,6 @@ if __name__ == '__main__':
 
     cuda = torch.cuda.is_available()
 
-    BATCH_SIZE = 128
-
     mytransform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(100),
         torchvision.transforms.ToTensor()])
@@ -81,9 +81,14 @@ if __name__ == '__main__':
                            transform=mytransform,
                            blur=args.maskblur)
     elif args.dataset == "lung":
-        train = datasets.TCGALungCancerDataset('/data/lisa/data/MSD/MSD/Task06_Lung/',
+        train = datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task06_Lung/',
                            transform=mytransform,
                            blur=args.maskblur)
+    elif args.dataset == "colon":
+        train = datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task10_Colon/',
+                           transform=mytransform,
+                           blur=args.maskblur,
+                           max_files=20)
         
 
     tosplit = train.labels#np.asarray([("True" in name) for name in train.imgs])
@@ -107,7 +112,7 @@ if __name__ == '__main__':
     print("classes train", collections.Counter(train.labels[train_idx]))
     print("classes valid", collections.Counter(train.labels[valid_idx]))
 
-    train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=BATCH_SIZE,
+    train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=args.batchsize,
                                                sampler=torch.utils.data.sampler.SubsetRandomSampler(train_idx),
                                                num_workers=0)
     valid_loader = torch.utils.data.DataLoader(dataset=train, batch_size=len(valid_idx),
@@ -120,7 +125,7 @@ if __name__ == '__main__':
     valid_y = valid_data[0][1].cuda()
     print("done")
 
-    cnn = models.simple_cnn.CNN()
+    cnn = models.simple_cnn.CNN(train[0][0][0])
     if cuda:
         cnn = cnn.cuda()
 
@@ -152,11 +157,24 @@ if __name__ == '__main__':
             loss = loss_func(output, b_y)
 
             if use_gradmask:
-                input_grads = \
-                torch.autograd.grad(outputs=torch.abs(output[:, 1]).sum(),  # loss,#torch.abs(output).sum(),
-                                    inputs=b_x,
-                                    create_graph=True)[0]
+                if args.thingstyle == 1:
+                    input_grads = \
+                    torch.autograd.grad(outputs=torch.abs(output[:, 1]).sum(),
+                                        inputs=b_x,
+                                        create_graph=True)[0]
 
+                elif args.thingstyle == 2:
+                    input_grads = \
+                    torch.autograd.grad(outputs=(torch.abs(output[:,1]).sum()),
+                                        inputs=b_x,
+                                        create_graph=True)[0]
+                    input_grads2 = \
+                    torch.autograd.grad(outputs=(torch.abs(output[:,0]).sum()),
+                                        inputs=b_x,
+                                        create_graph=True)[0]
+                    input_grads = torch.abs(input_grads) - torch.abs(input_grads2)
+                
+                
                 # only apply to positive examples
                 input_grads = b_y.float().reshape(-1, 1, 1, 1) * input_grads
 
