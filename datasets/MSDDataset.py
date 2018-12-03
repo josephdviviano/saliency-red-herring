@@ -18,7 +18,7 @@ def extract_samples(data, image_path, label_path):
     for i in range(image_data.shape[0]):
         data.append((image_data[i],seg_data[i],labels[i]))
 
-class TCGALungCancerDataset(Dataset):
+class MSDDataset(Dataset):
 
     def __init__(self, dataroot, max_files = 10, mask_idx=[], transform=None, blur=0):
         

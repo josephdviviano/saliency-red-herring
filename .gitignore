@@ -1,0 +1,3 @@
+*.out
+*.pyc
+.ipynb_checkpoints
