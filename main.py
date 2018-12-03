@@ -8,9 +8,43 @@ import sklearn, sklearn.model_selection
 import random
 import pickle
 import argparse
-import datasets.TNTDataset
+import datasets
 import models.simple_cnn
 from torch import nn
+
+def balanced_subsample(x,y,subsample_size=1.0):
+
+    class_xs = []
+    min_elems = None
+
+    for yi in np.unique(y):
+        elems = x[(y == yi)]
+        class_xs.append((yi, elems))
+        if min_elems == None or elems.shape[0] < min_elems:
+            min_elems = elems.shape[0]
+
+    use_elems = min_elems
+    if subsample_size < 1:
+        use_elems = int(min_elems*subsample_size)
+
+    xs = []
+    ys = []
+
+    for ci,this_xs in class_xs:
+        if len(this_xs) > use_elems:
+            np.random.shuffle(this_xs)
+
+        x_ = this_xs[:use_elems]
+        y_ = np.empty(use_elems)
+        y_.fill(ci)
+
+        xs.append(x_)
+        ys.append(y_)
+
+    xs = np.concatenate(xs)
+    ys = np.concatenate(ys)
+
+    return xs,ys
 
 if __name__ == '__main__':
 
@@ -23,6 +57,7 @@ if __name__ == '__main__':
     parser.add_argument('-annealinglambda', type=float, default=1.0, help='Annealing')
     parser.add_argument('-lr', type=float, default=0.001)
     parser.add_argument('-thing', default=False, action='store_true', help='Do the thing')
+    parser.add_argument('-dataset', type=str, default="tnt", help='name of dataset')
     #parser.add_argument('-data-path', default=None, help='Path to data.')
 
     args = parser.parse_args()
@@ -41,26 +76,43 @@ if __name__ == '__main__':
         torchvision.transforms.Resize(100),
         torchvision.transforms.ToTensor()])
 
-    train = datasets.TNTDataset.TNTDataset('/data/lisa/data/brats2013_tumor-notumor/',
-                       transform=mytransform,
-                       blur=args.maskblur)
+    if args.dataset == "tnt":
+        train = datasets.TNTDataset('/data/lisa/data/brats2013_tumor-notumor/',
+                           transform=mytransform,
+                           blur=args.maskblur)
+    elif args.dataset == "lung":
+        train = datasets.TCGALungCancerDataset('/data/lisa/data/MSD/MSD/Task06_Lung/',
+                           transform=mytransform,
+                           blur=args.maskblur)
+        
 
-    tosplit = np.asarray([("True" in name) for name in train.imgs])
+    tosplit = train.labels#np.asarray([("True" in name) for name in train.imgs])
     idx = range(tosplit.shape[0])
-    train_idx, valid_idx = sklearn.model_selection.train_test_split(idx, stratify=tosplit, train_size=0.75, test_size=0.25,
+    
+    #balance
+    idx,tosplit = balanced_subsample(np.asarray(idx), tosplit) 
+
+    
+    train_idx, valid_idx = sklearn.model_selection.train_test_split(idx, 
+                                                                    stratify=tosplit, 
+                                                                    train_size=args.nsamples, 
+                                                                    test_size=100,
                                                                     random_state=args.seed)
-    train_idx = train_idx[:args.nsamples]
+    #train_idx = train_idx[:args.nsamples]
     mask_idx = train_idx[:args.maxmasks]
 
     train.mask_idx = set(mask_idx)
 
+    import collections
+    print("classes train", collections.Counter(train.labels[train_idx]))
+    print("classes valid", collections.Counter(train.labels[valid_idx]))
 
     train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=BATCH_SIZE,
                                                sampler=torch.utils.data.sampler.SubsetRandomSampler(train_idx),
-                                               num_workers=8)
+                                               num_workers=0)
     valid_loader = torch.utils.data.DataLoader(dataset=train, batch_size=len(valid_idx),
                                                sampler=torch.utils.data.sampler.SubsetRandomSampler(valid_idx),
-                                               num_workers=8)
+                                               num_workers=0)
 
     print("Building valid set")
     valid_data = list(valid_loader)
@@ -87,7 +139,7 @@ if __name__ == '__main__':
             b_x = Variable(x[0], requires_grad=True)
             b_y = Variable(y)
             use_mask = Variable(use_mask)
-            seg_x = x[2]
+            seg_x = x[1]
 
             if cuda:
                 b_x = b_x.cuda()
@@ -142,5 +194,5 @@ if __name__ == '__main__':
         if (epoch % 20) == 0: # 20 times faster 
             pickle.dump(stats, open("stats/" + exp_id + ".pkl", "wb"))
             
-    pickle.dump(stats, open("stats/" + exp_id + ".pkl", "wb"))
+    pickle.dump(stats, open("stats/" + exp_id + ".pkl", "w"))
     print("script complete")

@@ -4,6 +4,7 @@ import skimage, skimage.transform
 from skimage.io import imread, imsave
 from PIL import Image
 import skimage.filters
+import numpy as np
 
 class TNTDataset(Dataset):
 
@@ -17,6 +18,7 @@ class TNTDataset(Dataset):
         self.transform = transform
         self.blur = blur
         self.mask_idx = set(mask_idx)
+        self.labels = np.asarray([("True" in name) for name in self.imgs])
 
     def __len__(self):
         return len(self.imgs)
@@ -50,4 +52,4 @@ class TNTDataset(Dataset):
 
         has_tumor = ("True" in filename)
 
-        return (flair, flair, seg), has_tumor, float(index in self.mask_idx)
+        return (flair, seg), float(has_tumor), float(index in self.mask_idx)
