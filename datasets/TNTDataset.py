@@ -52,4 +52,4 @@ class TNTDataset(Dataset):
 
         has_tumor = ("True" in filename)
 
-        return (flair, seg), float(has_tumor), float(index in self.mask_idx)
+        return (flair, seg), int(has_tumor), float(index in self.mask_idx)
