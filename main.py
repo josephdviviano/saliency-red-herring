@@ -1,70 +1,33 @@
-
-from __future__ import print_function
 import torch
 from torch.autograd import Variable
 import torchvision
+from torch import nn
 import numpy as np
 import sklearn, sklearn.model_selection
-import random
-import pickle
-import argparse
+import random, argparse, pickle, collections
 import datasets
 import models.simple_cnn
-from torch import nn
 
-def balanced_subsample(x,y,subsample_size=1.0):
-
-    class_xs = []
-    min_elems = None
-
-    for yi in np.unique(y):
-        elems = x[(y == yi)]
-        class_xs.append((yi, elems))
-        if min_elems == None or elems.shape[0] < min_elems:
-            min_elems = elems.shape[0]
-
-    use_elems = min_elems
-    if subsample_size < 1:
-        use_elems = int(min_elems*subsample_size)
-
-    xs = []
-    ys = []
-
-    for ci,this_xs in class_xs:
-        if len(this_xs) > use_elems:
-            np.random.shuffle(this_xs)
-
-        x_ = this_xs[:use_elems]
-        y_ = np.empty(use_elems)
-        y_.fill(ci)
-
-        xs.append(x_)
-        ys.append(y_)
-
-    xs = np.concatenate(xs)
-    ys = np.concatenate(ys)
-
-    return xs,ys
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-seed', type=int, nargs='?', default=0, help='random seed for split and init')
-    parser.add_argument('-nsamples', type=int, nargs='?', default=64, help='Number of samples for train')
-    parser.add_argument('-maxmasks', type=int, nargs='?', default=0, help='Number of masks to use for train')
+    parser.add_argument('-nsamples', type=int, nargs='?', default=128, help='Number of samples for train')
+    parser.add_argument('-maxmasks', type=int, nargs='?', default=128, help='Number of masks to use for train')
     parser.add_argument('-maskblur', type=int, nargs='?', default=3, help='std for blur applied to each mask')
     parser.add_argument('-annealinglambda', type=float, default=1.0, help='Annealing')
     parser.add_argument('-lr', type=float, default=0.001)
     parser.add_argument('-batchsize', type=int, default=16)
     parser.add_argument('-thing', default=False, action='store_true', help='Do the thing')
     parser.add_argument('-thingstyle', type=int, default=1, help='Do the thing style')
-    parser.add_argument('-dataset', type=str, default="tnt", help='name of dataset')
+    parser.add_argument('-dataset', type=str, default="lung", help='name of dataset')
     #parser.add_argument('-data-path', default=None, help='Path to data.')
 
     args = parser.parse_args()
 
-    exp_id = str(args).replace(" ","").replace("Namespace(","").replace(")","").replace(",","-").replace("=","")
+    exp_id = str(args).replace(" ","").replace("Namespace(","").replace(")","").replace(",","-").replace("=","").replace("'","")
     print(exp_id)
 
     torch.manual_seed(args.seed)
@@ -77,57 +40,75 @@ if __name__ == '__main__':
         torchvision.transforms.ToTensor()])
 
     if args.dataset == "tnt":
-        train = datasets.TNTDataset('/data/lisa/data/brats2013_tumor-notumor/',
-                           transform=mytransform,
-                           blur=args.maskblur)
-    elif args.dataset == "lung":
-        train = datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task06_Lung/',
-                           transform=mytransform,
-                           blur=args.maskblur)
-    elif args.dataset == "colon":
-        train = datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task10_Colon/',
+        train, valid, test = [datasets.TNTDataset('/data/lisa/data/brats2013_tumor-notumor/',
+                           mode=thismode,
                            transform=mytransform,
                            blur=args.maskblur,
-                           max_files=20)
+                           nsamples=args.nsamples,
+                           seed=args.seed, 
+                           maxmasks=args.maxmasks)
+                           for thismode in ["train", "valid", "test"]]
+    elif args.dataset == "lung":
+        train, valid, test = [datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task06_Lung/',
+                           mode=thismode,
+                           transform=mytransform,
+                           blur=args.maskblur,
+                           nsamples=args.nsamples,
+                           seed=args.seed, 
+                           maxmasks=args.maxmasks,
+                           max_files=10)
+                           for thismode in ["train", "valid", "test"]]
+    elif args.dataset == "colon":
+        train, valid, test = [datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task10_Colon/',
+                           mode=thismode,
+                           transform=mytransform,
+                           blur=args.maskblur,
+                           nsamples=args.nsamples,
+                           seed=args.seed, 
+                           maxmasks=args.maxmasks, 
+                           max_files=10)
+                           for thismode in ["train", "valid", "test"]]
         
 
-    tosplit = train.labels#np.asarray([("True" in name) for name in train.imgs])
-    idx = range(tosplit.shape[0])
+#    tosplit = train.labels#np.asarray([("True" in name) for name in train.imgs])
+#    idx = range(tosplit.shape[0])
     
-    #balance
-    idx,tosplit = balanced_subsample(np.asarray(idx), tosplit) 
+#    #balance
+#    idx,tosplit = balanced_subsample(np.asarray(idx), tosplit) 
 
     
-    train_idx, valid_idx = sklearn.model_selection.train_test_split(idx, 
-                                                                    stratify=tosplit, 
-                                                                    train_size=args.nsamples, 
-                                                                    test_size=100,
-                                                                    random_state=args.seed)
+#    train_idx, valid_idx = sklearn.model_selection.train_test_split(idx, 
+#                                                                    stratify=tosplit, 
+#                                                                    train_size=args.nsamples, 
+#                                                                    test_size=100,
+#                                                                    random_state=args.seed)
     #train_idx = train_idx[:args.nsamples]
-    mask_idx = train_idx[:args.maxmasks]
+#    mask_idx = train_idx[:args.maxmasks]
 
-    train.mask_idx = set(mask_idx)
+#    train.mask_idx = set(mask_idx)
 
-    import collections
-    print("classes train", collections.Counter(train.labels[train_idx]))
-    print("classes valid", collections.Counter(train.labels[valid_idx]))
+    print("classes train", collections.Counter(train.labels))
+    print("classes valid", collections.Counter(valid.labels))
+    print("classes test", collections.Counter(test.labels))
 
-    train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=args.batchsize,
-                                               sampler=torch.utils.data.sampler.SubsetRandomSampler(train_idx),
-                                               num_workers=0)
-    valid_loader = torch.utils.data.DataLoader(dataset=train, batch_size=len(valid_idx),
-                                               sampler=torch.utils.data.sampler.SubsetRandomSampler(valid_idx),
-                                               num_workers=0)
+    train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=args.batchsize,num_workers=8,shuffle=True)
+    valid_loader = torch.utils.data.DataLoader(dataset=valid, batch_size=len(valid),num_workers=8,shuffle=True)
+    test_loader = torch.utils.data.DataLoader(dataset=test, batch_size=len(test), num_workers=8,shuffle=True)
 
     print("Building valid set")
     valid_data = list(valid_loader)
     valid_x = Variable(valid_data[0][0][0]).cuda()
     valid_y = valid_data[0][1].cuda()
     print("done")
+    
+    print("Building test set")
+    test_data = list(test_loader)
+    test_x = Variable(test_data[0][0][0]).cuda()
+    test_y = test_data[0][1].cuda()
+    print("done")
 
     cnn = models.simple_cnn.CNN(train[0][0][0])
-    if cuda:
-        cnn = cnn.cuda()
+    cnn = cnn.cuda()
 
     print(cnn)
     optimizer = torch.optim.Adam(cnn.parameters(), lr=args.lr)
@@ -180,10 +161,8 @@ if __name__ == '__main__':
 
                 res = input_grads * (1 - seg_x.float())
                 gradmask_loss = (res ** 2)
-                #gradmask_loss = res ** 2
 
                 # Simulate that we only have some masks
-                #import ipdb; ipdb.set_trace()
                 gradmask_loss = use_mask.reshape(-1, 1).float() * gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
 
                 gradmask_loss = gradmask_loss.sum()
@@ -199,15 +178,21 @@ if __name__ == '__main__':
 
         cnn.eval()
 
-        test_output, last_layer = cnn(valid_x)
-        pred_y = torch.max(test_output, 1)[1].data.squeeze()
-        auc = sklearn.metrics.roc_auc_score(valid_y, pred_y.cpu())
+        valid_output, last_layer = cnn(valid_x)
+        pred_valid_y = torch.max(valid_output, 1)[1].data.squeeze()
+        valid_auc = sklearn.metrics.roc_auc_score(valid_y, pred_valid_y.cpu())
+        
+        test_output, last_layer = cnn(test_x)
+        pred_test_y = torch.max(test_output, 1)[1].data.squeeze()
+        test_auc = sklearn.metrics.roc_auc_score(test_y, pred_test_y.cpu())
+        
         stat = {"epoch": epoch,
                 "trainloss": np.asarray(batch_loss).mean(),
-                "validauc": auc}
+                "validauc": valid_auc,
+                "testauc": test_auc}
         stat.update(vars(args))
         stats.append(stat)
-        print('Epoch: ', epoch, '| train loss: %.4f' % np.asarray(batch_loss).mean(), '| valid auc: %.2f' % auc)
+        print('Epoch: ', epoch, '| train loss: %.4f' % np.asarray(batch_loss).mean(), '| valid auc: %.2f' % valid_auc, '| test auc: %.2f' % test_auc)
         # os.mkdir("stats")
         if (epoch % 20) == 0: # 20 times faster 
             pickle.dump(stats, open("stats/" + exp_id + ".pkl", "wb"))

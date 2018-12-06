@@ -1,4 +1,8 @@
 __all__ = []
 
-from TNTDataset import TNTDataset
-from MSDDataset import MSDDataset
+from tnt import TNTDataset
+from msd import MSDDataset
+
+
+reload(tnt)
+reload(msd)
