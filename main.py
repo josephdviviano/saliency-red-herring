@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser.add_argument('-maskblur', type=int, nargs='?', default=3, help='std for blur applied to each mask')
     parser.add_argument('-annealinglambda', type=float, default=1.0, help='Annealing')
     parser.add_argument('-lr', type=float, default=0.001)
-    parser.add_argument('-batchsize', type=int, default=16)
+    parser.add_argument('-batchsize', type=int, default=32)
     parser.add_argument('-thing', default=False, action='store_true', help='Do the thing')
     parser.add_argument('-thingstyle', type=int, default=1, help='Do the thing style')
     parser.add_argument('-dataset', type=str, default="lung", help='name of dataset')
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if args.dataset == "tnt":
         train, valid, test = [datasets.TNTDataset('/data/lisa/data/brats2013_tumor-notumor/',
                            mode=thismode,
-                           transform=mytransform,
+                           #transform=mytransform,
                            blur=args.maskblur,
                            nsamples=args.nsamples,
                            seed=args.seed, 
@@ -51,22 +51,22 @@ if __name__ == '__main__':
     elif args.dataset == "lung":
         train, valid, test = [datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task06_Lung/',
                            mode=thismode,
-                           transform=mytransform,
+                           #transform=mytransform,
                            blur=args.maskblur,
                            nsamples=args.nsamples,
                            seed=args.seed, 
                            maxmasks=args.maxmasks,
-                           max_files=10)
+                           max_files=20)
                            for thismode in ["train", "valid", "test"]]
     elif args.dataset == "colon":
         train, valid, test = [datasets.MSDDataset('/data/lisa/data/MSD/MSD/Task10_Colon/',
                            mode=thismode,
-                           transform=mytransform,
+                           #transform=mytransform,
                            blur=args.maskblur,
                            nsamples=args.nsamples,
                            seed=args.seed, 
                            maxmasks=args.maxmasks, 
-                           max_files=10)
+                           max_files=15)
                            for thismode in ["train", "valid", "test"]]
         
 
