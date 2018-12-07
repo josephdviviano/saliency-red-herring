@@ -7,7 +7,7 @@ import sklearn, sklearn.model_selection
 import random, argparse, pickle, collections
 import datasets
 import models.simple_cnn
-
+import sys, os
 
 if __name__ == '__main__':
 
@@ -30,6 +30,12 @@ if __name__ == '__main__':
     exp_id = str(args).replace(" ","").replace("Namespace(","").replace(")","").replace(",","-").replace("=","").replace("'","")
     print(exp_id)
 
+    #don't run twice
+    import os.path
+    if (os.path.isfile("stats/" + exp_id + ".pkl")):
+        print("Already processed: " + exp_id)
+        sys.exit()
+    
     torch.manual_seed(args.seed)
     random.seed(args.seed)
 
