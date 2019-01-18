@@ -1,0 +1,45 @@
+# General
+seed: 1234
+cuda: True
+
+# Training
+epoch: 2
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    MNIST:
+      root: './data'
+      train: True
+      download: True
+  valid:
+    MNIST:
+      root: './data'
+      train: False
+      download: True
+
+# Model
+model:
+  CNNExample: {}
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
+
+# pytorch transform
+transform:
+  train:
+    - ToTensor: {}
+    - Normalize: 
+        mean: [0.1307]
+        std: [0.3081]
+  valid:
+    - ToTensor: {}
+    - Normalize:
+        mean: [0.1307]
+        std: [0.3081]

@@ -4,7 +4,9 @@ import skimage, skimage.transform
 from skimage.io import imread, imsave
 from PIL import Image
 import skimage.filters
+import gradmask.utils.register as register
 
+@register.setdatasetname("TNTDataset")
 class TNTDataset(Dataset):
 
     'Tumor-NoTumor Dataset loader for PyTorch'

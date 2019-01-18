@@ -1,0 +1,54 @@
+# General
+seed: 1234
+cuda: True
+nsamples: 64
+maxmasks: 8
+penalise_grad: True
+
+# Training
+epoch: 2
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    MNIST:
+      root: './data'
+      train: True
+      download: True
+  valid:
+    MNIST:
+      root: './data'
+      train: False
+      download: True
+
+# Model
+model:
+  SimpleCNN: {}
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: 0.001
+
+# pytorch transform
+transform:
+  train:
+    #- ToPILImage: {}
+    - Resize:
+        size: 100
+    - ToTensor: {}
+    - Normalize:
+        mean: [0.1307]
+        std: [0.3081]
+  valid:
+    #- ToPILImage: {}
+    - Resize:
+        size: 100
+    - ToTensor: {}
+    - Normalize:
+        mean: [0.1307]
+        std: [0.3081]

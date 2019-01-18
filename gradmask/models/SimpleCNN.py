@@ -1,5 +1,11 @@
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import gradmask.utils.register as register
 
+
+# Taken from the pytorch tutorial: https://github.com/pytorch/examples/tree/master/mnist
+@register.setmodelname("SimpleCNN")
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -40,9 +46,10 @@ class CNN(nn.Module):
             ),
             nn.ReLU(),
         )
-        self.out = nn.Linear(440, 2)
+        self.out = nn.Linear(200, 10)
 
     def forward(self, x):
+
         x = self.conv1(x)
         x = x.view(x.size(0), -1)
         output = self.out(x)
