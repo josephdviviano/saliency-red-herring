@@ -11,7 +11,7 @@ class TNTDataset(Dataset):
 
     'Tumor-NoTumor Dataset loader for PyTorch'
 
-    def __init__(self, tntpath, subset="train", mask_idx=[], transform=None, blur=0):
+    def __init__(self, tntpath='/data/lisa/data/brats2013_tumor-notumor/', subset="train", mask_idx=[], transform=None, blur=0):
         self.tntpath = tntpath
         self.subset = subset
         self.datapath = os.path.join(self.tntpath, self.subset)

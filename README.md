@@ -4,8 +4,8 @@
 
 Create a virtual environment:
 ```
-virtualenv .env
-source .env/bin/activate
+conda create -n gradmask python=3.5
+source activate gradmask # Need to run this everytime we want to run the project.
 ```
 
 then install the requirements as well as the project:

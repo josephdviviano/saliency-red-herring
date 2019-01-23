@@ -91,7 +91,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
 
     for batch_idx, (data, target) in enumerate(tqdm(train_loader)):
 
-        use_mask = torch.ones((len(target)))
+        use_mask = torch.ones((len(target))) # TODO change here.
         optimizer.zero_grad()
         data, target, use_mask = data.to(device), target.to(device), use_mask.to(device)
         data.requires_grad=True

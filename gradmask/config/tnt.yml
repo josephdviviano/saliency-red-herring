@@ -15,15 +15,11 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    MNIST:
-      root: './data'
-      train: True
-      download: True
+    TNTDataset:
+      subset: 'train'
   valid:
-    MNIST:
-      root: './data'
-      train: False
-      download: True
+    TNTDataset:
+      subset: 'valid'
 
 # Model
 model:
