@@ -7,7 +7,7 @@ import gradmask.utils.register as register
 # Taken from the pytorch tutorial: https://github.com/pytorch/examples/tree/master/mnist
 @register.setmodelname("SimpleCNN")
 class CNN(nn.Module):
-    def __init__(self):
+    def __init__(self, flat_layer=440, num_class=2):
         super(CNN, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(
@@ -46,7 +46,7 @@ class CNN(nn.Module):
             ),
             nn.ReLU(),
         )
-        self.out = nn.Linear(200, 10)
+        self.out = nn.Linear(flat_layer, num_class)
 
     def forward(self, x):
 

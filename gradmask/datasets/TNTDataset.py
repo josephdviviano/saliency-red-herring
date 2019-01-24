@@ -5,13 +5,14 @@ from skimage.io import imread, imsave
 from PIL import Image
 import skimage.filters
 import gradmask.utils.register as register
+import torch
 
 @register.setdatasetname("TNTDataset")
 class TNTDataset(Dataset):
 
     'Tumor-NoTumor Dataset loader for PyTorch'
 
-    def __init__(self, tntpath='/data/lisa/data/brats2013_tumor-notumor/', subset="train", mask_idx=[], transform=None, blur=0):
+    def __init__(self, tntpath='/network/data1/brats2013_tumor-notumor/', subset="train", mask_idx=[], transform=None, blur=0):
         self.tntpath = tntpath
         self.subset = subset
         self.datapath = os.path.join(self.tntpath, self.subset)
@@ -52,4 +53,4 @@ class TNTDataset(Dataset):
 
         has_tumor = ("True" in filename)
 
-        return (flair, flair, seg), has_tumor, float(index in self.mask_idx)
+        return (flair, seg), has_tumor, float(index in self.mask_idx)

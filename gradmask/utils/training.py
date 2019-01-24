@@ -89,24 +89,23 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
 
     model.train()
 
-    for batch_idx, (data, target) in enumerate(tqdm(train_loader)):
+    for batch_idx, (data, target, use_mask) in enumerate(tqdm(train_loader)):
 
-        use_mask = torch.ones((len(target))) # TODO change here.
+        #use_mask = torch.ones((len(target))) # TODO change here.
         optimizer.zero_grad()
-        data, target, use_mask = data.to(device), target.to(device), use_mask.to(device)
-        data.requires_grad=True
+        
+        x, seg = data
+        x, seg, target, use_mask = x.to(device), seg.to(device), target.to(device), use_mask.to(device)
+        x.requires_grad=True
 
-        # To change
-        seg = data
-
-        class_output, representation = model(data)
+        class_output, representation = model(x)
 
         loss = criterion(class_output, target)
 
         # TODO: this place if suuuuper slow. Should be optimized by using advance indexing or something.
         if penalise_grad:
             input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(),  # select the non healthy class
-                                    inputs=data, allow_unused=True,
+                                    inputs=x, allow_unused=True,
                                     create_graph=True)[0]
 
             # only apply to positive examples
@@ -135,9 +134,10 @@ def test_epoch(model, device, data_loader, criterion):
     predictions = []
 
     with torch.no_grad():
-        for (data, target) in data_loader:
-            data, target = data.to(device), target.to(device)
-            class_output, representation = model(data)
+        for (data, target, use_mask) in data_loader:
+
+            x, seg, target = data[0].to(device), data[1].to(device), target.to(device)
+            class_output, representation = model(x)
             
             data_loss += criterion(class_output, target).sum().item() # sum up batch loss
             

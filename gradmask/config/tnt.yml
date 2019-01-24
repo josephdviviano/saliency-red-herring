@@ -19,7 +19,7 @@ dataset:
       subset: 'train'
   valid:
     TNTDataset:
-      subset: 'valid'
+      subset: 'train'
 
 # Model
 model:
