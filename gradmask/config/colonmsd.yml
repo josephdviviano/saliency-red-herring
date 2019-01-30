@@ -1,0 +1,40 @@
+# General
+seed: 1234
+cuda: True
+nsamples: 64
+maxmasks: 8
+penalise_grad: True
+
+# Training
+epoch: 2
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    ColonMSDDataset:
+      mode: 'train'
+  valid:
+    ColonMSDDataset:
+      mode: 'valid'
+  test:
+    ColonMSDDataset:
+      mode: 'test'
+
+# Model
+model:
+  SimpleCNN: 
+    flat_layer: 200
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: 0.001
+
+transform:
+        train: {}
+        valid: {}
+        test: {}
