@@ -2,6 +2,7 @@ import time
 import json
 import os
 from collections import OrderedDict
+import pickle as pkl
 
 # A very basic logging setup to get a minimum of monitoring.
 # You can do a better one.
@@ -33,3 +34,11 @@ def log_experiment_csv(config, stuff, folder='logs', file_name="experiment_table
         # Add the metrics and whatnot
         line = [tt, sha] + list(stuff) + [cc] + list(OrderedDict(config).values())
         writer.writerow(line)
+
+def save_metrics(metrics, folder='logs', file_name='metrics.pkl'):
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
+    pkl.dump(metrics, open(os.path.join(folder, file_name), 'wb'))
+

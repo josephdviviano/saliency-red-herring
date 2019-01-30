@@ -10,6 +10,8 @@ from collections import OrderedDict
 import copy
 import gradmask.utils.configuration as configuration
 import gradmask.utils.monitoring as monitoring
+import time
+
 
 _LOG = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ def train(cfg):
     nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
+    log_folder = "logs/{}".format(time.asctime())
 
     device = 'cuda' if cuda else 'cpu'
 
@@ -38,10 +41,12 @@ def train(cfg):
     # transform
     tr_train = configuration.setup_transform(cfg, 'train')
     tr_valid = configuration.setup_transform(cfg, 'valid')
+    tr_test= configuration.setup_transform(cfg, 'test')
 
     # The dataset
     dataset_train = configuration.setup_dataset(cfg, 'train')(tr_train)
     dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
+    dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
 
     # Dataloader
     train_loader = torch.utils.data.DataLoader(dataset_train,
@@ -51,7 +56,11 @@ def train(cfg):
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'])
 
-    # Model
+    test_loader = torch.utils.data.DataLoader(dataset_test, 
+                                                batch_size=cfg['batch_size'],
+                                                shuffle=cfg['shuffle'])
+
+    
     model = configuration.setup_model(cfg).to(device)
     print(model)
     # TODO: checkpointing
@@ -64,6 +73,8 @@ def train(cfg):
 
     # Aaaaaannnnnd, here we go!
     best_metric = 0.
+    metrics = []
+
     for epoch in range(num_epoch):
 
         train_epoch(epoch=epoch,
@@ -74,14 +85,33 @@ def train(cfg):
                     criterion=criterion,
                     penalise_grad=penalise_grad)
 
-        metric = test_epoch(model=model,
+        auc_valid = test_epoch(model=model,
                       device=device,
                       data_loader=valid_loader,
                       criterion=criterion)
 
-        if metric > best_metric:
-            best_metric = metric
+        if auc_valid > best_metric:
+            best_metric = auc_valid
 
+        # Save monitor the auc/loss, etc.
+        auc_test = test_epoch(model=model,
+                      device=device,
+                      data_loader=test_loader,
+                      criterion=criterion)
+
+        stat = {"epoch": epoch,
+                "trainloss": -1,# TODO np.asarray(batch_loss).mean(),
+                "validauc": auc_valid,
+                "testauc": auc_test}
+        stat.update(cfg)
+
+        metrics.append(stat)
+
+        if epoch % 20 == 0:
+            monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
+        
+
+    monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
     monitoring.log_experiment_csv(cfg, [best_metric])
     return best_metric
 
