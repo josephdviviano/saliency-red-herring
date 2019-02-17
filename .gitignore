@@ -1,0 +1,7 @@
+**.egg-info
+*.pyc
+*.csv
+*.env
+**/logs
+*.idea
+
