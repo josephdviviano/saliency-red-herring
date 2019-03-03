@@ -10,7 +10,7 @@ def run():
 @run.command()
 @click.option('--config', '-cgf', type=click.Path(exists=True, resolve_path=True), help='Configuration file.')
 @click.option('-seed', type=int, help='Seed for split and model')
-@click.option('-penalise_grad', type=bool, help='penalise_grad')
+@click.option('-penalise_grad', type=str, help='penalise_grad')
 def train(config, seed, penalise_grad):
     cfg = configuration.load_config(config)
     if not seed is None:

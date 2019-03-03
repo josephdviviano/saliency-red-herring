@@ -77,13 +77,13 @@ def train(cfg):
 
     for epoch in range(num_epoch):
 
-        train_epoch(epoch=epoch,
-                    model=model,
-                    device=device,
-                    optimizer=optim,
-                    train_loader=train_loader,
-                    criterion=criterion,
-                    penalise_grad=penalise_grad)
+        avg_loss = train_epoch( epoch=epoch,
+                                model=model,
+                                device=device,
+                                optimizer=optim,
+                                train_loader=train_loader,
+                                criterion=criterion,
+                                penalise_grad=penalise_grad)
 
         auc_valid = test_epoch(model=model,
                       device=device,
@@ -100,7 +100,7 @@ def train(cfg):
                       criterion=criterion)
 
         stat = {"epoch": epoch,
-                "trainloss": -1,# TODO np.asarray(batch_loss).mean(),
+                "trainloss": avg_loss, 
                 "validauc": auc_valid,
                 "testauc": auc_test}
         stat.update(cfg)
@@ -118,7 +118,7 @@ def train(cfg):
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad):
 
     model.train()
-
+    avg_loss = []
     for batch_idx, (data, target, use_mask) in enumerate(tqdm(train_loader)):
 
         #use_mask = torch.ones((len(target))) # TODO change here.
@@ -134,9 +134,18 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
 
         # TODO: this place if suuuuper slow. Should be optimized by using advance indexing or something.
         if penalise_grad:
-            input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(),  # select the non healthy class
-                                    inputs=x, allow_unused=True,
-                                    create_graph=True)[0]
+            if penalise_grad == "contrast":
+                # d(y_0-y_1)/dx
+                input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 0]-class_output[:, 1]).sum(),
+                                        inputs=x, allow_unused=True,
+                                        create_graph=True)[0]
+            elif penalise_grad == "nonhealthy":
+                # select the non healthy class d(y_1)/dx
+                input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(), 
+                                        inputs=x, allow_unused=True,
+                                        create_graph=True)[0]
+            else:
+                raise Exception("Unknown style of penalise_grad. Must be contrast or nonhealthy")
 
             # only apply to positive examples
             input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
@@ -151,9 +160,11 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
             gradmask_loss = gradmask_loss.sum()
             loss = loss + gradmask_loss
 
+        avg_loss.append(loss.detach().cpu().numpy())
         loss.backward()
 
         optimizer.step()
+    return np.mean(avg_loss)
 
 def test_epoch(model, device, data_loader, criterion):
 
@@ -177,7 +188,7 @@ def test_epoch(model, device, data_loader, criterion):
     auc = accuracy_score(np.concatenate(targets), np.concatenate(predictions).argmax(axis=1))
 
     data_loss /= len(data_loader.dataset)
-    print('\nAverage loss: {:.4f}, AUC: {:.4f}\n'.format(data_loss, auc))
+    print('Average test loss: {:.4f}, Test AUC: {:.4f}'.format(data_loss, auc))
     return auc
 
 def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, train_function=train):
