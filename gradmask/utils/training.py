@@ -133,7 +133,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         loss = criterion(class_output, target)
 
         # TODO: this place if suuuuper slow. Should be optimized by using advance indexing or something.
-        if penalise_grad:
+        if penalise_grad != "False":
             if penalise_grad == "contrast":
                 # d(y_0-y_1)/dx
                 input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 0]-class_output[:, 1]).sum(),
