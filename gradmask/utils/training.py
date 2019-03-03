@@ -8,8 +8,8 @@ import numpy as np
 import random
 from collections import OrderedDict
 import copy
-import gradmask.utils.configuration as configuration
-import gradmask.utils.monitoring as monitoring
+import utils.configuration as configuration
+import utils.monitoring as monitoring
 import time
 
 
