@@ -1,6 +1,7 @@
 import click
 import utils.training as training
 import utils.configuration as configuration
+import collections
 
 @click.group()
 def run():
@@ -8,8 +9,11 @@ def run():
 
 @run.command()
 @click.option('--config', '-cgf', type=click.Path(exists=True, resolve_path=True), help='Configuration file.')
-def train(config):
+@click.option('-seed', type=int, help='Seed for split and model')
+def train(config, seed):
     cfg = configuration.load_config(config)
+    if not seed is None:
+        cfg["seed"] = seed
     training.train(cfg)
 
 @run.command()
