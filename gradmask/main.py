@@ -1,6 +1,7 @@
 import click
-import gradmask.utils.training as training
-import gradmask.utils.configuration as configuration
+import utils.training as training
+import utils.configuration as configuration
+import collections
 
 @click.group()
 def run():
@@ -8,8 +9,14 @@ def run():
 
 @run.command()
 @click.option('--config', '-cgf', type=click.Path(exists=True, resolve_path=True), help='Configuration file.')
-def train(config):
+@click.option('-seed', type=int, help='Seed for split and model')
+@click.option('-penalise_grad', type=str, help='penalise_grad')
+def train(config, seed, penalise_grad):
     cfg = configuration.load_config(config)
+    if not seed is None:
+        cfg["seed"] = seed
+    if not penalise_grad is None:
+        cfg["penalise_grad"] = penalise_grad
     training.train(cfg)
 
 @run.command()

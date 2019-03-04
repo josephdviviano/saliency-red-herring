@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-import os
+import os, os.path
 import skimage, skimage.transform
 from skimage.io import imread, imsave
 from PIL import Image
@@ -10,7 +10,8 @@ import numpy as np
 import collections
 import torchvision.transforms
 import torchvision.transforms.functional as TF
-import gradmask.utils.register as register
+import h5py, ntpath
+import utils.register as register
 
 def extract_samples(data, image_path, label_path):
     image_data, _ = medpy.io.load(image_path)
@@ -23,6 +24,39 @@ def extract_samples(data, image_path, label_path):
     
     for i in range(image_data.shape[0]):
         data.append((image_data[i],seg_data[i],labels[i]))
+        
+def extract_samples2(data, labels, image_path, label_path):
+    image_data, _ = medpy.io.load(image_path)
+    image_data = image_data.transpose(2,0,1)
+    seg_data, _ = medpy.io.load(label_path)
+    seg_data = seg_data.transpose(2,0,1)
+    these_labels = seg_data.sum((1,2)) > 1
+    
+    print (collections.Counter(these_labels))
+    
+    for i in range(image_data.shape[0]):
+        data.append([image_data[i],seg_data[i]])
+        labels.append(these_labels[i])
+
+        
+def compute_hdf5(dataroot, files, hdf5_name):
+    
+    with h5py.File(hdf5_name,"w") as hf:
+        for i, p in enumerate(files):
+            print(p["image"], p["label"])
+            name = ntpath.basename(p["image"])
+
+            grp = hf.create_group(name)
+            grp.attrs['name'] = name
+            grp.attrs['author'] = "jpc"
+
+            samples = []
+            labels = []
+
+            extract_samples2(samples, labels, dataroot + p["image"], dataroot + p["label"])
+
+            grp.create_dataset("slices",data=samples)
+            grp.create_dataset("labels",data=labels)
 
 #https://discuss.pytorch.org/t/torchvision-transfors-how-to-perform-identical-transform-on-both-image-and-target/10606
 def transform(image, mask, is_train):
@@ -59,42 +93,53 @@ def transform(image, mask, is_train):
         mask = TF.to_tensor(mask)
         return image, mask
 
+
+cached_msd_ref = {}
+    
 class MSDDataset(Dataset):
 
-    def __init__(self, mode, dataroot='/network/data1/MSD/MSD/Task06_Lung/', max_files = 10, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None):
+    def __init__(self, mode, dataroot, max_files = 10, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None):
         
         self.mode = mode
         self.dataroot = dataroot
-        self.dataset = json.load(open(dataroot + "dataset.json"))
-       
-        #import ipdb; ipdb.set_trace()
-        #files = sorted(self.dataset["training"])
-        files = self.dataset['training']
-
+        
+        filename = self.dataroot + "/msd_gz.hdf5"
+        if not os.path.isfile(filename):
+            print("Computing hdf5 file of the data")
+            dataset = json.load(open(self.dataroot + "/dataset.json"))
+            files = dataset['training']
+            compute_hdf5(self.dataroot, files, filename)
+            
+        #store cached reference so we can load the valid and test faster
+        if not dataroot in cached_msd_ref:
+            cached_msd_ref[dataroot] = h5py.File(filename,"r")
+        self.dataset = cached_msd_ref[dataroot]
+        
+        all_files = sorted(list(self.dataset.keys()))
+        
+        all_labels = np.concatenate([self.dataset[i]["labels"] for i in all_files])
+        print ("Full dataset contains: " + str(collections.Counter(all_labels)))
+        
         np.random.seed(seed)
-        np.random.shuffle(files)
+        np.random.shuffle(all_files)
         
         print("mode=" + self.mode)
         if self.mode == "train":
-            self.files = files[:max_files]
+            self.files = all_files[:max_files]
         elif self.mode == "valid":
-            self.files = files[-max_files*2:-max_files]
+            self.files = all_files[-max_files*2:-max_files]
         elif self.mode == "test":
-            self.files = files[-max_files:]
+            self.files = all_files[-max_files:]
         else:
             raise Exception("Unknown mode")
         
-        self.samples = []
-        for i, p in enumerate(self.files):
-            print(p["image"], p["label"])
-
-            extract_samples(self.samples, self.dataroot + p["image"], self.dataroot + p["label"])
-
-        self.labels = np.asarray([s[2] for s in self.samples])
+        print("Loading {} files:".format(len(self.files)) + str(self.files))
+        self.samples = np.concatenate([self.dataset[i]["slices"] for i in self.files])
+        self.labels = np.concatenate([self.dataset[i]["labels"] for i in self.files])
         #self.transform = transform
         self.blur = blur
         
-        print (collections.Counter(self.labels))
+        print ("Loaded images contain:" + str(collections.Counter(self.labels)))
         
         self.idx = np.arange(self.labels.shape[0])
         
@@ -106,18 +151,22 @@ class MSDDataset(Dataset):
         self.idx = np.append(class1, class0)
         
         #these should be in order
+        self.samples = self.samples[self.idx]
         self.labels = self.labels[self.idx]
+        
+        print ("This dataloader contains:" + str(collections.Counter(self.labels)))
         
         # the samples start with labelled ones. past half there should be no labels
         self.mask_idx = self.idx[:maxmasks]
         # transform does nothing, it's pass in parameter only to make it compatible with everything else.
 
     def __len__(self):
-        return len(self.idx)
+        return len(self.samples)
 
     def __getitem__(self, index):
         
-        image,seg,label = self.samples[self.idx[index]]
+        image,seg = self.samples[index]
+        label = self.labels[index]
 
         image = Image.fromarray(image)
         #if self.transform != None:
@@ -140,12 +189,12 @@ class MSDDataset(Dataset):
 
         return (image, seg), int(label), float(self.idx[index] in self.mask_idx)
 
-@register.setdatasetname('LungMSDDataset')
+@register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', **kwargs)
+        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', max_files = 3, **kwargs)
 
-@register.setdatasetname('ColonMSDDataset')
+@register.setdatasetname("ColonMSDDataset")
 class ColonMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
         super().__init__(dataroot='/network/data1/MSD/MSD/Task10_Colon/', **kwargs)
