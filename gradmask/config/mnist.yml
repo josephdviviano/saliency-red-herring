@@ -24,6 +24,11 @@ dataset:
       root: './data'
       train: False
       download: True
+  test:
+    MNIST:
+      root: './data'
+      train: False
+      download: True
 
 # Model
 model:
@@ -45,6 +50,14 @@ transform:
         mean: [0.1307]
         std: [0.3081]
   valid:
+    #- ToPILImage: {}
+    - Resize:
+        size: 100
+    - ToTensor: {}
+    - Normalize:
+        mean: [0.1307]
+        std: [0.3081]
+  test:
     #- ToPILImage: {}
     - Resize:
         size: 100
