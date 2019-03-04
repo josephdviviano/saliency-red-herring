@@ -24,8 +24,15 @@ def train(cfg):
     nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
-    log_folder = "logs/{}".format(time.asctime())
-
+    
+    ncfg = dict(cfg)
+    del ncfg["cuda"]
+    del ncfg["epoch"]
+    del ncfg["transform"]
+    ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
+    log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","(").replace("}",")")
+    print("Log folder:" + log_folder)
+    
     device = 'cuda' if cuda else 'cpu'
 
     # Setting the seed.
