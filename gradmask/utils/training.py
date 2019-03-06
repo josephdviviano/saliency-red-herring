@@ -15,6 +15,38 @@ import time
 
 _LOG = logging.getLogger(__name__)
 
+
+def process_config(config):
+    """
+        Here to deconstruct the config file from nested dicts into a flat structure
+    """
+    output_dict = {}
+    for mode in ['train', 'valid','test']:
+        for key, item in config.items():
+            if type(config[key]) == dict:
+                # if the 'value' is actually a dict, iterate through and collect train/valid/test values
+                try:
+                    # config is of the form main_key: train/test/valid: key_val: more_key_val_pairs
+                    sub_dict = config[key][mode]
+                    main_key_value = list(sub_dict.keys())[0]
+                    output_dict["{}_{}".format(mode, key)] = main_key_value
+                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
+                    for k, i in sub_sub_dict.items():
+                        output_dict["{}_{}_{}".format(mode, key, k)] = i # so we don't have e.g. train_dataset_MSD_mode
+                except:
+                    # config is of the form main_key: key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.001
+                    sub_dict = config[key]
+                    main_key_value = list(sub_dict.keys())[0]
+                    output_dict[key] = main_key_value
+                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
+                    for k, i in sub_sub_dict.items():
+                        output_dict["{}_{}".format(key, k)] = i
+            else:
+                # standard key: val pair
+                output_dict[key] = item
+    return output_dict
+
+
 def train(cfg):
 
     print("Our config:", cfg)
@@ -110,7 +142,7 @@ def train(cfg):
                 "trainloss": avg_loss, 
                 "validauc": auc_valid,
                 "testauc": auc_test}
-        stat.update(cfg)
+        stat.update(process_config(cfg))
 
         metrics.append(stat)
 
@@ -121,6 +153,7 @@ def train(cfg):
     monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
     monitoring.log_experiment_csv(cfg, [best_metric])
     return best_metric
+
 
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad):
 
@@ -173,6 +206,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         optimizer.step()
     return np.mean(avg_loss)
 
+
 def test_epoch(model, device, data_loader, criterion):
 
     model.eval()
@@ -197,6 +231,7 @@ def test_epoch(model, device, data_loader, criterion):
     data_loss /= len(data_loader.dataset)
     print('Average test loss: {:.4f}, Test AUC: {:.4f}'.format(data_loss, auc))
     return auc
+
 
 def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, train_function=train):
 
