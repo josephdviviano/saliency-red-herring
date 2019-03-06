@@ -9,6 +9,8 @@ import utils.register as register
 class CNN(nn.Module):
     def __init__(self, flat_layer=440, num_class=2):
         super(CNN, self).__init__()
+        # TODO: Take this out of sequential and have a var to capture activations per layer
+        #       or see whether per layer activations can be accessed within sequential
         self.conv1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,
@@ -49,7 +51,7 @@ class CNN(nn.Module):
         self.out = nn.Linear(flat_layer, num_class)
 
     def forward(self, x):
-
+        # TODO: store all activations per layer with each pass (if they can't be accessed via sequential)
         x = self.conv1(x)
         x = x.view(x.size(0), -1)
         output = self.out(x)
