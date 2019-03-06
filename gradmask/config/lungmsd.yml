@@ -3,10 +3,10 @@ seed: 1234
 cuda: True
 nsamples: 64
 maxmasks: 8
-penalise_grad: True
+penalise_grad: 'contrast'
 
 # Training
-epoch: 2
+epoch: 10
 
 # DataLoader
 batch_size: 32

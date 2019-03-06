@@ -103,10 +103,10 @@ class MSDDataset(Dataset):
         self.mode = mode
         self.dataroot = dataroot
         
-        filename = self.dataroot + "/msd_gz.hdf5"
+        filename = self.dataroot + "msd_gz.hdf5"
         if not os.path.isfile(filename):
             print("Computing hdf5 file of the data")
-            dataset = json.load(open(self.dataroot + "/dataset.json"))
+            dataset = json.load(open(self.dataroot + "dataset.json"))
             files = dataset['training']
             compute_hdf5(self.dataroot, files, filename)
             
