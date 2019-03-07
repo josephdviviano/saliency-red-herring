@@ -8,7 +8,7 @@ blur: 0
 maxmasks: 64
 
 # Training
-epoch: 100
+num_epochs: 100
 
 # DataLoader
 batch_size: 32

@@ -52,7 +52,7 @@ def train(cfg):
     print("Our config:", cfg)
     seed = cfg['seed']
     cuda = cfg['cuda']
-    num_epoch = cfg['epoch']
+    num_epochs = cfg['num_epochs']
     nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
@@ -114,7 +114,7 @@ def train(cfg):
     best_metric = 0.
     metrics = []
 
-    for epoch in range(num_epoch):
+    for epoch in range(num_epochs):
 
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
