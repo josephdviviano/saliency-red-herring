@@ -12,7 +12,7 @@ def run():
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-penalise_grad', type=str, help='penalise_grad')
 @click.option('-nsamples', type=int, help='nsamples')
-def train(config, seed, penalise_grad):
+def train(config, seed, penalise_grad, nsamples):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
