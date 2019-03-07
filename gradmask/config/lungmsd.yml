@@ -3,7 +3,7 @@ seed: 1234
 cuda: True
 nsamples: 64
 maxmasks: 8
-penalise_grad: 'contrast'
+penalise_grad: 'diff_from_ref'
 
 # Training
 epoch: 10
