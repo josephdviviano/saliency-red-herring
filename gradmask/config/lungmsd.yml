@@ -4,9 +4,11 @@ cuda: True
 nsamples: 64
 maxmasks: 8
 penalise_grad: 'contrast'
+blur: 0
+maxmasks: 64
 
 # Training
-epoch: 10
+epoch: 100
 
 # DataLoader
 batch_size: 32

@@ -64,7 +64,11 @@ def setup_dataset(config, split='train'):
         obj = getattr(datasets_from_module, dataset_name)
     else:
         obj = available_datasets[dataset_name]
-
+    dataset_args['nsamples'] = config['nsamples']
+    dataset_args['seed'] = config['seed']
+    dataset_args['blur'] = config['blur']
+    dataset_args['maxmasks'] = config['maxmasks']
+    print("dataset_args:", dataset_args)
     dataset = lambda transform: obj(transform=transform, **dataset_args)
     return dataset
 
