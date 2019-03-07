@@ -199,17 +199,17 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 print("Activation lengths: ", len(model.all_activations))
                 for i in range(len(model.all_activations)):
                     a = model.all_activations[i]
-                    print("Activation shape: ", a.shape)
+                    # print("Activation shape: ", a.shape)
                     
                     healthy_batch = healthy_mask * a
-                    print("Healthy batch: ", healthy_batch.shape)
+                    # print("Healthy batch: ", healthy_batch.shape)
                     
                     # 2) detach grads for the healthy samples
                     healthy_batch = healthy_batch.detach()
                 
                     # 3) get batch-wise average of activations per layer
                     batch_avg_healthy = torch.mean(healthy_batch, dim=0)
-                    print("Healthy batch avg: ", batch_avg_healthy.shape)
+                    # print("Healthy batch avg: ", batch_avg_healthy.shape)
                     
                     # 4) update global reference layer average in model's deep_lift_ref attr
                     if len(model.ref) < len(model.all_activations):
