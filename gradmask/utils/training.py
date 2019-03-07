@@ -59,7 +59,7 @@ def train(cfg):
     
     ncfg = dict(cfg)
     del ncfg["cuda"]
-    del ncfg["epoch"]
+    del ncfg["num_epochs"]
     del ncfg["transform"]
     ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
     log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","(").replace("}",")")

@@ -12,10 +12,10 @@ _LOG = logging.getLogger(__name__)
 def load_config(config_file):
 
     default_config = {'cuda': True,
-                      'seed': 1234,
+                      'seed': 0,
                       'optimizer': {'Adam': {}},
                       'batch_size': 32,
-                      'epoch': 10,
+                      'num_epochs': 10,
     }
 
     with open(config_file, 'r') as f:
