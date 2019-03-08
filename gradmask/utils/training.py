@@ -115,6 +115,7 @@ def train(cfg):
 
     # Aaaaaannnnnd, here we go!
     best_metric = 0.
+    best_testauc_for_validauc = 0.
     metrics = []
 
     for epoch in range(num_epochs):
@@ -127,24 +128,28 @@ def train(cfg):
                                 criterion=criterion,
                                 penalise_grad=penalise_grad)
 
-        auc_valid = test_epoch(model=model,
-                      device=device,
-                      data_loader=valid_loader,
-                      criterion=criterion)
-
-        if auc_valid > best_metric:
-            best_metric = auc_valid
+        auc_valid = test_epoch(epoch=epoch,
+                               model=model,
+                               device=device,
+                               data_loader=valid_loader,
+                               criterion=criterion)
 
         # Save monitor the auc/loss, etc.
-        auc_test = test_epoch(model=model,
-                      device=device,
-                      data_loader=test_loader,
-                      criterion=criterion)
+        auc_test = test_epoch(epoch=epoch,
+                              model=model,
+                              device=device,
+                              data_loader=test_loader,
+                              criterion=criterion)
+        
+        if auc_valid > best_metric:
+            best_metric = auc_valid
+            best_testauc_for_validauc = auc_test
 
         stat = {"epoch": epoch,
                 "trainloss": avg_loss, 
                 "validauc": auc_valid,
-                "testauc": auc_test}
+                "testauc": auc_test,
+                "best_testauc_for_validauc": best_testauc_for_validauc}
         stat.update(process_config(cfg))
 
         metrics.append(stat)
@@ -155,7 +160,7 @@ def train(cfg):
 
     monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
     monitoring.log_experiment_csv(cfg, [best_metric])
-    return best_metric
+    return best_metric, best_testauc_for_validauc
 
 
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad):
@@ -262,7 +267,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
     return np.mean(avg_loss)
 
 
-def test_epoch(model, device, data_loader, criterion):
+def test_epoch(epoch, model, device, data_loader, criterion):
 
     model.eval()
     data_loss = 0
@@ -284,7 +289,7 @@ def test_epoch(model, device, data_loader, criterion):
     auc = accuracy_score(np.concatenate(targets), np.concatenate(predictions).argmax(axis=1))
 
     data_loss /= len(data_loader.dataset)
-    print('Average test loss: {:.4f}, Test AUC: {:.4f}'.format(data_loss, auc))
+    print(epoch, 'Average test loss: {:.4f}, Test AUC: {:.4f}'.format(data_loss, auc))
     return auc
 
 
