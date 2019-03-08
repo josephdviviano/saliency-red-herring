@@ -10,7 +10,7 @@ from collections import OrderedDict
 import copy
 import utils.configuration as configuration
 import utils.monitoring as monitoring
-import time
+import time, os, sys
 
 
 _LOG = logging.getLogger(__name__)
@@ -64,6 +64,9 @@ def train(cfg):
     ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
     log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","(").replace("}",")")
     print("Log folder:" + log_folder)
+    if os.path.isdir(log_folder):
+        print("Log folder exists. Will exit.")
+        sys.exit(0)
     
     device = 'cuda' if cuda else 'cpu'
 
