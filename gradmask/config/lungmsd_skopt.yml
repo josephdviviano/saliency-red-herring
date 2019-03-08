@@ -2,12 +2,10 @@
 seed: &seed 1234
 cuda: True
 nsamples: &nsamples 64
-maxmasks: &maxmasks 8
 penalise_grad: 'contrast'
-blur: &blur 0
 
 # Training
-num_epochs: 100
+num_epochs: 10
 
 # DataLoader
 batch_size: 32
@@ -20,8 +18,8 @@ dataset:
       mode: 'train'
       seed: *seed
       nsamples: *nsamples
-      maxmasks: *maxmasks
-      blur: *blur
+      maxmasks: &maxmasks "Integer(0, 64)"
+      blur: &blur "Integer(0, 5)"
   valid:
     LungMSDDataset:
       mode: 'valid'
@@ -45,7 +43,7 @@ model:
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.001
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
 
 transform:
         train: {}
@@ -55,6 +53,6 @@ transform:
 # mlflow experiment manager
 manager:
     set_experiment:
-        name: 'testing123' # Experience name
+        name: 'testing123_skopt' # Experience name
     set_tracking_uri:
         uri: '' # Link or url to where to store the logs. Default is `./mlruns`

@@ -8,10 +8,12 @@ import numpy as np
 import random
 from collections import OrderedDict
 import copy
-import utils.configuration as configuration
-import utils.monitoring as monitoring
+import gradmask.utils.configuration as configuration
+import gradmask.utils.monitoring as monitoring
 import time, os, sys
-
+import gradmask.manager.mlflow.logger as mlflow_logger
+import itertools
+import gradmask.notebooks.auto_ipynb as auto_ipynb
 
 _LOG = logging.getLogger(__name__)
 
@@ -45,16 +47,14 @@ def process_config(config):
                 # standard key: val pair
                 output_dict[key] = item
     return output_dict
-
-
-def train(cfg):
+@mlflow_logger.log_experiment(nested=True)
+@mlflow_logger.log_metric('best_metric', 'best_testauc_for_validauc')
+def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recompile=True):
 
     print("Our config:", cfg)
     seed = cfg['seed']
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
-    nsamples = cfg['nsamples']
-    maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
     
     ncfg = dict(cfg)
@@ -86,9 +86,10 @@ def train(cfg):
     tr_test= configuration.setup_transform(cfg, 'test')
 
     # The dataset
-    dataset_train = configuration.setup_dataset(cfg, 'train')(tr_train)
-    dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
-    dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
+    if recompile:
+        dataset_train = configuration.setup_dataset(cfg, 'train')(tr_train)
+        dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
+        dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
 
     # Dataloader
     train_loader = torch.utils.data.DataLoader(dataset_train,
@@ -118,6 +119,10 @@ def train(cfg):
     best_testauc_for_validauc = 0.
     metrics = []
 
+    # Wrap the function for mlflow. Don't worry buddy, if you don't have mlflow it will still work.
+    valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
+    test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
+
     for epoch in range(num_epochs):
 
         avg_loss = train_epoch( epoch=epoch,
@@ -128,14 +133,15 @@ def train(cfg):
                                 criterion=criterion,
                                 penalise_grad=penalise_grad)
 
-        auc_valid = test_epoch(epoch=epoch,
+
+        auc_valid = valid_wrap_epoch(epoch=epoch,
                                model=model,
                                device=device,
                                data_loader=valid_loader,
                                criterion=criterion)
 
         # Save monitor the auc/loss, etc.
-        auc_test = test_epoch(epoch=epoch,
+        auc_test = test_wrap_epoch(epoch=epoch,
                               model=model,
                               device=device,
                               data_loader=test_loader,
@@ -159,10 +165,12 @@ def train(cfg):
         
 
     monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
-    monitoring.log_experiment_csv(cfg, [best_metric])
-    return best_metric, best_testauc_for_validauc
 
+    return best_metric, best_testauc_for_validauc, {'dataset_train': dataset_train,
+                                                    'dataset_valid': dataset_valid,
+                                                    'dataset_test': dataset_test} #, best_testauc_for_validauc
 
+@mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad):
 
     model.train()
@@ -266,7 +274,6 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         optimizer.step()
     return np.mean(avg_loss)
 
-
 def test_epoch(epoch, model, device, data_loader, criterion):
 
     model.eval()
@@ -292,7 +299,7 @@ def test_epoch(epoch, model, device, data_loader, criterion):
     print(epoch, 'Average test loss: {:.4f}, Test AUC: {:.4f}'.format(data_loss, auc))
     return auc
 
-
+@mlflow_logger.log_experiment(nested=False)
 def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, train_function=train):
 
     """
@@ -357,12 +364,27 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
                                 n_initial_points=n_initial_points,
                                 random_state=random_state)
 
+    opt_results = None
+    state = {}
+
     for _ in range(n_iter):
 
         # Do a bunch of loops.
         suggestion = optimizer.ask()
         this_cfg = generate_config(cfg, skopt_args, suggestion)
-        optimizer.tell(suggestion, - train_function(this_cfg)) # We minimize the negative accuracy/AUC
+        metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
+
+        opt_results = optimizer.tell(suggestion, - metric) # We minimize the negative accuracy/AUC
 
     # Done! Hyperparameters tuning has never been this easy.
 
+    # Saving the skopt results.
+    try:
+        import mlflow
+        import mlflow.sklearn
+        mlflow.sklearn.log_model(opt_results, 'skopt')
+        dimensions = list(skopt_args.keys())
+        auto_ipynb.to_ipynb(auto_ipynb.plot_optimizer, True, run_uuid=mlflow.active_run()._info.run_uuid, dimensions=dimensions, path='skopt')
+    except:
+        # sorry buddy, the feature you are seeking is not available.
+        pass

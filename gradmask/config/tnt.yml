@@ -1,9 +1,10 @@
 # General
-seed: 1234
+seed: &seed 1234
 cuda: True
-nsamples: 64
-maxmasks: 8
+nsamples: &nsample 64
+maxmasks: &maxmaks 8
 penalise_grad: True
+blur: &blur 3
 
 # Training
 epoch: 2
@@ -17,9 +18,25 @@ dataset:
   train:
     TNTDataset:
       subset: 'train'
+      seed: *seed
+      nsamples: *nsample
+      maxmaks: *nsample
+      blur: *blur
   valid:
     TNTDataset:
-      subset: 'train'
+      subset: 'valid'
+      seed: *seed
+      nsamples: *nsample
+      maxmaks: *nsample
+      blur: *blur
+  test:
+    TNTDataset:
+      subset: 'test'
+      seed: *seed
+      nsamples: *nsample
+      maxmaks: *nsample
+      blur: *blur
+
 
 # Model
 model:
@@ -48,3 +65,18 @@ transform:
     - Normalize:
         mean: [0.1307]
         std: [0.3081]
+  test:
+  #- ToPILImage: {}
+  - Resize:
+      size: 100
+  - ToTensor: {}
+  - Normalize:
+      mean: [0.1307]
+      std: [0.3081]
+
+# mlflow experiment manager
+manager:
+    set_experiment:
+        name: 'testing123' # Experience name
+    set_tracking_uri:
+        uri: '' # Link or url to where to store the logs. Default is `./mlruns`

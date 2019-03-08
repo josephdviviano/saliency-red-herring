@@ -1,7 +1,6 @@
 import click
-import utils.training as training
-import utils.configuration as configuration
-import collections
+import gradmask.training as training
+import gradmask.utils.configuration as configuration
 
 @click.group()
 def run():

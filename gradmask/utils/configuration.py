@@ -2,8 +2,8 @@ import importlib
 import inspect
 import logging
 import yaml
-import models
-import datasets
+import gradmask.models as models
+import gradmask.datasets as datasets
 import torchvision
 
 _LOG = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def setup_dataset(config, split='train'):
     Prepare data generators for training set and optionally for validation set
     """
 
-    available_datasets = get_available_classes(datasets, 'datasets.', '_DG_NAME')
+    available_datasets = get_available_classes(datasets, 'gradmask.datasets.', '_DG_NAME')
     datasets_from_module = importlib.import_module('torchvision.datasets')
 
     dataset_name = list(config['dataset'][split].keys())[0]
@@ -64,10 +64,10 @@ def setup_dataset(config, split='train'):
         obj = getattr(datasets_from_module, dataset_name)
     else:
         obj = available_datasets[dataset_name]
-    dataset_args['nsamples'] = config['nsamples']
-    dataset_args['seed'] = config['seed']
-    dataset_args['blur'] = config['blur']
-    dataset_args['maxmasks'] = config['maxmasks']
+    #dataset_args['nsamples'] = config['nsamples']
+    #dataset_args['seed'] = config['seed']
+    #dataset_args['blur'] = config['blur']
+    #dataset_args['maxmasks'] = config['maxmasks']
     print("dataset_args:", dataset_args)
     dataset = lambda transform: obj(transform=transform, **dataset_args)
     return dataset
@@ -78,7 +78,7 @@ def setup_model(config, yaml_section='model'):
     Prepare model according to config file
     """
 
-    available_models = get_available_classes(models, 'models.', '_MODEL_NAME')
+    available_models = get_available_classes(models, 'gradmask.models.', '_MODEL_NAME')
     models_from_module = importlib.import_module('torchvision.models')
 
     model_name = list(config[yaml_section].keys())[0]
