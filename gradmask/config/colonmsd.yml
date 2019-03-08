@@ -1,12 +1,12 @@
 # General
-seed: 1234
+seed: 0
 cuda: True
 nsamples: 64
 maxmasks: 8
 penalise_grad: True
 
 # Training
-epoch: 2
+num_epochs: 50
 
 # DataLoader
 batch_size: 32

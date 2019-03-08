@@ -10,7 +10,7 @@ from collections import OrderedDict
 import copy
 import utils.configuration as configuration
 import utils.monitoring as monitoring
-import time
+import time, os, sys
 
 
 _LOG = logging.getLogger(__name__)
@@ -52,18 +52,21 @@ def train(cfg):
     print("Our config:", cfg)
     seed = cfg['seed']
     cuda = cfg['cuda']
-    num_epoch = cfg['epoch']
+    num_epochs = cfg['num_epochs']
     nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
     
     ncfg = dict(cfg)
     del ncfg["cuda"]
-    del ncfg["epoch"]
+    del ncfg["num_epochs"]
     del ncfg["transform"]
     ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
     log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","(").replace("}",")")
     print("Log folder:" + log_folder)
+    if os.path.isdir(log_folder):
+        print("Log folder exists. Will exit.")
+        sys.exit(0)
     
     device = 'cuda' if cuda else 'cpu'
 
@@ -114,7 +117,7 @@ def train(cfg):
     best_metric = 0.
     metrics = []
 
-    for epoch in range(num_epoch):
+    for epoch in range(num_epochs):
 
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
