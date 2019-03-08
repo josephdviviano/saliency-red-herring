@@ -175,7 +175,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
 
         loss = criterion(class_output, target)
 
-        # TODO: this place if suuuuper slow. Should be optimized by using advance indexing or something.
+        # TODO: this place is suuuuper slow. Should be optimized by using advance indexing or something.
         if penalise_grad != "False":
             if penalise_grad == "contrast":
                 # d(y_0-y_1)/dx
@@ -187,11 +187,63 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(), 
                                         inputs=x, allow_unused=True,
                                         create_graph=True)[0]
+            elif penalise_grad == "diff_from_ref":
+                # do the deep lift style ref update and diff-to-ref calculations here
+                
+                # update the reference stuff 
+                # 1) mask all_activations to get healthy only
+                healthy_mask = target.float().reshape(-1, 1, 1, 1).clone()
+                healthy_mask[target.float().reshape(-1, 1, 1, 1) == 0] = 1
+                healthy_mask[target.float().reshape(-1, 1, 1, 1) != 0] = 0
+                
+                diff = torch.FloatTensor()
+                diff = diff.to(device)
+                
+                print("Activation lengths: ", len(model.all_activations))
+                for i in range(len(model.all_activations)):
+                    a = model.all_activations[i]
+                    # print("Activation shape: ", a.shape)
+                    
+                    healthy_batch = healthy_mask * a
+                    # print("Healthy batch: ", healthy_batch.shape)
+                    
+                    # 2) detach grads for the healthy samples
+                    healthy_batch = healthy_batch.detach()
+                
+                    # 3) get batch-wise average of activations per layer
+                    batch_avg_healthy = torch.mean(healthy_batch, dim=0)
+                    # print("Healthy batch avg: ", batch_avg_healthy.shape)
+                    
+                    # 4) update global reference layer average in model's deep_lift_ref attr
+                    if len(model.ref) < len(model.all_activations):
+                        # for the first iteration, just make the model.ref == batch_avg_healthy for that layer
+                        model.ref.append(batch_avg_healthy)
+                    else:
+                        # otherwise, a rolling average
+                        model.ref[i] = model.ref[i] * 0.8 + batch_avg_healthy
+                
+                # 5) TODO: somehow incorporate std to allowing regions of variance in the healthy images
+                
+                # use the reference layers to get the diff-to-ref of each layer and output contribution scores
+                # contribution scores should be the input_grads? Should be a single matrix of values for how each input
+                # pixel contributes to the output layer, no? Like all the layer-wise diff-from-ref get condensed into
+                # one thing based on sum(contribution_scores of (delta_x_i, delta_t)) = delta_t
+                # 1) for each layer, t - t0, then mask the unhealthy ones
+                    diff = torch.cat((diff, torch.flatten((a - model.ref[i]) * target.float().reshape(-1, 1, 1, 1))))
+                
+                # 2) flatten, 3) stack or join together somehow?, 4) L1 norm, 5) input grads
+                
+                print(diff.shape)
+                input_grads = torch.autograd.grad(outputs=torch.abs(diff).sum(),
+                                                 inputs=x, allow_unused=True, create_graph=True)[0]
+                
             else:
-                raise Exception("Unknown style of penalise_grad. Must be contrast or nonhealthy")
+                raise Exception("Unknown style of penalise_grad. Options are: contrast, nonhealthy, diff_from_ref")
 
             # only apply to positive examples
-            input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
+            if penalise_grad != "diff_from_ref":
+                # only do it here because the masking happens elsewhere in the diff_from_ref architecture
+                input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
 
             res = input_grads * (1 - seg.float())
             gradmask_loss = epoch * (res ** 2)
