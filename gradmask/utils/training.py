@@ -154,8 +154,8 @@ def train(cfg):
 
         metrics.append(stat)
 
-        if epoch % 20 == 0:
-            monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
+#         if epoch % 20 == 0:
+#             monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
         
 
     monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
