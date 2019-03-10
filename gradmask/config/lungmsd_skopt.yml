@@ -1,0 +1,41 @@
+# General
+seed: 0
+cuda: True
+nsamples: 64
+penalise_grad: 'contrast'
+blur: 'Categorical([0,1,4])'
+maxmasks: 64
+
+# Training
+num_epochs: 2
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    LungMSDDataset:
+      mode: 'train'
+  valid:
+    LungMSDDataset:
+      mode: 'valid'
+  test:
+    LungMSDDataset:
+      mode: 'test'
+
+# Model
+model:
+  SimpleCNN: 
+    flat_layer: 'Categorical([100,200,400])'
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: 'Categorical([0.05,0.005,0.0005])'
+
+transform:
+        train: {}
+        valid: {}
+        test: {}

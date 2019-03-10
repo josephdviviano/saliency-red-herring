@@ -192,7 +192,7 @@ class MSDDataset(Dataset):
 @register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', max_files = 3, **kwargs)
+        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', max_files = 10, **kwargs)
 
 @register.setdatasetname("ColonMSDDataset")
 class ColonMSDDataset(MSDDataset):
