@@ -258,7 +258,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                             gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
 
             gradmask_loss = gradmask_loss.sum()
-            loss = loss + gradmask_loss
+            loss = loss*gradmask_loss
 
         avg_loss.append(loss.detach().cpu().numpy())
         loss.backward()
