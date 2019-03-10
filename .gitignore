@@ -4,4 +4,4 @@
 *.env
 **/logs
 *.idea
-
+slurm*
