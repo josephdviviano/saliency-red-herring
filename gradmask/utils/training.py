@@ -257,7 +257,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
             
             if conditional_reg:
-                certainty_mask = torch.where(torch.softmax(input_grads, dim=1) > 0.8,
+                certainty_mask = torch.where(torch.sigmoid(input_grads) > 0.8,
                                              torch.tensor([1.]).to(device),
                                              torch.tensor([0.]).to(device))
                 print("Certainty_mask: ", certainty_mask.shape, torch.sum(certainty_mask == 1.))
