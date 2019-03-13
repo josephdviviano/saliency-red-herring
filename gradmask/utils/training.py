@@ -57,6 +57,7 @@ def train(cfg):
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
     penalise_grad_usemask = cfg['penalise_grad_usemask']
+    conditional_reg = cfg['conditional_reg']
     
     ncfg = dict(cfg)
     del ncfg["cuda"]
@@ -67,6 +68,7 @@ def train(cfg):
     print("Log folder:" + log_folder)
     if os.path.isdir(log_folder):
         print("Log folder exists. Will exit.")
+        
         sys.exit(0)
     
     device = 'cuda' if cuda else 'cpu'
@@ -128,7 +130,9 @@ def train(cfg):
                                 train_loader=train_loader,
                                 criterion=criterion,
                                 penalise_grad=penalise_grad,
-                                penalise_grad_usemask=penalise_grad_usemask)
+                                penalise_grad_usemask=penalise_grad_usemask,
+                                conditional_reg=conditional_reg
+                              )
 
         auc_valid = test_epoch(epoch=epoch,
                                model=model,
@@ -165,7 +169,7 @@ def train(cfg):
     return best_metric, best_testauc_for_validauc
 
 
-def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemask):
+def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemask, conditional_reg):
 
     model.train()
     avg_loss = []
@@ -236,27 +240,40 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 # pixel contributes to the output layer, no? Like all the layer-wise diff-from-ref get condensed into
                 # one thing based on sum(contribution_scores of (delta_x_i, delta_t)) = delta_t
                 # 1) for each layer, t - t0, then mask the unhealthy ones
-                    diff = torch.cat((diff, torch.flatten((a - model.ref[i]) * target.float().reshape(-1, 1, 1, 1))))
-                
                 # 2) flatten, 3) stack or join together somehow?, 4) L1 norm, 5) input grads
+                    diff = torch.cat((diff, torch.flatten((a - model.ref[i]) * target.float().reshape(-1, 1, 1, 1))))
                 
                 print(diff.shape)
                 input_grads = torch.autograd.grad(outputs=torch.abs(diff).sum(),
                                                  inputs=x, allow_unused=True, create_graph=True)[0]
+            
+            elif penalise_grad == "masd_style":
+                # In the style of the Model-Agnostic Saliency Detector paper: https://arxiv.org/pdf/1807.07784.pdf
                 
+                print(class_output.shape, representation.shape)
+                # outputs should now be: abs(diff(area_seg - area_saliency_map)) + 
+                # WIP
             else:
                 raise Exception("Unknown style of penalise_grad. Options are: contrast, nonhealthy, diff_from_ref")
 
             # only apply to positive examples
             if penalise_grad != "diff_from_ref":
                 # only do it here because the masking happens elsewhere in the diff_from_ref architecture
+                print("target mask: ", target.float().reshape(-1, 1, 1, 1).shape)
                 input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
 
+            if conditional_reg:
+                temp_softmax = torch.softmax(class_output, dim=1).detach()
+                certainty_mask = 1 - torch.argmax((temp_softmax > 0.95).float(), dim=1)
+                input_grads = certainty_mask.float().reshape(-1, 1, 1, 1) * input_grads
+            
             if penalise_grad_usemask:
                 res = input_grads * (1 - seg.float())
             else:
                 res = input_grads
-                
+
+            #res = input_grads * (1 - seg.float())
+
             gradmask_loss = epoch * (res ** 2)
 
             # Simulate that we only have some masks
@@ -264,7 +281,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                             gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
 
             gradmask_loss = gradmask_loss.sum()
-            loss = loss*gradmask_loss
+            loss = loss + loss*gradmask_loss
 
         avg_loss.append(loss.detach().cpu().numpy())
         loss.backward()

@@ -4,6 +4,7 @@ cuda: True
 nsamples: 64
 maxmasks: 8
 penalise_grad: True
+conditional_reg: True
 
 # Training
 num_epochs: 50
