@@ -3,9 +3,10 @@ seed: 1234
 cuda: True
 nsamples: 64
 maxmasks: 8
-penalise_grad: 'contrast'
+penalise_grad: 'masd_style'
 blur: 0
 maxmasks: 64
+conditional_reg: True
 
 # Training
 num_epochs: 100
