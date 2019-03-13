@@ -250,25 +250,22 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 
                 print(class_output.shape, representation.shape)
                 # outputs should now be: abs(diff(area_seg - area_saliency_map)) + 
-                input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(), 
-                                        inputs=x, allow_unused=True,
-                                        create_graph=True)[0]
+                # WIP
             else:
                 raise Exception("Unknown style of penalise_grad. Options are: contrast, nonhealthy, diff_from_ref")
 
             # only apply to positive examples
             if penalise_grad != "diff_from_ref":
                 # only do it here because the masking happens elsewhere in the diff_from_ref architecture
+                print("target mask: ", target.float().reshape(-1, 1, 1, 1).shape)
                 input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
             
             if conditional_reg:
-                certainty_mask = torch.where(torch.sigmoid(input_grads) > 0.8,
-                                             torch.tensor([1.]).to(device),
-                                             torch.tensor([0.]).to(device))
-                print("Certainty_mask: ", certainty_mask.shape, torch.sum(certainty_mask == 1.))
-                res = input_grads * (1 - seg.float()) * certainty_mask
-            else:
-                res = input_grads * (1 - seg.float())
+                temp_softmax = torch.softmax(class_output, dim=1).detach()
+                certainty_mask = 1 - torch.argmax((temp_softmax > 0.95).float(), dim=1)
+                input_grads = certainty_mask.float().reshape(-1, 1, 1, 1) * input_grads
+            
+            res = input_grads * (1 - seg.float())
             gradmask_loss = epoch * (res ** 2)
 
             # Simulate that we only have some masks
@@ -276,7 +273,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                             gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
 
             gradmask_loss = gradmask_loss.sum()
-            loss = loss*gradmask_loss
+            loss = loss + loss*gradmask_loss
 
         avg_loss.append(loss.detach().cpu().numpy())
         loss.backward()
