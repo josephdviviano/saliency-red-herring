@@ -56,6 +56,7 @@ def train(cfg):
     nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
+    penalise_grad_usemask = cfg['penalise_grad_usemask']
     
     ncfg = dict(cfg)
     del ncfg["cuda"]
@@ -126,7 +127,8 @@ def train(cfg):
                                 optimizer=optim,
                                 train_loader=train_loader,
                                 criterion=criterion,
-                                penalise_grad=penalise_grad)
+                                penalise_grad=penalise_grad,
+                                penalise_grad_usemask=penalise_grad_usemask)
 
         auc_valid = test_epoch(epoch=epoch,
                                model=model,
@@ -163,7 +165,7 @@ def train(cfg):
     return best_metric, best_testauc_for_validauc
 
 
-def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad):
+def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemask):
 
     model.train()
     avg_loss = []
@@ -250,7 +252,11 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 # only do it here because the masking happens elsewhere in the diff_from_ref architecture
                 input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
 
-            res = input_grads * (1 - seg.float())
+            if penalise_grad_usemask:
+                res = input_grads * (1 - seg.float())
+            else:
+                res = input_grads
+                
             gradmask_loss = epoch * (res ** 2)
 
             # Simulate that we only have some masks
