@@ -12,8 +12,9 @@ def run():
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-penalise_grad', type=str, help='penalise_grad')
 @click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
+@click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-nsamples', type=int, help='nsamples')
-def train(config, seed, penalise_grad, nsamples):
+def train(config, seed, penalise_grad, nsamples, penalise_grad_usemask, conditional_reg):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
@@ -23,6 +24,9 @@ def train(config, seed, penalise_grad, nsamples):
         cfg["penalise_grad_usemask"] = penalise_grad_usemask
     if not nsamples is None:
         cfg["nsamples"] = nsamples
+    if not conditional_reg is None:
+        cfg["conditional_reg"] = conditional_reg
+
     training.train(cfg)
 
 @run.command()

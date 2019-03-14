@@ -64,7 +64,7 @@ def train(cfg):
     del ncfg["num_epochs"]
     del ncfg["transform"]
     ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
-    log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","(").replace("}",")")
+    log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","_").replace("}","_")
     print("Log folder:" + log_folder)
     if os.path.isdir(log_folder):
         print("Log folder exists. Will exit.")

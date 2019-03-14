@@ -2,14 +2,13 @@
 seed: 1234
 cuda: True
 nsamples: 64
-maxmasks: 8
-penalise_grad: 'masd_style'
+maxmasks: 256
+penalise_grad: 'diff_from_ref'
 blur: 0
-maxmasks: 64
 conditional_reg: True
 
 # Training
-num_epochs: 100
+num_epochs: 500
 
 # DataLoader
 batch_size: 32
@@ -35,7 +34,7 @@ model:
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.001
+    lr: 0.0001
 
 transform:
         train: {}
