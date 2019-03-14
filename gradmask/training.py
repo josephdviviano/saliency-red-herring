@@ -56,7 +56,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
     penalise_grad = cfg['penalise_grad']
-    
+    penalise_grad_lambdas = [cfg['penalise_grad_lambda_1'], cfg['penalise_grad_lambda_2']]
+
     ncfg = dict(cfg)
     del ncfg["cuda"]
     del ncfg["num_epochs"]
@@ -131,7 +132,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                 optimizer=optim,
                                 train_loader=train_loader,
                                 criterion=criterion,
-                                penalise_grad=penalise_grad)
+                                penalise_grad=penalise_grad,
+                                penalise_grad_lambdas=penalise_grad_lambdas)
 
 
         auc_valid = valid_wrap_epoch(epoch=epoch,
@@ -157,21 +159,21 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                 "testauc": auc_test,
                 "best_testauc_for_validauc": best_testauc_for_validauc}
         stat.update(process_config(cfg))
-
-        metrics.append(stat)
-
-        if epoch % 20 == 0:
-            monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
-        
-
-    monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
+    #
+    #    metrics.append(stat)
+    #
+    #    if epoch % 20 == 0:
+    #        monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
+    #
+    #
+    #monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
 
     return best_metric, best_testauc_for_validauc, {'dataset_train': dataset_train,
                                                     'dataset_valid': dataset_valid,
                                                     'dataset_test': dataset_test} #, best_testauc_for_validauc
 
 @mlflow_logger.log_metric('train_loss')
-def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad):
+def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_lambdas):
 
     model.train()
     avg_loss = []
@@ -259,7 +261,11 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
 
             res = input_grads * (1 - seg.float())
-            gradmask_loss = epoch * (res ** 2)
+            n_iter = len(train_loader) * epoch + batch_idx
+            #import ipdb; ipdb.set_trace()
+            penalty = penalise_grad_lambdas[0] * float(np.exp(penalise_grad_lambdas[1] * n_iter))
+            penalty = min(penalty, 1000)
+            gradmask_loss = penalty * (res ** 2)
 
             # Simulate that we only have some masks
             gradmask_loss = use_mask.reshape(-1, 1).float() * \
@@ -352,7 +358,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
     def generate_config(config, keys, new_values):
         new_config = copy.deepcopy(config)
         for i, key in enumerate(list(keys.keys())):
-            set_key(new_config, key, new_values[i])
+            set_key(new_config, key, new_values[i].item())
         return new_config
 
     # Sparse the parameters that we want to optimize
