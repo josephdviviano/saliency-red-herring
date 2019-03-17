@@ -62,6 +62,8 @@ def train(cfg):
     del ncfg["cuda"]
     del ncfg["num_epochs"]
     del ncfg["transform"]
+    dataset_cfg = cfg["dataset"]["train"]
+    ncfg["nsamples_train"] = dataset_cfg[list(dataset_cfg.keys())[0]]["nsamples"]
     ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
     log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","_").replace("}","_")
     print("Log folder:" + log_folder)
