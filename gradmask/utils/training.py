@@ -53,7 +53,6 @@ def train(cfg):
     seed = cfg['seed']
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
-    nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
     penalise_grad_usemask = cfg['penalise_grad_usemask']
