@@ -172,7 +172,7 @@ class MSDDataset(Dataset):
         # transform does nothing, it's pass in parameter only to make it compatible with everything else.
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.idx)
 
     def __getitem__(self, index):
         
@@ -204,7 +204,7 @@ class MSDDataset(Dataset):
 @register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', max_files = 10, **kwargs)
+        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', **kwargs)
 
 @register.setdatasetname("ColonMSDDataset")
 class ColonMSDDataset(MSDDataset):
