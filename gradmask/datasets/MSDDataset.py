@@ -42,6 +42,7 @@ def extract_samples2(data, labels, image_path, label_path):
 def compute_hdf5(dataroot, files, hdf5_name):
     
     with h5py.File(hdf5_name,"w") as hf:
+        files = sorted(files, key=lambda k: k["image"])
         for i, p in enumerate(files):
             print(p["image"], p["label"])
             name = ntpath.basename(p["image"])
@@ -55,21 +56,25 @@ def compute_hdf5(dataroot, files, hdf5_name):
 
             extract_samples2(samples, labels, dataroot + p["image"], dataroot + p["label"])
 
-            grp.create_dataset("slices",data=samples)
+            grp_slices = grp.create_group("slices")
+            for idx, zlice in enumerate(samples):
+                print(".", end=" ")
+                grp_slices.create_dataset(str(idx),data=zlice, compression='gzip')
+            print(".")
             grp.create_dataset("labels",data=labels)
 
 #https://discuss.pytorch.org/t/torchvision-transfors-how-to-perform-identical-transform-on-both-image-and-target/10606
-def transform(image, mask, is_train):
+def transform(image, mask, is_train, new_size):
 
         if is_train:
             # Resize
-            resize = torchvision.transforms.Resize(size=(110, 110))
+            resize = torchvision.transforms.Resize(size=(new_size+10, new_size+10))
             image = resize(image)
             mask = resize(mask)
             
             # Random crop
             i, j, h, w = torchvision.transforms.RandomCrop.get_params(
-                image, output_size=(100, 100))
+                image, output_size=(new_size, new_size))
             image = TF.crop(image, i, j, h, w)
             mask = TF.crop(mask, i, j, h, w)
 
@@ -84,7 +89,7 @@ def transform(image, mask, is_train):
                 mask = TF.vflip(mask)
         else:
             # Resize
-            resize = torchvision.transforms.Resize(size=(100, 100))
+            resize = torchvision.transforms.Resize(size=(new_size, new_size))
             image = resize(image)
             mask = resize(mask)
 
@@ -98,12 +103,13 @@ cached_msd_ref = {}
     
 class MSDDataset(Dataset):
 
-    def __init__(self, mode, dataroot, max_files = 10, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None):
+    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=100):
         
         self.mode = mode
         self.dataroot = dataroot
+        self.new_size = new_size
         
-        filename = self.dataroot + "msd_gz.hdf5"
+        filename = self.dataroot + "msd_gz_new.hdf5"
         if not os.path.isfile(filename):
             print("Computing hdf5 file of the data")
             dataset = json.load(open(self.dataroot + "dataset.json"))
@@ -115,26 +121,31 @@ class MSDDataset(Dataset):
             cached_msd_ref[dataroot] = h5py.File(filename,"r")
         self.dataset = cached_msd_ref[dataroot]
         
-        all_files = sorted(list(self.dataset.keys()))
+        self._all_files = sorted(list(self.dataset.keys()))
         
-        all_labels = np.concatenate([self.dataset[i]["labels"] for i in all_files])
+        all_labels = np.concatenate([self.dataset[i]["labels"] for i in self._all_files])
         print ("Full dataset contains: " + str(collections.Counter(all_labels)))
         
         np.random.seed(seed)
-        np.random.shuffle(all_files)
+        np.random.shuffle(self._all_files)
         
+        file_ratio = int(len(self._all_files)*0.3)
         print("mode=" + self.mode)
         if self.mode == "train":
-            self.files = all_files[:max_files]
+            self.files = self._all_files[:file_ratio]
         elif self.mode == "valid":
-            self.files = all_files[-max_files*2:-max_files]
+            self.files = self._all_files[file_ratio:file_ratio*2]
         elif self.mode == "test":
-            self.files = all_files[-max_files:]
+            self.files = self._all_files[file_ratio*2:]
         else:
             raise Exception("Unknown mode")
         
         print("Loading {} files:".format(len(self.files)) + str(self.files))
-        self.samples = np.concatenate([self.dataset[i]["slices"] for i in self.files])
+        #self.samples = np.concatenate([self.dataset[i]["slices"] for i in self.files])
+        self.samples = []
+        for file in self.files:
+            for sli in range(len(self.dataset[file]["slices"])):
+                self.samples.append((file, sli))
         self.labels = np.concatenate([self.dataset[i]["labels"] for i in self.files])
         #self.transform = transform
         self.blur = blur
@@ -151,7 +162,7 @@ class MSDDataset(Dataset):
         self.idx = np.append(class1, class0)
         
         #these should be in order
-        self.samples = self.samples[self.idx]
+        #self.samples = self.samples[self.idx]
         self.labels = self.labels[self.idx]
         
         print ("This dataloader contains:" + str(collections.Counter(self.labels)))
@@ -165,7 +176,8 @@ class MSDDataset(Dataset):
 
     def __getitem__(self, index):
         
-        image,seg = self.samples[index]
+        key = self.samples[self.idx[index]]
+        image,seg = self.dataset[key[0]]["slices"][str(key[1])]
         label = self.labels[index]
 
         image = Image.fromarray(image)
@@ -183,9 +195,9 @@ class MSDDataset(Dataset):
             #seg = self.transform(seg)
             
         if self.mode == "train":
-            image, seg = transform(image, seg, True)
+            image, seg = transform(image, seg, True, self.new_size)
         else:
-            image, seg = transform(image, seg, False)
+            image, seg = transform(image, seg, False, self.new_size)
 
         return (image, seg), int(label), float(self.idx[index] in self.mask_idx)
 
@@ -199,7 +211,8 @@ class ColonMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
         super().__init__(dataroot='/network/data1/MSD/MSD/Task10_Colon/', **kwargs)
 
-
-
-
+@register.setdatasetname("LiverMSDDataset")
+class LiverMSDDataset(MSDDataset):
+    def __init__(self, **kwargs):
+        super().__init__(dataroot='/network/data1/MSD/MSD/Task03_Liver/', **kwargs)
 
