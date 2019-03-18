@@ -56,8 +56,8 @@ def train(cfg):
     nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
-    penalise_grad_usemask = cfg['penalise_grad_usemask']
-    conditional_reg = cfg['conditional_reg']
+    penalise_grad_usemask = cfg.get('penalise_grad_usemask', False)
+    conditional_reg = cfg.get('conditional_reg', False)
     
     ncfg = dict(cfg)
     del ncfg["cuda"]
@@ -385,7 +385,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
         # Do a bunch of loops.
         suggestion = optimizer.ask()
         this_cfg = generate_config(cfg, skopt_args, suggestion)
-        optimizer.tell(suggestion, - train_function(this_cfg)) # We minimize the negative accuracy/AUC
+        optimizer.tell(suggestion, - train_function(this_cfg)[0]) # We minimize the negative accuracy/AUC
 
     # Done! Hyperparameters tuning has never been this easy.
 

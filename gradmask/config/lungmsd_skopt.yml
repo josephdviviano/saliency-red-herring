@@ -28,12 +28,12 @@ dataset:
 # Model
 model:
   SimpleCNN: 
-    flat_layer: 'Categorical([100,200,400])'
+    flat_layer: 200
 
 # Optimizer
 optimizer:
   Adam:
-    lr: 'Categorical([0.05,0.005,0.0005])'
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
 
 transform:
         train: {}
