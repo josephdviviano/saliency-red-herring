@@ -1,10 +1,11 @@
 # General
-seed: 1234
+seed: 0
 cuda: True
-nsamples: 64
 maxmasks: 256
 penalise_grad: 'diff_from_ref'
 blur: 0
+conditional_reg: True
+penalise_grad_usemask: True
 
 # Training
 num_epochs: 500
@@ -18,12 +19,15 @@ dataset:
   train:
     LungMSDDataset:
       mode: 'train'
+      nsamples: 64
   valid:
     LungMSDDataset:
       mode: 'valid'
+      nsamples: 256
   test:
     LungMSDDataset:
       mode: 'test'
+      nsamples: 256
 
 # Model
 model:

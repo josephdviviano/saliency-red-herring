@@ -53,7 +53,6 @@ def train(cfg):
     seed = cfg['seed']
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
-    nsamples = cfg['nsamples']
     maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
     penalise_grad_usemask = cfg.get('penalise_grad_usemask', False)
@@ -63,6 +62,8 @@ def train(cfg):
     del ncfg["cuda"]
     del ncfg["num_epochs"]
     del ncfg["transform"]
+    dataset_cfg = cfg["dataset"]["train"]
+    ncfg["nsamples_train"] = dataset_cfg[list(dataset_cfg.keys())[0]]["nsamples"]
     ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
     log_folder = "logs/" + str(ncfg).replace("'","").replace(" ","").replace("{","_").replace("}","_")
     print("Log folder:" + log_folder)
