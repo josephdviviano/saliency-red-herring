@@ -1,7 +1,6 @@
 # General
 seed: 0
 cuda: True
-nsamples: 64
 penalise_grad: 'contrast'
 blur: 'Categorical([0,1,4])'
 maxmasks: 64
@@ -18,12 +17,15 @@ dataset:
   train:
     LungMSDDataset:
       mode: 'train'
+      nsamples: 256
   valid:
     LungMSDDataset:
       mode: 'valid'
+      nsamples: 256
   test:
     LungMSDDataset:
       mode: 'test'
+      nsamples: 256
 
 # Model
 model:
