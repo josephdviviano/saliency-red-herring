@@ -11,7 +11,7 @@ import collections
 import torchvision.transforms
 import torchvision.transforms.functional as TF
 import h5py, ntpath
-import utils.register as register
+import gradmask.utils.register as register
 
 def extract_samples(data, image_path, label_path):
     image_data, _ = medpy.io.load(image_path)
@@ -103,7 +103,7 @@ cached_msd_ref = {}
     
 class MSDDataset(Dataset):
 
-    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=100):
+    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=300):
         
         self.mode = mode
         self.dataroot = dataroot
@@ -215,4 +215,9 @@ class ColonMSDDataset(MSDDataset):
 class LiverMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
         super().__init__(dataroot='/network/data1/MSD/MSD/Task03_Liver/', **kwargs)
+
+@register.setdatasetname("ProstateMSDDataset")
+class ProstateMSDDataset(MSDDataset):
+    def __init__(self, **kwargs):
+        super().__init__(dataroot='/network/data1/MSD/MSD/Task05_Prostate/', **kwargs)
 

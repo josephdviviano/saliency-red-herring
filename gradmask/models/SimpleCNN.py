@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils.register as register
+import gradmask.utils.register as register
 
 
-# Taken from the pytorch tutorial: https://github.com/pytorch/examples/tree/master/mnist
 @register.setmodelname("SimpleCNN")
 class CNN(nn.Module):
     def __init__(self, flat_layer=440, num_class=2):

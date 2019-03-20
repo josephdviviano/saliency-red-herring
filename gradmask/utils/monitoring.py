@@ -44,6 +44,8 @@ def log_experiment_csv(config, stuff, folder='logs', file_name="experiment_table
                         output_dict["{}_{}".format(mode, key)] = main_key_value
                         sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
                         for k, i in sub_sub_dict.items():
+                            if type(item) == float:
+                                i = round(i, 4)
                             output_dict["{}_{}_{}".format(mode, key, k)] = i # so we don't have e.g. train_dataset_MSD_mode
                     except:
                         # config is of the form main_key: key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.001
@@ -52,14 +54,18 @@ def log_experiment_csv(config, stuff, folder='logs', file_name="experiment_table
                         output_dict[key] = main_key_value
                         sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
                         for k, i in sub_sub_dict.items():
+                            if type(item) == float:
+                                i = round(i, 4)
                             output_dict["{}_{}".format(key, k)] = i
                 else:
                     # standard key: val pair
+                    if type(item) == float:
+                        item = round(item, 4)
+                        
                     output_dict[key] = item
 
         # line = [tt, sha] + list(stuff) + [cc] + list(OrderedDict(output_dict).values())
         line = [tt, sha] + list(stuff) + list(OrderedDict(output_dict))
-        print(line)
         writer.writerow(line)
 
 def save_metrics(metrics, folder='logs', file_name='metrics.pkl'):
