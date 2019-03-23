@@ -1,6 +1,6 @@
 import torch.nn as nn
 import importlib
-import utils.register as register
+import gradmask.utils.register as register
 
 @register.setmodelname("CNNWrapper")
 class CNNWrapper(nn.Module):

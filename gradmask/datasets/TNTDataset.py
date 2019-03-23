@@ -4,7 +4,7 @@ import skimage, skimage.transform
 from skimage.io import imread, imsave
 from PIL import Image
 import skimage.filters
-import utils.register as register
+import gradmask.utils.register as register
 import torch
 
 @register.setdatasetname("TNTDataset")

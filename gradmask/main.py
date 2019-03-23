@@ -1,7 +1,8 @@
 import click
-import utils.training as training
-import utils.configuration as configuration
-import collections
+import gradmask.training as training
+import gradmask.utils.configuration as configuration
+
+penalise_grad_choices = ["contrast", "diff_from_ref", "nonhealthy"]
 
 @click.group()
 def run():
@@ -14,17 +15,23 @@ def run():
 @click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
-def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg):
+@click.option('-new_size', type=int, help='new_size')
+def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
+
     if not penalise_grad is None:
         cfg["penalise_grad"] = penalise_grad
+        
     if not penalise_grad is None:
         cfg["penalise_grad_usemask"] = penalise_grad_usemask
     if not nsamples_train is None:
         dataset = cfg["dataset"]["train"]
-        dataset[list(dataset.keys())[0]]["nsamples"] =nsamples_train
+        dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
+    if not new_size is None:
+        dataset = cfg["dataset"]["train"]
+        dataset[list(dataset.keys())[0]]["new_size"] = new_size
     if not conditional_reg is None:
         cfg["conditional_reg"] = conditional_reg
 
@@ -35,19 +42,37 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-penalise_grad', type=str, help='penalise_grad')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
-@click.option('--n-iter', type=int, default=10, help='Configuration file.')
-@click.option('--base-estimator', type=click.Choice(["GP", "RF", "ET", "GBRT"]), default="GP", help='Estimator.')
-@click.option('--n-initial-points', type=int, default=10, help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
-@click.option('--train-function', type=str, default="train", help='Training function to optimize over.')
-def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function):
+@click.option('--n_iter', type=int, default=10, help='Configuration file.')
+@click.option('--base_estimator', type=click.Choice(["GP", "RF", "ET", "GBRT"]), default="GP", help='Estimator.')
+@click.option('--n_initial_points', type=int, default=10, help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
+@click.option('--train_function', type=str, default="train", help='Training function to optimize over.')
+@click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
+@click.option('-conditional_reg', type=bool, help='conditional_reg')
+@click.option('-new_size', type=int, help='new_size')
+@click.option('-maxmasks_train', type=int, help='maxmasks_train')
+def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function,
+               penalise_grad_usemask, conditional_reg, new_size, maxmasks_train):
     cfg = configuration.load_config(config)
     cfg["skopt"] = True
     if not seed is None:
         cfg["seed"] = seed
+
     if not penalise_grad is None:
         cfg["penalise_grad"] = penalise_grad
-    if not nsamples is None:
-        cfg["dataset"]["train"]["nsamples"] = nsamples_train
+
+    if not penalise_grad is None:
+        cfg["penalise_grad_usemask"] = penalise_grad_usemask
+    if not nsamples_train is None:
+        dataset = cfg["dataset"]["train"]
+        dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
+    if not maxmasks_train is None:
+        dataset = cfg["dataset"]["train"]
+        dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+    if not new_size is None:
+        dataset = cfg["dataset"]["train"]
+        dataset[list(dataset.keys())[0]]["new_size"] = new_size
+    if not conditional_reg is None:
+        cfg["conditional_reg"] = conditional_reg
     training.train_skopt(cfg, n_iter=n_iter,
                     base_estimator=base_estimator,
                     n_initial_points=n_initial_points,

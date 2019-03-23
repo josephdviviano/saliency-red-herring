@@ -1,13 +1,16 @@
 # General
-seed: 0
 cuda: True
-nsamples: 64
-penalise_grad: 'contrast'
-blur: 'Categorical([0,1,4])'
-maxmasks: 64
+penalise_grad: 'diff_from_ref'
+n_iter: 30
+penalise_grad_lambda_1: "Real(0., 10.)"
+penalise_grad_lambda_2: "Real(0., 10.)"
+conditional_reg: False
+penalise_grad_usemasks: True 
+nsamples_train: 64
+maxmasks_train: 256
 
 # Training
-num_epochs: 2
+num_epochs: 100
 
 # DataLoader
 batch_size: 32
@@ -18,24 +21,34 @@ dataset:
   train:
     LungMSDDataset:
       mode: 'train'
+      blur: "Integer(0, 10)"
   valid:
     LungMSDDataset:
       mode: 'valid'
+      nsamples: 256
   test:
     LungMSDDataset:
       mode: 'test'
+      nsamples: 256
 
 # Model
 model:
   SimpleCNN: 
-    flat_layer: 'Categorical([100,200,400])'
+    flat_layer: "Integer(1, 8)"
 
 # Optimizer
 optimizer:
   Adam:
-    lr: 'Categorical([0.05,0.005,0.0005])'
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
 
 transform:
         train: {}
         valid: {}
         test: {}
+
+# mlflow experiment manager
+manager:
+    set_experiment:
+        name: 'exploration_2' # Experience name
+    set_tracking_uri:
+        uri: '' # Link or url to where to store the logs. Default is `./mlruns`

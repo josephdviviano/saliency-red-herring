@@ -1,15 +1,12 @@
 # General
-conditional_reg: True
-penalise_grad_usemask: True
 seed: &seed 1234
 cuda: True
-nsamples: &nsamples 64
-maxmasks: &maxmasks 8
 penalise_grad: 'contrast'
-blur: &blur 0
+penalise_grad_lambda_1: "Real(0., 10.)"
+penalise_grad_lambda_2: "Real(0., 10.)"
 
 # Training
-num_epochs: 500
+num_epochs: 100
 
 # DataLoader
 batch_size: 32
@@ -18,24 +15,24 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    LungMSDDataset:
+    LiverMSDDataset:
       mode: 'train'
       seed: *seed
-      nsamples: *nsamples
-      maxmasks: *maxmasks
-      blur: *blur
+      nsamples: 256
+      maxmasks: &maxmasks "Integer(0, 64)"
+      blur: &blur "Integer(0, 10)"
   valid:
-    LungMSDDataset:
+    LiverMSDDataset:
       mode: 'valid'
       seed: *seed
-      nsamples: *nsamples
+      nsamples: 256
       maxmasks: *maxmasks
       blur: *blur
   test:
-    LungMSDDataset:
+    LiverMSDDataset:
       mode: 'test'
       seed: *seed
-      nsamples: *nsamples
+      nsamples: 256
       maxmasks: *maxmasks
       blur: *blur
 
@@ -46,8 +43,8 @@ model:
 
 # Optimizer
 optimizer:
-  SGD:
-    lr: 0.00031116518486790096
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
 
 transform:
         train: {}
@@ -57,6 +54,6 @@ transform:
 # mlflow experiment manager
 manager:
     set_experiment:
-        name: 'testing123' # Experience name
+        name: 'exploration_1' # Experience name
     set_tracking_uri:
         uri: '' # Link or url to where to store the logs. Default is `./mlruns`
