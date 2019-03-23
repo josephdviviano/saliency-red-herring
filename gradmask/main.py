@@ -88,6 +88,7 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
     # do logging stuff and break if already done  
 
     log_folder = get_log_folder_name(cfg)
+    log_folder = str(hash(log_folder))
     print("Log folder:" + log_folder)
     
     if os.path.isdir(log_folder):
