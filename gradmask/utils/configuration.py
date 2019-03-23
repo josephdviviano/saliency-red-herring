@@ -2,12 +2,47 @@ import importlib
 import inspect
 import logging
 import yaml
-import gradmask.models as models
-import gradmask.datasets as datasets
+import models as models
+import datasets as datasets
 import torchvision
 
 _LOG = logging.getLogger(__name__)
 
+def process_config(config):
+    """
+        Here to deconstruct the config file from nested dicts into a flat structure
+    """
+    output_dict = {}
+    for mode in ['train', 'valid','test']:
+        for key, item in config.items():
+            if type(config[key]) == dict:
+                # if the 'value' is actually a dict, iterate through and collect train/valid/test values
+                try:
+                    # config is of the form main_key: train/test/valid: key_val: more_key_val_pairs
+                    sub_dict = config[key][mode]
+                    main_key_value = list(sub_dict.keys())[0]
+                    output_dict["{}_{}".format(mode, key)] = main_key_value
+                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
+                    for k, i in sub_sub_dict.items():
+                        if type(i) == float:
+                            i = round(i, 4)
+                        output_dict["{}_{}_{}".format(mode, key, k)] = i # so we don't have e.g. train_dataset_MSD_mode
+                except:
+                    # config is of the form main_key: key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.001
+                    sub_dict = config[key]
+                    main_key_value = list(sub_dict.keys())[0]
+                    output_dict[key] = main_key_value
+                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
+                    for k, i in sub_sub_dict.items():
+                        if type(i) == float:
+                            i = round(i, 4)
+                        output_dict["{}_{}".format(key, k)] = i
+            else:
+                # standard key: val pair
+                if type(item) == float:
+                    item = round(item, 4)
+                output_dict[key] = item
+    return output_dict
 
 def load_config(config_file):
 
@@ -53,7 +88,7 @@ def setup_dataset(config, split='train'):
     Prepare data generators for training set and optionally for validation set
     """
 
-    available_datasets = get_available_classes(datasets, 'gradmask.datasets.', '_DG_NAME')
+    available_datasets = get_available_classes(datasets, 'datasets.', '_DG_NAME')
     datasets_from_module = importlib.import_module('torchvision.datasets')
 
     dataset_name = list(config['dataset'][split].keys())[0]
@@ -79,7 +114,7 @@ def setup_model(config, yaml_section='model'):
     Prepare model according to config file
     """
 
-    available_models = get_available_classes(models, 'gradmask.models.', '_MODEL_NAME')
+    available_models = get_available_classes(models, 'models.', '_MODEL_NAME')
     models_from_module = importlib.import_module('torchvision.models')
 
     model_name = list(config[yaml_section].keys())[0]
