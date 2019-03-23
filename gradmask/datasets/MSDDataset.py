@@ -103,7 +103,7 @@ cached_msd_ref = {}
     
 class MSDDataset(Dataset):
 
-    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=300):
+    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=100):
         
         self.mode = mode
         self.dataroot = dataroot

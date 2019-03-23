@@ -79,14 +79,19 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     log_ncfg_tmp = process_config(ncfg)
     log_ncfg = {}
+    # here to trim the folder name length or the whole thing borks
     for k, i in log_ncfg_tmp.items():
         if "lambda" in k:
             # because we are JUST over the file/folder name limit of 255 char lol
             log_ncfg[k.replace("penalise_grad_","")] = round(i, 2)
-        elif "manager" not in k and "skopt" not in k and "shuffle" not in k:
+        elif "penalise_grad_" in k:
+            log_ncfg[k.replace("penalise_grad_","")] = i
+        elif all([w not in k for w in ["n_iter", "manager", "skopt", "shuffle"]]):
             log_ncfg[k] = i
+        elif "conditional" in k:
+            log_ncfg["cndreg"] = i
             
-    log_folder = "logs/" + str(log_ncfg).replace("'","").replace(" ","").replace("{","").replace("}","")
+    log_folder = "logs/" + str(log_ncfg).replace("'","").replace(" ","").replace("{","").replace("}","").replace(",","").replace(":","").replace("_","")
     print("Log folder:" + log_folder)
     if os.path.isdir(log_folder):
         print("Log folder exists. Will exit.")
@@ -239,20 +244,28 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 diff = torch.FloatTensor()
                 diff = diff.to(device)
                 
-                print("Activation lengths: ", len(model.all_activations))
+                # print("Activation lengths: ", len(model.all_activations))
                 for i in range(len(model.all_activations)):
                     a = model.all_activations[i]
                     # print("Activation shape: ", a.shape)
                     
-                    healthy_batch = healthy_mask * a
-                    # print("Healthy batch: ", healthy_batch.shape)
+                    if len(a.shape) < 4:
+                        # activations are from the last layers (shape [batch, FC layer_size])
+                        new_mask = target.float().reshape(-1, 1)
+                        new_mask[target.float().reshape(-1, 1) == 0] = 1
+                        new_mask[target.float().reshape(-1, 1) != 0] = 0
+                        healthy_batch = new_mask * a
+                    else:
+                        healthy_batch = healthy_mask * a
+#                     print("healthy mask shape: ", healthy_mask.shape, "activation shape: ", a.shape, "len: ", len(a.shape))
                     
                     # 2) detach grads for the healthy samples
                     healthy_batch = healthy_batch.detach()
-                
+#                     print("Healthy batch shape: ", healthy_batch.shape)
+                    
                     # 3) get batch-wise average of activations per layer
                     batch_avg_healthy = torch.mean(healthy_batch, dim=0)
-                    # print("Healthy batch avg: ", batch_avg_healthy.shape)
+#                     print("Healthy batch avg shape: ", batch_avg_healthy.shape)
                     
                     # 4) update global reference layer average in model's deep_lift_ref attr
                     if len(model.ref) < len(model.all_activations):
@@ -260,6 +273,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                         model.ref.append(batch_avg_healthy)
                     else:
                         # otherwise, a rolling average
+#                         print("ref shape: ", model.ref[i].shape)
                         model.ref[i] = model.ref[i] * 0.8 + batch_avg_healthy
                 
                 # 5) TODO: somehow incorporate std to allowing regions of variance in the healthy images
@@ -272,7 +286,6 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 # 2) flatten, 3) stack or join together somehow?, 4) L1 norm, 5) input grads
                     diff = torch.cat((diff, torch.flatten((a - model.ref[i]) * target.float().reshape(-1, 1, 1, 1))))
                 
-                print(diff.shape)
                 input_grads = torch.autograd.grad(outputs=torch.abs(diff).sum(),
                                                  inputs=x, allow_unused=True, create_graph=True)[0]
             
@@ -288,7 +301,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
             # only apply to positive examples
             if penalise_grad != "diff_from_ref":
                 # only do it here because the masking happens elsewhere in the diff_from_ref architecture
-                print("target mask: ", target.float().reshape(-1, 1, 1, 1).shape)
+#                 print("target mask: ", target.float().reshape(-1, 1, 1, 1).shape)
                 input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
 
             if conditional_reg:

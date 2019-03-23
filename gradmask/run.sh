@@ -3,7 +3,7 @@ hostname
 source $HOME/.bashrc
 source activate gradmask
 
-python -u main.py train --config config/lungmsd.yml $@
+python -u main.py train-skopt --config config/lungmsd_skopt.yml $@
 
 echo "Exit code is $?"
 rc=$?

@@ -15,8 +15,8 @@ def run():
 @click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
-@click.option('-nsamples_train', type=int, help='new_size')
-def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg):
+@click.option('-new_size', type=int, help='new_size')
+def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
@@ -49,8 +49,9 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
 @click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-new_size', type=int, help='new_size')
+@click.option('-maxmasks_train', type=int, help='maxmasks_train')
 def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function,
-               penalise_grad_usemask, conditional_reg, new_size):
+               penalise_grad_usemask, conditional_reg, new_size, maxmasks_train):
     cfg = configuration.load_config(config)
     cfg["skopt"] = True
     if not seed is None:
@@ -64,6 +65,9 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
     if not nsamples_train is None:
         dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
+    if not maxmasks_train is None:
+        dataset = cfg["dataset"]["train"]
+        dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
     if not new_size is None:
         dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
