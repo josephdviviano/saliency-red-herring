@@ -8,57 +8,21 @@ import numpy as np
 import random
 from collections import OrderedDict
 import copy
-import gradmask.utils.configuration as configuration
-import gradmask.utils.monitoring as monitoring
+import utils.configuration as configuration
+import utils.monitoring as monitoring
 import time, os, sys
-import gradmask.manager.mlflow.logger as mlflow_logger
+import manager.mlflow.logger as mlflow_logger
 import itertools
-import gradmask.notebooks.auto_ipynb as auto_ipynb
+import notebooks.auto_ipynb as auto_ipynb
 
 _LOG = logging.getLogger(__name__)
 
-
-def process_config(config):
-    """
-        Here to deconstruct the config file from nested dicts into a flat structure
-    """
-    output_dict = {}
-    for mode in ['train', 'valid','test']:
-        for key, item in config.items():
-            if type(config[key]) == dict:
-                # if the 'value' is actually a dict, iterate through and collect train/valid/test values
-                try:
-                    # config is of the form main_key: train/test/valid: key_val: more_key_val_pairs
-                    sub_dict = config[key][mode]
-                    main_key_value = list(sub_dict.keys())[0]
-                    output_dict["{}_{}".format(mode, key)] = main_key_value
-                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
-                    for k, i in sub_sub_dict.items():
-                        if type(i) == float:
-                            i = round(i, 4)
-                        output_dict["{}_{}_{}".format(mode, key, k)] = i # so we don't have e.g. train_dataset_MSD_mode
-                except:
-                    # config is of the form main_key: key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.001
-                    sub_dict = config[key]
-                    main_key_value = list(sub_dict.keys())[0]
-                    output_dict[key] = main_key_value
-                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
-                    for k, i in sub_sub_dict.items():
-                        if type(i) == float:
-                            i = round(i, 4)
-                        output_dict["{}_{}".format(key, k)] = i
-            else:
-                # standard key: val pair
-                if type(item) == float:
-                    item = round(item, 4)
-                output_dict[key] = item
-    return output_dict
-
 @mlflow_logger.log_experiment(nested=True)
-@mlflow_logger.log_metric('best_metric', 'best_testauc_for_validauc')
+@mlflow_logger.log_metric('best_metric', 'testauc_for_best_validauc')
 def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recompile=True):
 
     print("Our config:", cfg)
+
     seed = cfg['seed']
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
@@ -67,38 +31,9 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     penalise_grad_usemask = cfg.get('penalise_grad_usemask', False)
     conditional_reg = cfg.get('conditional_reg', False)
     penalise_grad_lambdas = [cfg['penalise_grad_lambda_1'], cfg['penalise_grad_lambda_2']]
-
-    ncfg = dict(cfg)
-    del ncfg["cuda"]
-    del ncfg["num_epochs"]
-    del ncfg["transform"]
-    dataset_cfg = cfg["dataset"]["train"]
-    ncfg["nsamples_train"] = dataset_cfg[list(dataset_cfg.keys())[0]]["nsamples"]
-    ncfg["maxmasks"] = dataset_cfg[list(dataset_cfg.keys())[0]]["maxmasks"]
-    ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]
-
-    log_ncfg_tmp = process_config(ncfg)
-    log_ncfg = {}
-    # here to trim the folder name length or the whole thing borks
-    for k, i in log_ncfg_tmp.items():
-        if "lambda" in k:
-            # because we are JUST over the file/folder name limit of 255 char lol
-            log_ncfg[k.replace("penalise_grad_","")] = round(i, 2)
-        elif "penalise_grad_" in k:
-            log_ncfg[k.replace("penalise_grad_","")] = i
-        elif all([w not in k for w in ["n_iter", "manager", "skopt", "shuffle"]]):
-            log_ncfg[k] = i
-        elif "conditional" in k:
-            log_ncfg["cndreg"] = i
-            
-    log_folder = "logs/" + str(log_ncfg).replace("'","").replace(" ","").replace("{","").replace("}","").replace(",","").replace(":","").replace("_","")
-    print("Log folder:" + log_folder)
-    if os.path.isdir(log_folder):
-        print("Log folder exists. Will exit.")
-        sys.exit(0)
     
     device = 'cuda' if cuda else 'cpu'
-
+    
     # Setting the seed.
     np.random.seed(seed)
     random.seed(seed)
@@ -123,14 +58,17 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     # Dataloader
     train_loader = torch.utils.data.DataLoader(dataset_train,
                                                 batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'])
+                                                shuffle=cfg['shuffle'],
+                                                num_workers=0, pin_memory=True)
     valid_loader = torch.utils.data.DataLoader(dataset_valid,
                                                 batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'])
+                                                shuffle=cfg['shuffle'],
+                                                num_workers=0, pin_memory=True)
 
     test_loader = torch.utils.data.DataLoader(dataset_test, 
                                                 batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'])
+                                                shuffle=cfg['shuffle'],
+                                                num_workers=0, pin_memory=True)
 
     
     model = configuration.setup_model(cfg).to(device)
@@ -145,7 +83,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     # Aaaaaannnnnd, here we go!
     best_metric = 0.
-    best_testauc_for_validauc = 0.
+    testauc_for_best_validauc = 0.
     metrics = []
 
     # Wrap the function for mlflow. Don't worry buddy, if you don't have mlflow it will still work.
@@ -165,29 +103,31 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                 conditional_reg=conditional_reg,
                                 penalise_grad_lambdas=penalise_grad_lambdas)
 
-        auc_valid = valid_wrap_epoch(epoch=epoch,
-                               model=model,
-                               device=device,
-                               data_loader=valid_loader,
-                               criterion=criterion)
+        auc_valid = valid_wrap_epoch(name="valid",
+                                     epoch=epoch,
+                                     model=model,
+                                     device=device,
+                                     data_loader=valid_loader,
+                                     criterion=criterion)
 
         # Save monitor the auc/loss, etc.
-        auc_test = test_wrap_epoch(epoch=epoch,
-                              model=model,
-                              device=device,
-                              data_loader=test_loader,
-                              criterion=criterion)
+        auc_test = test_wrap_epoch(name="test",
+                                   epoch=epoch,
+                                   model=model,
+                                   device=device,
+                                   data_loader=test_loader,
+                                   criterion=criterion)
         
         if auc_valid > best_metric:
             best_metric = auc_valid
-            best_testauc_for_validauc = auc_test
+            testauc_for_best_validauc = auc_test
 
         stat = {"epoch": epoch,
                 "trainloss": avg_loss, 
                 "validauc": auc_valid,
                 "testauc": auc_test,
-                "best_testauc_for_validauc": best_testauc_for_validauc}
-        stat.update(process_config(cfg))
+                "testauc_for_best_validauc": testauc_for_best_validauc}
+        stat.update(configuration.process_config(cfg))
 
         metrics.append(stat)
 
@@ -195,12 +135,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 #             monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
         
 
-    monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
     monitoring.log_experiment_csv(cfg, [best_metric])
 
-    return best_metric, best_testauc_for_validauc, {'dataset_train': dataset_train,
+    return metrics, best_metric, testauc_for_best_validauc, {'dataset_train': dataset_train,
                                                     'dataset_valid': dataset_valid,
-                                                    'dataset_test': dataset_test} #, best_testauc_for_validauc
+                                                    'dataset_test': dataset_test}
 
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemask, conditional_reg, penalise_grad_lambdas):
@@ -334,7 +273,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         optimizer.step()
     return np.mean(avg_loss)
 
-def test_epoch(epoch, model, device, data_loader, criterion):
+def test_epoch(name, epoch, model, device, data_loader, criterion):
 
     model.eval()
     data_loss = 0
@@ -356,7 +295,7 @@ def test_epoch(epoch, model, device, data_loader, criterion):
     auc = accuracy_score(np.concatenate(targets), np.concatenate(predictions).argmax(axis=1))
 
     data_loss /= len(data_loader.dataset)
-    print(epoch, 'Average test loss: {:.4f}, Test AUC: {:.4f}'.format(data_loss, auc))
+    print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}'.format(name, data_loss, auc))
     return auc
 
 @mlflow_logger.log_experiment(nested=False)
@@ -426,7 +365,8 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
 
     opt_results = None
     state = {}
-
+    best_metric_test = 0
+    best_metrics = None
     for _ in range(n_iter):
 
         # Do a bunch of loops.
@@ -434,9 +374,14 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
         this_cfg = generate_config(cfg, skopt_args, suggestion)
 
         # optimizer.tell(suggestion, - train_function(this_cfg)[0]) # We minimize the negative accuracy/AUC
-        metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
+        metrics, metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
 
         opt_results = optimizer.tell(suggestion, - metric) # We minimize the negative accuracy/AUC
+        
+        #record metrics to write and plot
+        if best_metric_test < metric_test:
+            best_metric_test = metric_test
+            best_metrics = metrics
 
     # Done! Hyperparameters tuning has never been this easy.
 
@@ -450,3 +395,5 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
     except:
         # sorry buddy, the feature you are seeking is not available.
         pass
+    
+    return best_metrics

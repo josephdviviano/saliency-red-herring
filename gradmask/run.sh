@@ -1,12 +1,12 @@
 #!/bin/bash
 hostname
 source $HOME/.bashrc
-source activate gradmask
+#source activate gradmask
 
-python -u main.py train-skopt --config config/lungmsd_skopt.yml $@
+python3 -u main.py train-skopt --config config/lungmsd_skopt.yml $@
 
-echo "Exit code is $?"
 rc=$?
+echo "Exit code is $?"
 if  [[ $rc == 0 ]]; then
     echo "Command succeeded"
 else

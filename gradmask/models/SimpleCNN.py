@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import gradmask.utils.register as register
+import utils.register as register
 
 
 @register.setmodelname("SimpleCNN")
