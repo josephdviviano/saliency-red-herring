@@ -11,7 +11,7 @@ import collections
 import torchvision.transforms
 import torchvision.transforms.functional as TF
 import h5py, ntpath
-import gradmask.utils.register as register
+import utils.register as register
 
 def extract_samples(data, image_path, label_path):
     image_data, _ = medpy.io.load(image_path)
