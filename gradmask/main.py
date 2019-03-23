@@ -1,6 +1,7 @@
 import click
 import training as training
 import utils.configuration as configuration
+import utils.monitoring as monitoring
 import os, sys
 
 penalise_grad_choices = ["contrast", "diff_from_ref", "nonhealthy"]
@@ -119,7 +120,7 @@ def get_log_folder_name(cfg):
     del ncfg["num_epochs"]
     del ncfg["transform"]
     dataset_cfg = cfg["dataset"]["train"]
-    print(dataset_cfg[list(dataset_cfg.keys())[0]])
+    #print(dataset_cfg[list(dataset_cfg.keys())[0]])
     ncfg["nsamples_train"] = dataset_cfg[list(dataset_cfg.keys())[0]]["nsamples"]
     ncfg["maxmasks"] = dataset_cfg[list(dataset_cfg.keys())[0]]["maxmasks"]
     ncfg["dataset"] = list(ncfg["dataset"]["train"].keys())[0]

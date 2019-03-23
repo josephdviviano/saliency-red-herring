@@ -58,14 +58,17 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     # Dataloader
     train_loader = torch.utils.data.DataLoader(dataset_train,
                                                 batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'])
+                                                shuffle=cfg['shuffle'],
+                                                num_workers=0, pin_memory=True)
     valid_loader = torch.utils.data.DataLoader(dataset_valid,
                                                 batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'])
+                                                shuffle=cfg['shuffle'],
+                                                num_workers=0, pin_memory=True)
 
     test_loader = torch.utils.data.DataLoader(dataset_test, 
                                                 batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'])
+                                                shuffle=cfg['shuffle'],
+                                                num_workers=0, pin_memory=True)
 
     
     model = configuration.setup_model(cfg).to(device)
@@ -100,22 +103,24 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                 conditional_reg=conditional_reg,
                                 penalise_grad_lambdas=penalise_grad_lambdas)
 
-        auc_valid = valid_wrap_epoch(epoch=epoch,
-                               model=model,
-                               device=device,
-                               data_loader=valid_loader,
-                               criterion=criterion)
+        auc_valid = valid_wrap_epoch(name="valid",
+                                     epoch=epoch,
+                                     model=model,
+                                     device=device,
+                                     data_loader=valid_loader,
+                                     criterion=criterion)
 
         # Save monitor the auc/loss, etc.
-        auc_test = test_wrap_epoch(epoch=epoch,
-                              model=model,
-                              device=device,
-                              data_loader=test_loader,
-                              criterion=criterion)
+        auc_test = test_wrap_epoch(name="test",
+                                   epoch=epoch,
+                                   model=model,
+                                   device=device,
+                                   data_loader=test_loader,
+                                   criterion=criterion)
         
         if auc_valid > best_metric:
             best_metric = auc_valid
-            best_testauc_for_validauc = auc_test
+            testauc_for_best_validauc = auc_test
 
         stat = {"epoch": epoch,
                 "trainloss": avg_loss, 
@@ -134,7 +139,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     return metrics, best_metric, testauc_for_best_validauc, {'dataset_train': dataset_train,
                                                     'dataset_valid': dataset_valid,
-                                                    'dataset_test': dataset_test} #, best_testauc_for_validauc
+                                                    'dataset_test': dataset_test}
 
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemask, conditional_reg, penalise_grad_lambdas):
@@ -268,7 +273,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         optimizer.step()
     return np.mean(avg_loss)
 
-def test_epoch(epoch, model, device, data_loader, criterion):
+def test_epoch(name, epoch, model, device, data_loader, criterion):
 
     model.eval()
     data_loss = 0
@@ -290,7 +295,7 @@ def test_epoch(epoch, model, device, data_loader, criterion):
     auc = accuracy_score(np.concatenate(targets), np.concatenate(predictions).argmax(axis=1))
 
     data_loss /= len(data_loader.dataset)
-    print(epoch, 'Average test loss: {:.4f}, Test AUC: {:.4f}'.format(data_loss, auc))
+    print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}'.format(name, data_loss, auc))
     return auc
 
 @mlflow_logger.log_experiment(nested=False)
@@ -360,7 +365,8 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
 
     opt_results = None
     state = {}
-
+    best_metric_test = 0
+    best_metrics = None
     for _ in range(n_iter):
 
         # Do a bunch of loops.
@@ -371,6 +377,11 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
         metrics, metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
 
         opt_results = optimizer.tell(suggestion, - metric) # We minimize the negative accuracy/AUC
+        
+        #record metrics to write and plot
+        if best_metric_test < metric_test:
+            best_metric_test = metric_test
+            best_metrics = metrics
 
     # Done! Hyperparameters tuning has never been this easy.
 
@@ -384,3 +395,5 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
     except:
         # sorry buddy, the feature you are seeking is not available.
         pass
+    
+    return best_metrics
