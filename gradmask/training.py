@@ -64,7 +64,6 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
                                                 num_workers=0, pin_memory=True)
-
     test_loader = torch.utils.data.DataLoader(dataset_test, 
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
@@ -110,30 +109,27 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                      data_loader=valid_loader,
                                      criterion=criterion)
 
-        # Save monitor the auc/loss, etc.
-        auc_test = test_wrap_epoch(name="test",
+
+        
+        if auc_valid > best_metric:
+            best_metric = auc_valid
+            # only compute when we need to
+            auc_test = test_wrap_epoch(name="test",
                                    epoch=epoch,
                                    model=model,
                                    device=device,
                                    data_loader=test_loader,
                                    criterion=criterion)
-        
-        if auc_valid > best_metric:
-            best_metric = auc_valid
             testauc_for_best_validauc = auc_test
 
         stat = {"epoch": epoch,
                 "trainloss": avg_loss, 
                 "validauc": auc_valid,
-                "testauc": auc_test,
+                #"testauc": auc_test,
                 "testauc_for_best_validauc": testauc_for_best_validauc}
         stat.update(configuration.process_config(cfg))
 
         metrics.append(stat)
-
-#         if epoch % 20 == 0:
-#             monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
-        
 
     monitoring.log_experiment_csv(cfg, [best_metric])
 
@@ -367,7 +363,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
     state = {}
     best_metric = 0
     best_metrics = None
-    for _ in range(n_iter):
+    for i in range(n_iter):
 
         # Do a bunch of loops.
         suggestion = optimizer.ask()
@@ -384,7 +380,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
         if best_metric < metric:
             best_metric = metric
             best_metrics = metrics
-            print("New best metric: ", best_metric, "Best metric test: ", metric_test)
+            print(i, "New best metric: ", best_metric, "Best metric test: ", metric_test)
 
     # Done! Hyperparameters tuning has never been this easy.
 
