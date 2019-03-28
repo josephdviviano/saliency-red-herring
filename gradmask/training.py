@@ -14,6 +14,7 @@ import time, os, sys
 import manager.mlflow.logger as mlflow_logger
 import itertools
 import notebooks.auto_ipynb as auto_ipynb
+import pprint
 
 _LOG = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ _LOG = logging.getLogger(__name__)
 @mlflow_logger.log_metric('best_metric', 'testauc_for_best_validauc')
 def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recompile=True):
 
-    print("Our config:", cfg)
+    print("Our config:")
+    pprint.pprint(cfg)
 
     seed = cfg['seed']
     cuda = cfg['cuda']
