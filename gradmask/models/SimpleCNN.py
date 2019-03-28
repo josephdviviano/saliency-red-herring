@@ -24,7 +24,6 @@ class CNN(nn.Module):
         self.relu1 = nn.ReLU()
         
         output_size = self.outputSize(img_size, kernel_size=3, stride=2, padding=0)
-        print(output_size)
         
         self.conv2 = nn.Conv2d(
                         in_channels=64,
@@ -103,11 +102,11 @@ class CNN(nn.Module):
         # print("after view: ", x.shape)
         x = self.fc1(x)
         
-        # self.all_activations.append(x)
+        self.all_activations.append(x)
 
         x = self.relu5(x)
 
-        # self.all_activations.append(x)
+        self.all_activations.append(x)
 
         output = self.out(x)
         return output, x

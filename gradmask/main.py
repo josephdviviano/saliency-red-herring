@@ -46,7 +46,7 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
 @click.option('-nsamples_train', type=int, help='nsamples_train')
 @click.option('--n_iter', type=int, default=10, help='Configuration file.')
 @click.option('--base_estimator', type=click.Choice(["GP", "RF", "ET", "GBRT"]), default="GP", help='Estimator.')
-@click.option('--n_initial_points', type=int, default=10, help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
+@click.option('--n_initial_points', type=int, default=5, help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
 @click.option('--train_function', type=str, default="train", help='Training function to optimize over.')
 @click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')

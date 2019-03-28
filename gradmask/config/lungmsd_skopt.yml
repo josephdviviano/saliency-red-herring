@@ -21,7 +21,7 @@ dataset:
   train:
     LungMSDDataset:
       mode: 'train'
-      blur: "Integer(0, 10)"
+      blur: "Integer(0, 5)"
   valid:
     LungMSDDataset:
       mode: 'valid'
@@ -34,7 +34,7 @@ dataset:
 # Model
 model:
   SimpleCNN: 
-    flat_layer: "Integer(1, 8)"
+    flat_layer: "Integer(2, 6)"
 
 # Optimizer
 optimizer:

@@ -1,7 +1,8 @@
 #!/bin/bash
 hostname
+export LANG=C.UTF-8
 source $HOME/.bashrc
-#source activate gradmask
+source activate gradmask
 
 python3 -u main.py train-skopt --config config/lungmsd_skopt.yml $@
 

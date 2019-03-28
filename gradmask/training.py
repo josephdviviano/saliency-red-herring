@@ -365,13 +365,15 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
 
     opt_results = None
     state = {}
-    best_metric_test = 0
+    best_metric = 0
     best_metrics = None
     for _ in range(n_iter):
 
         # Do a bunch of loops.
         suggestion = optimizer.ask()
         this_cfg = generate_config(cfg, skopt_args, suggestion)
+        opt_dict = this_cfg['optimizer']
+        #opt_dict[list(opt_dict.keys())[0]]['lr'] = 10**float(-opt_dict[list(opt_dict.keys())[0]]['lr'])
 
         # optimizer.tell(suggestion, - train_function(this_cfg)[0]) # We minimize the negative accuracy/AUC
         metrics, metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
@@ -379,9 +381,10 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
         opt_results = optimizer.tell(suggestion, - metric) # We minimize the negative accuracy/AUC
         
         #record metrics to write and plot
-        if best_metric_test < metric_test:
-            best_metric_test = metric_test
+        if best_metric < metric:
+            best_metric = metric
             best_metrics = metrics
+            print("New best metric: ", best_metric, "Best metric test: ", metric_test)
 
     # Done! Hyperparameters tuning has never been this easy.
 
