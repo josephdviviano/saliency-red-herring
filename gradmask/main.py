@@ -18,7 +18,8 @@ def run():
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
 @click.option('-new_size', type=int, help='new_size')
-def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size):
+@click.option('-num_epochs', type=int, help='num_epochs')
+def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size, num_epochs):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
@@ -36,6 +37,8 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
     if not conditional_reg is None:
         cfg["conditional_reg"] = conditional_reg
+    if not num_epochs is None:
+        cfg["num_epochs"] = num_epochs
 
     training.train(cfg)
 
@@ -52,8 +55,9 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-maxmasks_train', type=int, help='maxmasks_train')
+@click.option('-num_epochs', type=int, help='num_epochs')
 def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function,
-               penalise_grad_usemask, conditional_reg, new_size, maxmasks_train):
+               penalise_grad_usemask, conditional_reg, new_size, maxmasks_train, num_epochs):
     cfg = configuration.load_config(config)
     cfg["skopt"] = True
     if not seed is None:
@@ -84,6 +88,9 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
     if not conditional_reg is None:
         cfg["conditional_reg"] = conditional_reg
+    
+    if not num_epochs is None:
+        cfg["num_epochs"] = num_epochs
         
     # do logging stuff and break if already done  
 
