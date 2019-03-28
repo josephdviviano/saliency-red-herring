@@ -28,7 +28,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     num_epochs = cfg['num_epochs']
     # maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
-    penalise_grad_usemask = cfg.get('penalise_grad_usemask', False)
+    penalise_grad_usemasks = cfg.get('penalise_grad_usemasks')
     conditional_reg = cfg.get('conditional_reg', False)
     penalise_grad_lambdas = [cfg['penalise_grad_lambda_1'], cfg['penalise_grad_lambda_2']]
     
@@ -98,7 +98,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                 train_loader=train_loader,
                                 criterion=criterion,
                                 penalise_grad=penalise_grad,
-                                penalise_grad_usemask=penalise_grad_usemask,
+                                penalise_grad_usemasks=penalise_grad_usemasks,
                                 conditional_reg=conditional_reg,
                                 penalise_grad_lambdas=penalise_grad_lambdas)
 
@@ -138,7 +138,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                     'dataset_test': dataset_test}
 
 @mlflow_logger.log_metric('train_loss')
-def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemask, conditional_reg, penalise_grad_lambdas):
+def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemasks, conditional_reg, penalise_grad_lambdas):
 
     model.train()
     avg_loss = []
@@ -244,7 +244,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 certainty_mask = 1 - torch.argmax((temp_softmax > 0.95).float(), dim=1)
                 input_grads = certainty_mask.float().reshape(-1, 1, 1, 1) * input_grads
             
-            if penalise_grad_usemask:
+            if penalise_grad_usemasks:
                 res = input_grads * (1 - seg.float())
             else:
                 res = input_grads

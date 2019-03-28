@@ -51,13 +51,13 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
 @click.option('--base_estimator', type=click.Choice(["GP", "RF", "ET", "GBRT"]), default="GP", help='Estimator.')
 @click.option('--n_initial_points', type=int, default=5, help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
 @click.option('--train_function', type=str, default="train", help='Training function to optimize over.')
-@click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
+@click.option('-penalise_grad_usemasks', type=bool, help='penalise_grad_usemasks')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-maxmasks_train', type=int, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function,
-               penalise_grad_usemask, conditional_reg, new_size, maxmasks_train, num_epochs):
+               penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, num_epochs):
     cfg = configuration.load_config(config)
     cfg["skopt"] = True
     if not seed is None:
@@ -66,26 +66,23 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
     if not penalise_grad is None:
         cfg["penalise_grad"] = penalise_grad
 
-    if not penalise_grad is None:
-        cfg["penalise_grad_usemask"] = penalise_grad_usemask
+    if not penalise_grad_usemasks is None:
+        cfg["penalise_grad_usemasks"] = penalise_grad_usemasks
         
+    dataset = cfg["dataset"]["train"]
     if not cfg["nsamples_train"] is None:
-        dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["nsamples"] = cfg["nsamples_train"]
     if not nsamples_train is None:
-        dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
       
     if not cfg["maxmasks_train"] is None:
-        dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["maxmasks"] = cfg["maxmasks_train"]
     if not maxmasks_train is None:
-        dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
         
     if not new_size is None:
-        dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
+        
     if not conditional_reg is None:
         cfg["conditional_reg"] = conditional_reg
     
