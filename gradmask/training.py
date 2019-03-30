@@ -15,6 +15,7 @@ import manager.mlflow.logger as mlflow_logger
 import itertools
 import notebooks.auto_ipynb as auto_ipynb
 import pprint
+import matplotlib.pyplot as plt
 
 _LOG = logging.getLogger(__name__)
 
@@ -91,7 +92,14 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
     test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
 
+    img_viz0 = dataset_train[0]
+    img_viz1 = dataset_valid[0]
+    
     for epoch in range(num_epochs):
+        
+        if cfg['viz']:
+            processImage("0",epoch, img_viz0, model)
+            processImage("1",epoch, img_viz1, model)
 
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
@@ -250,7 +258,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 res = input_grads * (1 - seg.float())
             else:
                 res = input_grads
-
+                
             # gradmask_loss = epoch * (res ** 2)
             n_iter = len(train_loader) * epoch + batch_idx
             #import ipdb; ipdb.set_trace()
@@ -269,6 +277,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         loss.backward()
 
         optimizer.step()
+                
     return np.mean(avg_loss)
 
 def test_epoch(name, epoch, model, device, data_loader, criterion):
@@ -295,6 +304,52 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
     data_loss /= len(data_loader.dataset)
     print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}'.format(name, data_loss, auc))
     return auc
+
+#to make video: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
+def processImage(text, i, sample, model):
+    fig = plt.Figure(figsize=(20, 10), dpi=160)
+    gcf = plt.gcf()
+    gcf.set_size_inches(20, 10)
+    fig.set_canvas(gcf.canvas)
+    gridsize = (3,6)
+    x, target, use_mask = sample
+    
+    x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
+    model.eval()
+    pred, res = model(x_var)
+
+    input_grads0 = torch.autograd.grad(outputs=(torch.abs(pred[:,0]).sum()), 
+                                           inputs=x_var,
+                                           create_graph=True)[0]
+    input_grads1 = torch.autograd.grad(outputs=(torch.abs(pred[:,1]).sum()), 
+                                           inputs=x_var,
+                                           create_graph=True)[0]
+    
+    input_grads0 = input_grads0[0][0].cpu().detach().numpy()
+    input_grads1 = input_grads1[0][0].cpu().detach().numpy()
+
+
+    ax2 = plt.subplot2grid(gridsize, (1, 0), colspan=1)
+    ax3 = plt.subplot2grid(gridsize, (1, 1), colspan=1)
+    ax4 = plt.subplot2grid(gridsize, (0, 0), colspan=1)
+    ax5 = plt.subplot2grid(gridsize, (0, 1), rowspan=1)
+    ax6 = plt.subplot2grid(gridsize, (0, 2), rowspan=1)
+
+    ax2.set_title(str(i) + "Input Image")
+    ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
+    ax3.set_title("Masked input")
+    ax3.imshow((x[1][0]*x[0][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
+    ax4.set_title("grad for class 1")
+    ax4.imshow(np.abs(input_grads1), cmap="jet", interpolation='none')
+    ax5.set_title("grad1 masked")
+    ax5.imshow(np.abs(input_grads1)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
+    ax6.set_title("|grad1|-|grad0|")
+    ax6.imshow(np.abs(input_grads1 - input_grads0), cmap="jet", interpolation='none')
+    
+    if not os.path.exists('images'): 
+        os.mkdir('images')
+    fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
+    
 
 @mlflow_logger.log_experiment(nested=False)
 def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, train_function=train, new_size=100):

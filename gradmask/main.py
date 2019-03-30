@@ -19,7 +19,8 @@ def run():
 @click.option('-nsamples_train', type=int, help='nsamples_train')
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-num_epochs', type=int, help='num_epochs')
-def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size, num_epochs):
+@click.option('-viz', type=bool, default=False, help='plot images')
+def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size, num_epochs, viz):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
@@ -39,6 +40,8 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
         cfg["conditional_reg"] = conditional_reg
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
+
+    cfg["viz"] = viz
 
     training.train(cfg)
 
@@ -72,11 +75,13 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
     dataset = cfg["dataset"]["train"]
     if not cfg["nsamples_train"] is None:
         dataset[list(dataset.keys())[0]]["nsamples"] = cfg["nsamples_train"]
+        del cfg["nsamples_train"]
     if not nsamples_train is None:
         dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
       
     if not cfg["maxmasks_train"] is None:
         dataset[list(dataset.keys())[0]]["maxmasks"] = cfg["maxmasks_train"]
+        del cfg["maxmasks_train"]
     if not maxmasks_train is None:
         dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
         
@@ -92,7 +97,7 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
     # do logging stuff and break if already done  
 
     log_folder = get_log_folder_name(cfg)
-    log_folder = "logs/" + str(hash(log_folder))
+    log_folder = "logs/" + str(hash(log_folder)).replace("-","_")
     print("Log folder:" + log_folder)
     
     if os.path.isdir(log_folder):
