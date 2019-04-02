@@ -19,18 +19,18 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    LiverMSDDataset:
+    LungMSDDataset:
       mode: 'train'
       blur: 7
       new_size: 512
   valid:
-    LiverMSDDataset:
+    LungMSDDataset:
       mode: 'valid'
       nsamples: 128
       blur: 7
       new_size: 512
   test:
-    LiverMSDDataset:
+    LungMSDDataset:
       mode: 'test'
       nsamples: 128
       new_size: 512
