@@ -15,6 +15,7 @@ import manager.mlflow.logger as mlflow_logger
 import itertools
 import notebooks.auto_ipynb as auto_ipynb
 import pprint
+import matplotlib.pyplot as plt
 
 _LOG = logging.getLogger(__name__)
 
@@ -91,7 +92,14 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
     test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
 
+    img_viz0 = dataset_train[0]
+    img_viz1 = dataset_valid[0]
+    
     for epoch in range(num_epochs):
+        
+        if cfg['viz']:
+            processImage("0",epoch, img_viz0, model)
+            processImage("1",epoch, img_viz1, model)
 
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
@@ -144,7 +152,8 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
 
     model.train()
     avg_loss = []
-    for batch_idx, (data, target, use_mask) in enumerate(tqdm(train_loader)):
+    t = tqdm(train_loader)
+    for batch_idx, (data, target, use_mask) in enumerate(t):
 
         #use_mask = torch.ones((len(target))) # TODO change here.
         optimizer.zero_grad()
@@ -159,81 +168,8 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
 
         # TODO: this place is suuuuper slow. Should be optimized by using advance indexing or something.
         if penalise_grad != "False":
-            if penalise_grad == "contrast":
-                # d(y_0-y_1)/dx
-                input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 0]-class_output[:, 1]).sum(),
-                                        inputs=x, allow_unused=True,
-                                        create_graph=True)[0]
-            elif penalise_grad == "nonhealthy":
-                # select the non healthy class d(y_1)/dx
-                input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(), 
-                                        inputs=x, allow_unused=True,
-                                        create_graph=True)[0]
-            elif penalise_grad == "diff_from_ref":
-                # do the deep lift style ref update and diff-to-ref calculations here
-                
-                # update the reference stuff 
-                # 1) mask all_activations to get healthy only
-                healthy_mask = target.float().reshape(-1, 1, 1, 1).clone()
-                healthy_mask[target.float().reshape(-1, 1, 1, 1) == 0] = 1
-                healthy_mask[target.float().reshape(-1, 1, 1, 1) != 0] = 0
-                
-                diff = torch.FloatTensor()
-                diff = diff.to(device)
-                
-                # print("Activation lengths: ", len(model.all_activations))
-                for i in range(len(model.all_activations)):
-                    a = model.all_activations[i]
-                    # print("Activation shape: ", a.shape)
-                    
-                    if len(a.shape) < 4:
-                        # activations are from the last layers (shape [batch, FC layer_size])
-                        new_mask = target.float().reshape(-1, 1)
-                        new_mask[target.float().reshape(-1, 1) == 0] = 1
-                        new_mask[target.float().reshape(-1, 1) != 0] = 0
-                        healthy_batch = new_mask * a
-                    else:
-                        healthy_batch = healthy_mask * a
-#                     print("healthy mask shape: ", healthy_mask.shape, "activation shape: ", a.shape, "len: ", len(a.shape))
-                    
-                    # 2) detach grads for the healthy samples
-                    healthy_batch = healthy_batch.detach()
-#                     print("Healthy batch shape: ", healthy_batch.shape)
-                    
-                    # 3) get batch-wise average of activations per layer
-                    batch_avg_healthy = torch.mean(healthy_batch, dim=0)
-#                     print("Healthy batch avg shape: ", batch_avg_healthy.shape)
-                    
-                    # 4) update global reference layer average in model's deep_lift_ref attr
-                    if len(model.ref) < len(model.all_activations):
-                        # for the first iteration, just make the model.ref == batch_avg_healthy for that layer
-                        model.ref.append(batch_avg_healthy)
-                    else:
-                        # otherwise, a rolling average
-#                         print("ref shape: ", model.ref[i].shape)
-                        model.ref[i] = model.ref[i] * 0.8 + batch_avg_healthy
-                
-                # 5) TODO: somehow incorporate std to allowing regions of variance in the healthy images
-                
-                # use the reference layers to get the diff-to-ref of each layer and output contribution scores
-                # contribution scores should be the input_grads? Should be a single matrix of values for how each input
-                # pixel contributes to the output layer, no? Like all the layer-wise diff-from-ref get condensed into
-                # one thing based on sum(contribution_scores of (delta_x_i, delta_t)) = delta_t
-                # 1) for each layer, t - t0, then mask the unhealthy ones
-                # 2) flatten, 3) stack or join together somehow?, 4) L1 norm, 5) input grads
-                    diff = torch.cat((diff, torch.flatten((a - model.ref[i]) * target.float().reshape(-1, 1, 1, 1))))
-                
-                input_grads = torch.autograd.grad(outputs=torch.abs(diff).sum(),
-                                                 inputs=x, allow_unused=True, create_graph=True)[0]
             
-            elif penalise_grad == "masd_style":
-                # In the style of the Model-Agnostic Saliency Detector paper: https://arxiv.org/pdf/1807.07784.pdf
-                
-                print(class_output.shape, representation.shape)
-                # outputs should now be: abs(diff(area_seg - area_saliency_map)) + 
-                # WIP
-            else:
-                raise Exception("Unknown style of penalise_grad. Options are: contrast, nonhealthy, diff_from_ref")
+            input_grads = get_gradmask_loss(x, class_output, model, target, penalise_grad)
 
             # only apply to positive examples
             if penalise_grad != "diff_from_ref":
@@ -245,11 +181,11 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 temp_softmax = torch.softmax(class_output, dim=1).detach()
                 certainty_mask = 1 - torch.argmax((temp_softmax > 0.95).float(), dim=1)
                 input_grads = certainty_mask.float().reshape(-1, 1, 1, 1) * input_grads
-            
+
             if penalise_grad_usemasks:
-                res = input_grads * (1 - seg.float())
+                input_grads = input_grads * (1 - seg.float())
             else:
-                res = input_grads
+                input_grads = input_grads
 
             # gradmask_loss = epoch * (res ** 2)
             n_iter = len(train_loader) * epoch + batch_idx
@@ -266,10 +202,94 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
             loss = loss + loss*gradmask_loss
 
         avg_loss.append(loss.detach().cpu().numpy())
+        t.set_description('Train (loss={:4.4f})'.format(np.mean(avg_loss)))
         loss.backward()
 
         optimizer.step()
+                
     return np.mean(avg_loss)
+
+def get_gradmask_loss(x, class_output, model, target, penalise_grad):
+    if penalise_grad == "contrast":
+        # d(y_0-y_1)/dx
+        input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 0]-class_output[:, 1]).sum(),
+                                inputs=x, allow_unused=True,
+                                create_graph=True)[0]
+    elif penalise_grad == "nonhealthy":
+        # select the non healthy class d(y_1)/dx
+        input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(), 
+                                inputs=x, allow_unused=True,
+                                create_graph=True)[0]
+    elif penalise_grad == "diff_from_ref":
+        # do the deep lift style ref update and diff-to-ref calculations here
+
+        # update the reference stuff 
+        # 1) mask all_activations to get healthy only
+        target = target.to(x.get_device())
+        healthy_mask = target.float().reshape(-1, 1, 1, 1).clone()
+        healthy_mask[target.float().reshape(-1, 1, 1, 1) == 0] = 1
+        healthy_mask[target.float().reshape(-1, 1, 1, 1) != 0] = 0
+
+        diff = torch.FloatTensor()
+        diff = diff.to(x.get_device())
+
+        # print("Activation lengths: ", len(model.all_activations))
+        for i in range(len(model.all_activations)):
+            a = model.all_activations[i]
+            # print("Activation shape: ", a.shape)
+
+            if len(a.shape) < 4:
+                # activations are from the last layers (shape [batch, FC layer_size])
+                new_mask = target.float().reshape(-1, 1)
+                new_mask[target.float().reshape(-1, 1) == 0] = 1
+                new_mask[target.float().reshape(-1, 1) != 0] = 0
+                healthy_batch = new_mask * a
+            else:
+                healthy_batch = healthy_mask * a
+#                     print("healthy mask shape: ", healthy_mask.shape, "activation shape: ", a.shape, "len: ", len(a.shape))
+
+            # 2) detach grads for the healthy samples
+            healthy_batch = healthy_batch.detach()
+#                     print("Healthy batch shape: ", healthy_batch.shape)
+
+            # 3) get batch-wise average of activations per layer
+            batch_avg_healthy = torch.mean(healthy_batch, dim=0)
+#                     print("Healthy batch avg shape: ", batch_avg_healthy.shape)
+
+            # 4) update global reference layer average in model's deep_lift_ref attr
+            if len(model.ref) < len(model.all_activations):
+                # for the first iteration, just make the model.ref == batch_avg_healthy for that layer
+                model.ref.append(batch_avg_healthy)
+            else:
+                # otherwise, a rolling average
+#                         print("ref shape: ", model.ref[i].shape)
+                model.ref[i] = model.ref[i] * 0.8 + batch_avg_healthy
+
+        # 5) TODO: somehow incorporate std to allowing regions of variance in the healthy images
+
+        # use the reference layers to get the diff-to-ref of each layer and output contribution scores
+        # contribution scores should be the input_grads? Should be a single matrix of values for how each input
+        # pixel contributes to the output layer, no? Like all the layer-wise diff-from-ref get condensed into
+        # one thing based on sum(contribution_scores of (delta_x_i, delta_t)) = delta_t
+        # 1) for each layer, t - t0, then mask the unhealthy ones
+        # 2) flatten, 3) stack or join together somehow?, 4) L1 norm, 5) input grads
+            diff = torch.cat((diff, torch.flatten((a - model.ref[i]) * target.float().reshape(-1, 1, 1, 1))))
+
+        input_grads = torch.autograd.grad(outputs=torch.abs(diff).sum(),
+                                         inputs=x, allow_unused=True, create_graph=True)[0]
+
+    elif penalise_grad == "masd_style":
+        # In the style of the Model-Agnostic Saliency Detector paper: https://arxiv.org/pdf/1807.07784.pdf
+
+        print(class_output.shape, representation.shape)
+        # outputs should now be: abs(diff(area_seg - area_saliency_map)) + 
+        # WIP
+    else:
+        raise Exception("Unknown style of penalise_grad. Options are: contrast, nonhealthy, diff_from_ref")
+    
+    return input_grads
+
+
 
 def test_epoch(name, epoch, model, device, data_loader, criterion):
 
@@ -295,6 +315,63 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
     data_loss /= len(data_loader.dataset)
     print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}'.format(name, data_loss, auc))
     return auc
+
+#to make video: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
+def processImage(text, i, sample, model):
+    fig = plt.Figure(figsize=(20, 10), dpi=160)
+    gcf = plt.gcf()
+    gcf.set_size_inches(20, 10)
+    fig.set_canvas(gcf.canvas)
+    gridsize = (3,6)
+    x, target, use_mask = sample
+    
+    x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
+    model.eval()
+    class_output, res = model(x_var)
+    
+#     input_grads = get_gradmask_loss(x, class_output, "nonhealthy")
+
+# #     input_grads0 = torch.autograd.grad(outputs=(torch.abs(pred[:,0]).sum()), 
+# #                                            inputs=x_var,
+# #                                            create_graph=True)[0]
+# #     input_grads1 = torch.autograd.grad(outputs=(torch.abs(pred[:,1]).sum()), 
+# #                                            inputs=x_var,
+# #                                            create_graph=True)[0]
+    
+#     input_grads0 = input_grads0[0][0].cpu().detach().numpy()
+#     input_grads1 = input_grads1[0][0].cpu().detach().numpy()
+
+
+    ax2 = plt.subplot2grid(gridsize, (1, 0), colspan=1)
+    ax3 = plt.subplot2grid(gridsize, (1, 1), colspan=1)
+    ax4 = plt.subplot2grid(gridsize, (0, 0), colspan=1)
+    ax5 = plt.subplot2grid(gridsize, (0, 1), rowspan=1)
+    ax6 = plt.subplot2grid(gridsize, (0, 2), rowspan=1)
+    ax7 = plt.subplot2grid(gridsize, (0, 3), rowspan=1)
+
+    ax2.set_title(str(i) + "Input Image")
+    ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
+    ax3.set_title("Masked input")
+    ax3.imshow((x[1][0]*x[0][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
+    
+    ax4.set_title("nonhealthy")
+    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
+    ax4.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    ax5.set_title("nonhealthy masked")
+    ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
+    
+    ax6.set_title("contrast")
+    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
+    ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    
+    ax7.set_title("diff_from_ref")
+    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
+    ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    
+    if not os.path.exists('images'): 
+        os.mkdir('images')
+    fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
+    
 
 @mlflow_logger.log_experiment(nested=False)
 def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, train_function=train, new_size=100):

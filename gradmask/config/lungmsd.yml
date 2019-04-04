@@ -1,17 +1,19 @@
 # General
-conditional_reg: True
-penalise_grad_usemasks: True
 cuda: True
-nsamples: &nsamples 64
-maxmasks: &maxmasks 8
-penalise_grad: 'contrast'
-blur: &blur 0
+penalise_grad: 'diff_from_ref'
+n_iter: 30
+penalise_grad_lambda_1: 1
+penalise_grad_lambda_2: 1
+conditional_reg: False
+penalise_grad_usemasks: True 
+nsamples_train: 64
+maxmasks_train: 256
 
 # Training
 num_epochs: 200
 
 # DataLoader
-batch_size: 32
+batch_size: 2
 shuffle: True
 
 # Dataset
@@ -19,19 +21,19 @@ dataset:
   train:
     LungMSDDataset:
       mode: 'train'
-      maxmasks: *maxmasks
+      blur: 7
+      new_size: 512
   valid:
     LungMSDDataset:
       mode: 'valid'
-      seed: *seed
-      nsamples: 256
-      maxmasks: *maxmasks
+      nsamples: 128
+      blur: 7
+      new_size: 512
   test:
     LungMSDDataset:
       mode: 'test'
-      seed: *seed
-      nsamples: 256
-      maxmasks: *maxmasks
+      nsamples: 128
+      new_size: 512
 
 # Model
 model:
@@ -40,17 +42,11 @@ model:
 
 # Optimizer
 optimizer:
-  SGD:
-    lr: 0.00031116518486790096
+  Adam:
+    lr: 0.0001
 
 transform:
         train: {}
         valid: {}
         test: {}
 
-# mlflow experiment manager
-manager:
-    set_experiment:
-        name: 'testing123' # Experience name
-    set_tracking_uri:
-        uri: '' # Link or url to where to store the logs. Default is `./mlruns`
