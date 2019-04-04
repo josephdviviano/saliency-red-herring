@@ -11,11 +11,11 @@ class UNet(nn.Module):
         
         self.activations = []
         
-        self.unet_enc_1, out_size = unet_encode_block(layer_num=1, img_size)
+        self.unet_enc_1, out_size = unet_encode_block(1, img_size)
         
-        self.unet_enc_2, out_size = unet_encode_block(layer_num=2, out_size)
+        self.unet_enc_2, out_size = unet_encode_block(2, out_size)
         
-        self.unet_enc_3, out_size = unet_encode_block(layer_num=3, out_size)
+        self.unet_enc_3, out_size = unet_encode_block(3, out_size)
                 
 
     def unet_encode_block(self, layer_num, in_size, base_filter_size=32):

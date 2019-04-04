@@ -8,6 +8,7 @@ def convrelu(in_channels, out_channels, kernel, padding):
         nn.ReLU(inplace=True),
     )
 
+@register.setmodelname("ResNetUNet")
 class ResNetUNet(nn.Module):
 
     def __init__(self, n_class, img_size=300):
