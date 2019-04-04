@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
+import utils.register as register
+
 def convrelu(in_channels, out_channels, kernel, padding):
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels, kernel, padding=padding),
