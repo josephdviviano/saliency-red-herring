@@ -48,16 +48,17 @@ class UNet(nn.Module):
         return internal_layers, output_size
     
     def unet_decode_block(self, in_size, is_last=False):
-        internal_layers = []
-        if not is_last:
-            # do the thing
-            if layer_num != 1:
-                # not the first decode block, so do dropout, 2x(conv, ELU), upsample
+#         internal_layers = []
+#         if not is_last:
+#             # do the thing
+#             if layer_num != 1:
+#                 # not the first decode block, so do dropout, 2x(conv, ELU), upsample
             
-            else:
-                # first decode block so just do upsample
+#             else:
+#                 # first decode block so just do upsample
             
-        return internal_layers, size
+#         return internal_layers, size
+        return
     
     def output_size(self, in_size, kernel_size, stride, padding):
 
