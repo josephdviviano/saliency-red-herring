@@ -23,7 +23,7 @@ class ResNetUNet(nn.Module):
         self.base_layers = list(self.base_model.children())
 
         self.layer0 = nn.Sequential(*self.base_layers[:3]) # size=(N, 64, x.H/2, x.W/2)
-        self.layer0_1x1 = convrelu(32, 64, 1, 0)
+        self.layer0_1x1 = convrelu(64, 64, 1, 0)
         self.layer1 = nn.Sequential(*self.base_layers[3:5]) # size=(N, 256, x.H/4, x.W/4)
         self.layer1_1x1 = convrelu(64, 128, 1, 0)
         self.layer2 = self.base_layers[5]  # size=(N, 512, x.H/8, x.W/8)
@@ -45,11 +45,11 @@ class ResNetUNet(nn.Module):
         self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         
         output_size = self.get_fc_layer_size(img_size)
-        self.fc1 = nn.Linear(8 * output_size * output_size, flat_layer)
+        self.fc1 = nn.Linear(16 * output_size * output_size, flat_layer)
         
-        #self.relu5 = nn.ReLU()
+        self.relu_last = nn.ReLU()
         
-        self.out = nn.Linear(128, n_class)
+        self.out = nn.Linear(flat_layer, n_class)
     
     def get_fc_layer_size(self, img_size):
         # self.conv_last = nn.Conv2d(64, n_class, 1)
@@ -114,6 +114,10 @@ class ResNetUNet(nn.Module):
         x = self.conv_original_size2(x)
         x = x.view(x.size(0), -1)
         out = self.fc1(x) # self.conv_last(x)
-        out = self.out(out)
+        print("out shape: ", out.shape)
 
+        # out = self.relu_last(out)
+        
+        out = self.out(out)
+        print("last shape: ", out.shape)
         return out
