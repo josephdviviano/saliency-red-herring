@@ -1,82 +1,52 @@
 # General
-seed: &seed 1234
 cuda: True
-nsamples: &nsample 64
-maxmasks: &maxmaks 8
-penalise_grad: True
-blur: &blur 3
+penalise_grad: 'contrast'
+n_iter: 30
+penalise_grad_lambda_1: 1
+penalise_grad_lambda_2: 1
+conditional_reg: False
+penalise_grad_usemasks: True 
+nsamples_train: 64
+maxmasks_train: 256
 
 # Training
-epoch: 2
+num_epochs: 200
 
 # DataLoader
-batch_size: 32
+batch_size: 2
 shuffle: True
 
 # Dataset
 dataset:
   train:
     TNTDataset:
-      subset: 'train'
-      seed: *seed
-      nsamples: *nsample
-      maxmaks: *nsample
-      blur: *blur
+      mode: 'train'
+      blur: 3
+      new_size: 200
   valid:
     TNTDataset:
-      subset: 'valid'
-      seed: *seed
-      nsamples: *nsample
-      maxmaks: *nsample
-      blur: *blur
+      mode: 'valid'
+      nsamples: 64
+      blur: 3
+      new_size: 200
   test:
     TNTDataset:
-      subset: 'test'
-      seed: *seed
-      nsamples: *nsample
-      maxmaks: *nsample
-      blur: *blur
-
+      mode: 'test'
+      nsamples: 64
+      new_size: 200
 
 # Model
 model:
-  SimpleCNN: {}
+  SimpleCNN2: 
+    flat_layer: 200
 
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.001
+    lr: 0.0001
 
-# pytorch transform
 transform:
-  train:
-    #- ToPILImage: {}
-    - Resize:
-        size: 100
-    - ToTensor: {}
-    - Normalize:
-        mean: [0.1307]
-        std: [0.3081]
-  valid:
-    #- ToPILImage: {}
-    - Resize:
-        size: 100
-    - ToTensor: {}
-    - Normalize:
-        mean: [0.1307]
-        std: [0.3081]
-  test:
-  #- ToPILImage: {}
-  - Resize:
-      size: 100
-  - ToTensor: {}
-  - Normalize:
-      mean: [0.1307]
-      std: [0.3081]
+        train: {}
+        valid: {}
+        test: {}
 
-# mlflow experiment manager
-manager:
-    set_experiment:
-        name: 'testing123' # Experience name
-    set_tracking_uri:
-        uri: '' # Link or url to where to store the logs. Default is `./mlruns`
