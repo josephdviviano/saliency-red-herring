@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import utils.register as register
 
 
-@register.setmodelname("SimpleCNN")
+@register.setmodelname("SimpleCNN2")
 class CNN(nn.Module):
     def __init__(self, img_size=100, flat_layer=1, num_class=2):
         super(CNN, self).__init__()
