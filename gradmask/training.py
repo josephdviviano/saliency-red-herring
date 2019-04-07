@@ -187,12 +187,13 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
             else:
                 input_grads = input_grads
 
+            gradmask_loss = input_grads
             # gradmask_loss = epoch * (res ** 2)
             n_iter = len(train_loader) * epoch + batch_idx
             #import ipdb; ipdb.set_trace()
             penalty = penalise_grad_lambdas[0] * float(np.exp(penalise_grad_lambdas[1] * n_iter))
             penalty = min(penalty, 1000)
-            gradmask_loss = penalty * (res ** 2)
+            gradmask_loss = penalty * (gradmask_loss ** 2)
 
             # Simulate that we only have some masks
             gradmask_loss = use_mask.reshape(-1, 1).float() * \
