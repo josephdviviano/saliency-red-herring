@@ -53,7 +53,7 @@ class TNTDataset(Dataset):
     'Tumor-NoTumor Dataset loader for PyTorch'
 
     ## the folder all is a combination of train and holdout
-    def __init__(self, tntpath='/network/data1/brats2013_tumor-notumor/all', mode="train", nsamples=32, maxmasks=32,  blur=0, new_size=100, seed=0, transform=False):
+    def __init__(self, tntpath='/network/data1/brats2013_tumor-notumor/all', mode="train", nsamples=32, maxmasks=256,  blur=0, new_size=100, seed=0, transform=False):
         self.tntpath = tntpath
         self.mode = mode
         self.datapath = self.tntpath
@@ -103,7 +103,7 @@ class TNTDataset(Dataset):
         print ("This dataloader contains:" + str(collections.Counter(self.labels)))
         
         # the samples start with labelled ones. past half there should be no labels
-        self.mask_idx = self.idx[:maxmasks]
+        self.mask_idx = range(maxmasks)
             
             
     def __len__(self):
