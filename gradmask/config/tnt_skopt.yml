@@ -1,0 +1,53 @@
+# General
+cuda: True
+penalise_grad: 'contrast'
+n_iter: 30
+penalise_grad_lambda_1: 1
+penalise_grad_lambda_2: 1
+conditional_reg: False
+penalise_grad_usemasks: True 
+nsamples_train: 64
+maxmasks_train: 256
+viz: False
+
+# Training
+num_epochs: 200
+
+# DataLoader
+batch_size: 2
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    TNTDataset:
+      mode: 'train'
+      blur: 3
+      new_size: 200
+  valid:
+    TNTDataset:
+      mode: 'valid'
+      nsamples: 64
+      blur: 3
+      new_size: 200
+  test:
+    TNTDataset:
+      mode: 'test'
+      nsamples: 64
+      new_size: 200
+
+# Model
+model:
+  SimpleCNN2: 
+    flat_layer: 200
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: "Real(10**-6, 10**-3, 'log-uniform')"
+
+transform:
+        train: {}
+        valid: {}
+        test: {}
+
