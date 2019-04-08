@@ -8,6 +8,7 @@ conditional_reg: False
 penalise_grad_usemasks: True 
 nsamples_train: 64
 maxmasks_train: 256
+new_size: 300
 
 # Training
 num_epochs: 100

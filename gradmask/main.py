@@ -93,7 +93,10 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
     
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
-        
+       
+    if not new_size is None:
+        dataset = cfg["dataset"]["train"]
+        dataset[list(dataset.keys())[0]]["new_size"] = new_size
     # do logging stuff and break if already done  
 
     log_folder = get_log_folder_name(cfg)
