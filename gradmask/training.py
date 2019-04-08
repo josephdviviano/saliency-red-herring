@@ -73,7 +73,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                 num_workers=0, pin_memory=True)
 
     
-    model = configuration.setup_model(cfg).to(device)
+    model = configuration.setup_model(cfg).cuda() # .to(device)
     print(model)
     # TODO: checkpointing
 
