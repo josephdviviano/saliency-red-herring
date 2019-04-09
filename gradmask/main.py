@@ -20,7 +20,7 @@ def run():
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
-def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size, num_epochs, viz):
+def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size, num_epochs, viz=False):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
@@ -59,8 +59,9 @@ def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, co
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-maxmasks_train', type=int, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
+@click.option('-viz', type=bool, default=False, help='plot images')
 def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function,
-               penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, num_epochs):
+               penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, num_epochs, viz):
     cfg = configuration.load_config(config)
     cfg["skopt"] = True
     if not seed is None:
@@ -98,7 +99,8 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
         dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
     # do logging stuff and break if already done  
-
+    
+    cfg['viz'] = viz
     log_folder = get_log_folder_name(cfg)
     log_folder = "logs/" + str(hash(log_folder)).replace("-","_")
     print("Log folder:" + log_folder)
