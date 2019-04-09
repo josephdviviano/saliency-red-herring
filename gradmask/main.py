@@ -14,36 +14,61 @@ def run():
 @click.option('--config', '-cgf', type=click.Path(exists=True, resolve_path=True), help='Configuration file.')
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-penalise_grad', type=str, help='penalise_grad')
-@click.option('-penalise_grad_usemask', type=bool, help='penalise_grad_usemask')
+@click.option('-penalise_grad_usemasks', type=bool, help='penalise_grad_usemasks')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
 @click.option('-new_size', type=int, help='new_size')
+@click.option('-maxmasks_train', type=int, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
-def train(config, seed, penalise_grad, nsamples_train, penalise_grad_usemask, conditional_reg, new_size, num_epochs, viz=False):
+def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, viz):
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
 
     if not penalise_grad is None:
         cfg["penalise_grad"] = penalise_grad
+
+    if not penalise_grad_usemasks is None:
+        cfg["penalise_grad_usemasks"] = penalise_grad_usemasks
         
-    if not penalise_grad is None:
-        cfg["penalise_grad_usemask"] = penalise_grad_usemask
+    dataset = cfg["dataset"]["train"]
+    if not cfg["nsamples_train"] is None:
+        dataset[list(dataset.keys())[0]]["nsamples"] = cfg["nsamples_train"]
+        del cfg["nsamples_train"]
     if not nsamples_train is None:
-        dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
+      
+    if not cfg["maxmasks_train"] is None:
+        dataset[list(dataset.keys())[0]]["maxmasks"] = cfg["maxmasks_train"]
+        del cfg["maxmasks_train"]
+    if not maxmasks_train is None:
+        dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+        
     if not new_size is None:
-        dataset = cfg["dataset"]["train"]
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
+        
     if not conditional_reg is None:
         cfg["conditional_reg"] = conditional_reg
+    
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
 
     cfg["viz"] = viz
+    
+    log_folder = get_log_folder_name(cfg)
+    log_folder = "logs-single/" + str(hash(log_folder)).replace("-","_")
+    print("Log folder:" + log_folder)
+    
+    if os.path.isdir(log_folder):
+        print("Log folder exists. Will exit.")
+        sys.exit(0)
 
-    training.train(cfg)
+    metrics, best_metric, testauc_for_best_validauc, state = training.train(cfg)
+    
+    # take best log and write it
+    monitoring.save_metrics(metrics, folder="{}/stats".format(log_folder))
+    
 
 @run.command()
 @click.option('--config', '-cgf', type=click.Path(exists=True, resolve_path=True), help='Configuration file.')
