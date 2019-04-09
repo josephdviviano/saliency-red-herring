@@ -1,9 +1,13 @@
 # General
-seed: &seed 1234
 cuda: True
-penalise_grad: 'contrast'
+penalise_grad: 'diff_from_ref'
+n_iter: 30
 penalise_grad_lambda_1: "Real(0., 10.)"
 penalise_grad_lambda_2: "Real(0., 10.)"
+conditional_reg: False
+penalise_grad_usemasks: True 
+nsamples_train: 64
+maxmasks_train: 256
 
 # Training
 num_epochs: 100
@@ -17,29 +21,20 @@ dataset:
   train:
     LiverMSDDataset:
       mode: 'train'
-      seed: *seed
-      nsamples: 256
-      maxmasks: &maxmasks "Integer(0, 64)"
-      blur: &blur "Integer(0, 10)"
+      blur: "Integer(0, 5)"
   valid:
     LiverMSDDataset:
       mode: 'valid'
-      seed: *seed
       nsamples: 256
-      maxmasks: *maxmasks
-      blur: *blur
   test:
     LiverMSDDataset:
       mode: 'test'
-      seed: *seed
       nsamples: 256
-      maxmasks: *maxmasks
-      blur: *blur
 
 # Model
 model:
   SimpleCNN: 
-    flat_layer: 200
+    flat_layer: "Integer(2, 6)"
 
 # Optimizer
 optimizer:
@@ -54,6 +49,6 @@ transform:
 # mlflow experiment manager
 manager:
     set_experiment:
-        name: 'exploration_1' # Experience name
+        name: 'exploration_2' # Experience name
     set_tracking_uri:
         uri: '' # Link or url to where to store the logs. Default is `./mlruns`
