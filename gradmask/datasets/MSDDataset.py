@@ -221,3 +221,12 @@ class PancreasMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
         super().__init__(dataroot='/network/data1/MSD/MSD/Task07_Pancreas/', **kwargs)
 
+@register.setdatasetname("ProstateMSDDataset")
+class ProstateMSDDataset(MSDDataset):
+    def __init__(self, **kwargs):
+        super().__init__(dataroot='/network/data1/MSD/MSD/Task05_Prostate/', **kwargs)
+
+@register.setdatasetname("HeartMSDDataset")
+class HeartMSDDataset(MSDDataset):
+    def __init__(self, **kwargs):
+        super().__init__(dataroot='/network/data1/MSD/MSD/Task02_Heart/', **kwargs)

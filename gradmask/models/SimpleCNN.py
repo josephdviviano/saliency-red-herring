@@ -6,9 +6,10 @@ import utils.register as register
 
 @register.setmodelname("SimpleCNN")
 class CNN(nn.Module):
-    def __init__(self, img_size=100, flat_layer=1, num_class=2):
+    def __init__(self, img_size, flat_layer=2, num_class=2):
         super(CNN, self).__init__()
         
+        self.img_size = img_size
         flat_layer = flat_layer * 100
         self.all_activations = []
         
@@ -74,6 +75,7 @@ class CNN(nn.Module):
         # reset so we only get the activations for this batch
         self.all_activations = []
         
+        # print("input: ", x.shape, "img_size: ", self.img_size)
         x = self.conv1(x)
         self.all_activations.append(x)
                                      
@@ -105,7 +107,7 @@ class CNN(nn.Module):
         self.all_activations.append(x)
 
         x = self.relu5(x)
-
+        # print("after fc1: ", x.shape)
         self.all_activations.append(x)
 
         output = self.out(x)

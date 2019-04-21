@@ -42,6 +42,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     if cuda:
         torch.cuda.manual_seed_all(seed)
@@ -73,7 +74,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                 num_workers=0, pin_memory=True)
 
     
-    model = configuration.setup_model(cfg).cuda() # .to(device)
+    model = configuration.setup_model(cfg).to(device)
     print(model)
     # TODO: checkpointing
 
@@ -188,12 +189,12 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 input_grads = input_grads
 
             gradmask_loss = input_grads
-            # gradmask_loss = epoch * (res ** 2)
+            gradmask_loss = epoch * (gradmask_loss ** 2)
             n_iter = len(train_loader) * epoch + batch_idx
             #import ipdb; ipdb.set_trace()
-            penalty = penalise_grad_lambdas[0] * float(np.exp(penalise_grad_lambdas[1] * n_iter))
-            penalty = min(penalty, 1000)
-            gradmask_loss = penalty * (gradmask_loss ** 2)
+#             penalty = penalise_grad_lambdas[0] * float(np.exp(penalise_grad_lambdas[1] * n_iter))
+#             penalty = min(penalty, 1000)
+#             gradmask_loss = penalty * (gradmask_loss ** 2)
 
             # Simulate that we only have some masks
             gradmask_loss = use_mask.reshape(-1, 1).float() * \
@@ -375,7 +376,7 @@ def processImage(text, i, sample, model):
     
 
 @mlflow_logger.log_experiment(nested=False)
-def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, train_function=train, new_size=100):
+def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, new_size, train_function=train):
 
     """
     Do a Bayesian hyperparameter optimization.
@@ -385,7 +386,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
     :param base_estimator: skopt Optimization procedure.
     :param n_initial_points: Number of random search before starting the optimization.
     :param random_state: seed.
-    :param train_function: The trainig procedure to optimize. The function should take a dict as input and return a metric maximize.
+    :param train_function: The training procedure to optimize. The function should take a dict as input and return a metric maximize.
     :return:
     """
 
@@ -470,7 +471,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, tra
     try:
         import mlflow
         import mlflow.sklearn
-        mlflow.sklearn.log_model(opt_results, 'skopt')
+        # mlflow.sklearn.log_model(opt_results, 'skopt')
         dimensions = list(skopt_args.keys())
         auto_ipynb.to_ipynb(auto_ipynb.plot_optimizer, True, run_uuid=mlflow.active_run()._info.run_uuid, dimensions=dimensions, path='skopt')
     except:
