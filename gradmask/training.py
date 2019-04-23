@@ -98,16 +98,22 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     for epoch in range(num_epochs):
         
         if cfg['viz']:
-            processImage("0",epoch, img_viz0, model)
-            processImage("1",epoch, img_viz1, model)
+            processImageSmall("0",epoch, img_viz0, model)
+            processImageSmall("1",epoch, img_viz1, model)
 
+        # every other epoch to a grad correcting epoch
+        if epoch %2 == 0:
+            penalise_grad_epoch = "False" 
+        else:
+            penalise_grad_epoch = penalise_grad
+            
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
                                 device=device,
                                 optimizer=optim,
                                 train_loader=train_loader,
                                 criterion=criterion,
-                                penalise_grad=penalise_grad,
+                                penalise_grad=penalise_grad_epoch,
                                 penalise_grad_usemasks=penalise_grad_usemasks,
                                 conditional_reg=conditional_reg,
                                 penalise_grad_lambdas=penalise_grad_lambdas)
@@ -150,6 +156,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemasks, conditional_reg, penalise_grad_lambdas):
 
+    print(penalise_grad)
     model.train()
     avg_loss = []
     t = tqdm(train_loader)
@@ -165,7 +172,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         class_output, representation = model(x)
 
         loss = criterion(class_output, target)
-
+        
         # TODO: this place is suuuuper slow. Should be optimized by using advance indexing or something.
         if penalise_grad != "False":
             
@@ -200,7 +207,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                             gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
 
             gradmask_loss = gradmask_loss.sum()
-            loss = loss + loss*gradmask_loss
+            loss = gradmask_loss
 
         avg_loss.append(loss.detach().cpu().numpy())
         t.set_description('Train (loss={:4.4f})'.format(np.mean(avg_loss)))
@@ -317,7 +324,6 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
     print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}'.format(name, data_loss, auc))
     return auc
 
-#to make video: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
 def processImage(text, i, sample, model):
     fig = plt.Figure(figsize=(20, 10), dpi=160)
     gcf = plt.gcf()
@@ -329,19 +335,6 @@ def processImage(text, i, sample, model):
     x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
     model.eval()
     class_output, res = model(x_var)
-    
-#     input_grads = get_gradmask_loss(x, class_output, "nonhealthy")
-
-# #     input_grads0 = torch.autograd.grad(outputs=(torch.abs(pred[:,0]).sum()), 
-# #                                            inputs=x_var,
-# #                                            create_graph=True)[0]
-# #     input_grads1 = torch.autograd.grad(outputs=(torch.abs(pred[:,1]).sum()), 
-# #                                            inputs=x_var,
-# #                                            create_graph=True)[0]
-    
-#     input_grads0 = input_grads0[0][0].cpu().detach().numpy()
-#     input_grads1 = input_grads1[0][0].cpu().detach().numpy()
-
 
     ax2 = plt.subplot2grid(gridsize, (1, 0), colspan=1)
     ax3 = plt.subplot2grid(gridsize, (1, 1), colspan=1)
@@ -368,6 +361,52 @@ def processImage(text, i, sample, model):
     ax7.set_title("diff_from_ref")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
     ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    
+    if not os.path.exists('images'): 
+        os.mkdir('images')
+    fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
+
+#to make video: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
+def processImageSmall(text, i, sample, model):
+    fig = plt.Figure(figsize=(20, 10), dpi=160)
+    gcf = plt.gcf()
+    gcf.set_size_inches(20, 10)
+    fig.set_canvas(gcf.canvas)
+    gridsize = (3,6)
+    x, target, use_mask = sample
+    
+    x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
+    model.eval()
+    class_output, res = model(x_var)
+
+    ax2 = plt.subplot2grid(gridsize, (1, 0))
+    ax3 = plt.subplot2grid(gridsize, (1, 1))
+#     ax4 = plt.subplot2grid(gridsize, (0, 0), colspan=1)
+#     ax5 = plt.subplot2grid(gridsize, (0, 1), rowspan=1)
+    ax6 = plt.subplot2grid(gridsize, (1, 2))
+#     ax7 = plt.subplot2grid(gridsize, (0, 3), rowspan=1)
+
+    ax2.set_title(str(i) + "Input Image")
+    ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
+    ax3.set_title("Masked input")
+    ax3.imshow((x[1][0]*x[0][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
+    
+#     ax4.set_title("nonhealthy")
+#     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
+#     ax4.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+#     ax5.set_title("nonhealthy masked")
+#     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
+    
+    ax6.set_title("contrast")
+    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
+    ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    
+#     try:
+#         ax7.set_title("diff_from_ref")
+#         gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
+#         ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+#     except:
+#         pass
     
     if not os.path.exists('images'): 
         os.mkdir('images')
