@@ -36,17 +36,40 @@ def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad
     if not cfg["nsamples_train"] is None:
         dataset[list(dataset.keys())[0]]["nsamples"] = cfg["nsamples_train"]
         del cfg["nsamples_train"]
+    
     if not nsamples_train is None:
         dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
       
     if not cfg["maxmasks_train"] is None:
         dataset[list(dataset.keys())[0]]["maxmasks"] = cfg["maxmasks_train"]
         del cfg["maxmasks_train"]
+    
     if not maxmasks_train is None:
         dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
         
     if not new_size is None:
+        # new_size passed in from the command line
+        print("USING NEW SIZE from CMD: ", new_size)
+        dataset[list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["valid"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["test"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["model"][list(cfg["model"].keys())[0]]["img_size"] = int(new_size)
+        cfg["new_size"] = int(new_size)
+    elif not cfg.get("new_size", None): # if it hasn't been set in the config
+        new_size = 100
+        print("USING NEW SIZE DEFAULT: ", new_size)
+        cfg["new_size"] = new_size # default
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
+        cfg["dataset"]["valid"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["test"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["model"][list(cfg["model"].keys())[0]]["img_size"] = new_size
+    else:
+        new_size = cfg["new_size"]
+        print("USING NEW SIZE from CFG: ", new_size)
+        dataset[list(dataset.keys())[0]]["new_size"] = new_size
+        cfg["dataset"]["valid"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["test"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["model"][list(cfg["model"].keys())[0]]["img_size"] = new_size
         
     if not conditional_reg is None:
         cfg["conditional_reg"] = conditional_reg
@@ -54,6 +77,8 @@ def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
 
+    # TODO: put the new_size into the model config too so it gets the right size...
+    
     cfg["viz"] = viz
     
     log_folder = get_log_folder_name(cfg)
@@ -84,8 +109,9 @@ def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-maxmasks_train', type=int, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
+@click.option('-viz', type=bool, default=False, help='plot images')
 def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function,
-               penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, num_epochs):
+               penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, num_epochs, viz):
     cfg = configuration.load_config(config)
     cfg["skopt"] = True
     if not seed is None:
@@ -111,19 +137,38 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
         dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
         
     if not new_size is None:
+        # new_size passed in from the command line
+        print("USING NEW SIZE from CMD: ", new_size)
+        dataset[list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["valid"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["test"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["model"][list(cfg["model"].keys())[0]]["img_size"] = int(new_size)
+        cfg["new_size"] = int(new_size)
+    elif not cfg.get("new_size", None): # if it hasn't been set in the config
+        new_size = 100
+        print("USING NEW SIZE DEFAULT: ", new_size)
+        cfg["new_size"] = new_size # default
         dataset[list(dataset.keys())[0]]["new_size"] = new_size
+        cfg["dataset"]["valid"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["test"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["model"][list(cfg["model"].keys())[0]]["img_size"] = new_size
+    else:
+        new_size = cfg["new_size"]
+        print("USING NEW SIZE from CFG: ", new_size)
+        dataset[list(dataset.keys())[0]]["new_size"] = new_size
+        cfg["dataset"]["valid"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["dataset"]["test"][list(dataset.keys())[0]]["new_size"] = int(new_size)
+        cfg["model"][list(cfg["model"].keys())[0]]["img_size"] = new_size
         
     if not conditional_reg is None:
         cfg["conditional_reg"] = conditional_reg
     
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
-       
-    if not new_size is None:
-        dataset = cfg["dataset"]["train"]
-        dataset[list(dataset.keys())[0]]["new_size"] = new_size
-    # do logging stuff and break if already done  
 
+    # do logging stuff and break if already done  
+    
+    cfg['viz'] = viz
     log_folder = get_log_folder_name(cfg)
     log_folder = "logs/" + str(hash(log_folder)).replace("-","_")
     print("Log folder:" + log_folder)
@@ -136,6 +181,7 @@ def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estima
                                             base_estimator=base_estimator,
                                             n_initial_points=n_initial_points,
                                             random_state=seed,
+                                            new_size=cfg["new_size"],
                                             train_function=getattr(training, train_function))
     
     # take best log and write it

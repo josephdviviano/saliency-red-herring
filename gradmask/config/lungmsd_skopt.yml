@@ -1,20 +1,20 @@
 # General
 cuda: True
-penalise_grad: 'diff_from_ref'
+penalise_grad: 'False'
 n_iter: 30
 penalise_grad_lambda_1: "Real(0., 10.)"
 penalise_grad_lambda_2: "Real(0., 10.)"
 conditional_reg: False
 penalise_grad_usemasks: True 
-nsamples_train: 64
+nsamples_train: 800
 maxmasks_train: 256
-new_size: 300
+new_size: &new_size 512
 
 # Training
 num_epochs: 100
 
 # DataLoader
-batch_size: 32
+batch_size: 4
 shuffle: True
 
 # Dataset
@@ -23,18 +23,21 @@ dataset:
     LungMSDDataset:
       mode: 'train'
       blur: "Integer(0, 5)"
+      new_size: *new_size
   valid:
     LungMSDDataset:
       mode: 'valid'
       nsamples: 256
+      new_size: *new_size
   test:
     LungMSDDataset:
       mode: 'test'
       nsamples: 256
+      new_size: *new_size
 
 # Model
 model:
-  SimpleCNN: 
+  UNet2: 
     flat_layer: "Integer(2, 6)"
 
 # Optimizer

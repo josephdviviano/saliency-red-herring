@@ -65,7 +65,7 @@ def log_experiment_csv(config, stuff, folder='logs', file_name="experiment_table
                     output_dict[key] = item
 
         # line = [tt, sha] + list(stuff) + [cc] + list(OrderedDict(output_dict).values())
-        line = [tt, sha] + list(stuff) + list(OrderedDict(output_dict))
+        line = [tt, sha] + list(stuff) + [cc] + list(OrderedDict(output_dict))
         writer.writerow(line)
 
 def save_metrics(metrics, folder='logs', file_name='metrics.pkl'):

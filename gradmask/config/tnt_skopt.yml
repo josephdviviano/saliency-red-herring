@@ -2,19 +2,20 @@
 cuda: True
 penalise_grad: 'contrast'
 n_iter: 30
-penalise_grad_lambda_1: 1
-penalise_grad_lambda_2: 1
+penalise_grad_lambda_1: "Real(0., 5.)"
+penalise_grad_lambda_2: "Real(0., 5.)"
 conditional_reg: False
 penalise_grad_usemasks: True 
-nsamples_train: 64
+nsamples_train: 128
 maxmasks_train: 256
 viz: False
+new_size: &new_size 128
 
 # Training
-num_epochs: 200
+num_epochs: 100
 
 # DataLoader
-batch_size: 2
+batch_size: "Integer(8, 64)"
 shuffle: True
 
 # Dataset
@@ -22,29 +23,30 @@ dataset:
   train:
     TNTDataset:
       mode: 'train'
-      blur: 3
-      new_size: 200
+      blur: "Integer(3, 7)"
+      new_size: *new_size
   valid:
     TNTDataset:
       mode: 'valid'
-      nsamples: 64
-      blur: 3
-      new_size: 200
+      nsamples: 512
+      new_size: *new_size
   test:
     TNTDataset:
       mode: 'test'
-      nsamples: 64
-      new_size: 200
+      nsamples: 512
+      new_size: *new_size
 
 # Model
 model:
-  SimpleCNN2: 
-    flat_layer: 200
+  SimpleCNN: 
+    flat_layer: "Integer(1, 6)"
+    img_size: *new_size
 
 # Optimizer
 optimizer:
   Adam:
     lr: "Real(10**-6, 10**-3, 'log-uniform')"
+    weight_decay: "Real(10**-6, 10**-3, 'log-uniform')"
 
 transform:
         train: {}

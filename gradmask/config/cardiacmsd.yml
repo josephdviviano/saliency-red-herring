@@ -4,7 +4,7 @@ penalise_grad: 'False'
 n_iter: 30
 penalise_grad_lambda_1: 1.0
 penalise_grad_lambda_2: 1.0
-conditional_reg: False
+conditional_reg: True
 penalise_grad_usemasks: True 
 nsamples_train: 128
 maxmasks_train: 128
@@ -19,18 +19,18 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    TNTDataset:
+    HeartMSDDataset:
       mode: 'train'
       blur: 3
   valid:
-    TNTDataset:
+    HeartMSDDataset:
       mode: 'valid'
-      nsamples: 512
+      nsamples: 256
       blur: 3
   test:
-    TNTDataset:
+    HeartMSDDataset:
       mode: 'test'
-      nsamples: 512
+      nsamples: 256
 
 # Model
 model:
@@ -40,7 +40,7 @@ model:
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.00005
+    lr: 0.0001
 
 transform:
         train: {}

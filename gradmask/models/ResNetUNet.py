@@ -17,11 +17,11 @@ class ResNetUNet(nn.Module):
     def __init__(self, flat_layer=1, n_class=2, img_size=300):
         super().__init__()
         
-        if img_size % 32:
-            self.padding = 1
-        else:
-            self.padding = 0
-        
+        #if img_size % 32:
+        #    self.padding = 1
+        #else:
+        #    self.padding = 0
+        self.padding = 0
         flat_layer = flat_layer * 200
 
         # Use ResNet18 as the encoder with the pretrained weights
@@ -51,8 +51,8 @@ class ResNetUNet(nn.Module):
         self.conv_original_size2 = convrelu(64 + 128, 64, 3, 1)
         
         output_size = self.get_fc_layer_size(img_size)
-        self.fc1 = nn.Linear(16 * output_size * output_size, flat_layer)
-        #self.fc1 = nn.Linear(32768, flat_layer)
+        # self.fc1 = nn.Linear(16 * output_size * output_size, flat_layer)
+        self.fc1 = nn.Linear(16777216, flat_layer)
         self.relu_last = nn.ReLU()
         
         self.out = nn.Linear(flat_layer, n_class)
