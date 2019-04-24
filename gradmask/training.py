@@ -31,6 +31,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     num_epochs = cfg['num_epochs']
     # maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
+    if penalise_grad == 'False':
+        do_gradmask = False
+    else:
+        do_gradmask = True
+
     penalise_grad_usemasks = cfg.get('penalise_grad_usemasks')
     conditional_reg = cfg.get('conditional_reg', False)
     penalise_grad_lambdas = [cfg['penalise_grad_lambda_1'], cfg['penalise_grad_lambda_2']]
@@ -102,11 +107,16 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
             processImageSmall("0",epoch, img_viz0, model)
             processImageSmall("1",epoch, img_viz1, model)
 
-        # every other epoch to a grad correcting epoch
-        if epoch %2 == 0:
-            penalise_grad_epoch = "False" 
+        if do_gradmask:
+            # every other epoch to a grad correcting epoch
+            if epoch %2 == 0:
+                penalise_grad_epoch = "False" 
+            else:
+                penalise_grad_epoch = penalise_grad
         else:
-            penalise_grad_epoch = penalise_grad
+            # only do gradmask correction if the original penalise_grad was not False
+            print("Not using GradMask")
+            penalise_grad_epoch = "False"
             
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
@@ -126,8 +136,6 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                      data_loader=valid_loader,
                                      criterion=criterion)
 
-
-        
         if auc_valid > best_metric:
             best_metric = auc_valid
             # only compute when we need to
