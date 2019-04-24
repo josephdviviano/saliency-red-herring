@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import os
 import pandas as pd
 
-class SytheticDataset(Dataset):
+class SyntheticDataset(Dataset):
     def __init__(self, mode, dataroot="/network/data1/GM", blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=28):
 
         self.root = root
