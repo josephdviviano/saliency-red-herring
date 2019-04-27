@@ -24,7 +24,7 @@ dataset:
       mode: 'train'
       blur: 7
       new_size: *new_size
-      dataroot: &dataroot '/home/jdp/becks_code/gradmask/gradmask/data'
+      dataroot: &dataroot './data/synth/'
   valid:
     SyntheticDataset:
       mode: 'valid'

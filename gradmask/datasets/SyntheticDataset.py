@@ -53,8 +53,8 @@ class SyntheticDataset(Dataset):
         return len(self.idx)
 
     def __getitem__(self, index):
-        img = Image.fromarray(np.load(self.idx[index]))
-        img_seg = Image.fromarray(np.load(self.mask_idx[index]))
+        img = Image.fromarray(np.load(self.idx[index].replace("/network/data1/GM/",self.root)))
+        img_seg = Image.fromarray(np.load(self.mask_idx[index].replace("/network/data1/GM/",self.root)))
         img = TF.to_tensor(img)
         img_seg = TF.to_tensor(img_seg)
         label = self.labels[index]
