@@ -19,48 +19,48 @@ class CNN(nn.Module):
                         in_channels=1,
                         out_channels=64,
                         kernel_size=3,
-                        stride=2,
+                        stride=1,
                         padding=0,
                      ) 
         self.relu1 = nn.ReLU()
         
-        output_size = self.outputSize(img_size, kernel_size=3, stride=2, padding=0)
+        output_size = self.outputSize(img_size, kernel_size=3, stride=1, padding=0)
         
         self.conv2 = nn.Conv2d(
                         in_channels=64,
                         out_channels=32,
                         kernel_size=3,
-                        stride=2,
+                        stride=1,
                         padding=0,
                     )
         self.relu2 = nn.ReLU()
         
-        output_size = self.outputSize(output_size, kernel_size=3, stride=2, padding=0)
+        output_size = self.outputSize(output_size, kernel_size=3, stride=1, padding=0)
         
         self.conv3 = nn.Conv2d(
                         in_channels=32,
                         out_channels=16,
                         kernel_size=3,
-                        stride=2,
+                        stride=1,
                         padding=0,
                     )
         self.relu3 = nn.ReLU()
         
-        output_size = self.outputSize(output_size, kernel_size=3, stride=2, padding=0)
+        output_size = self.outputSize(output_size, kernel_size=3, stride=1, padding=0)
         
-        self.conv4 = nn.Conv2d(
-                        in_channels=16,
-                        out_channels=8,
-                        kernel_size=3,
-                        stride=2,
-                        padding=0,
-                    )
-        self.relu4 = nn.ReLU()
+#         self.conv4 = nn.Conv2d(
+#                         in_channels=16,
+#                         out_channels=8,
+#                         kernel_size=3,
+#                         stride=2,
+#                         padding=0,
+#                     )
+#         self.relu4 = nn.ReLU()
         
-        output_size = self.outputSize(output_size, kernel_size=3, stride=2, padding=0)
+#         output_size = self.outputSize(output_size, kernel_size=3, stride=2, padding=0)
 
-        self.fc1 = nn.Linear(8 * output_size * output_size, flat_layer)
-        
+        # self.fc1 = nn.Linear(8 * output_size * output_size, flat_layer)
+        self.fc1 = nn.Linear(7744, flat_layer)
         self.relu5 = nn.ReLU()
         
         self.out = nn.Linear(flat_layer, num_class)
@@ -94,11 +94,11 @@ class CNN(nn.Module):
         x = self.relu3(x)
         self.all_activations.append(x)
         
-        x = self.conv4(x)
-        self.all_activations.append(x)
+#         x = self.conv4(x)
+#         self.all_activations.append(x)
         
-        x = self.relu4(x)
-        self.all_activations.append(x)
+#         x = self.relu4(x)
+#         self.all_activations.append(x)
         # print("before view: ", x.shape)
         x = x.view(x.size(0), -1) # collapses shape to [batch, channels*height*width]
         # print("after view: ", x.shape)

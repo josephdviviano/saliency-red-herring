@@ -8,7 +8,7 @@ import torchvision.transforms.functional as TF
 
 @register.setdatasetname("SyntheticDataset")
 class SyntheticDataset(Dataset):
-    def __init__(self, mode, dataroot="/network/data1/GM", blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=28):
+    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=28):
 
         self.root = dataroot
         self.mode = mode

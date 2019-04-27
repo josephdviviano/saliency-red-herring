@@ -1,5 +1,5 @@
 # General
-cuda: True
+cuda: False
 penalise_grad: 'False'
 n_iter: 30
 penalise_grad_lambda_1: 1
@@ -11,7 +11,7 @@ maxmasks_train: 256
 new_size: &new_size 512
 
 # Training
-num_epochs: 200
+num_epochs: 50
 
 # DataLoader
 batch_size: 32
@@ -24,22 +24,25 @@ dataset:
       mode: 'train'
       blur: 7
       new_size: *new_size
+      dataroot: &dataroot '/home/jdp/becks_code/gradmask/gradmask/data'
   valid:
     SyntheticDataset:
       mode: 'valid'
       nsamples: 128
       blur: 7
       new_size: *new_size
+      dataroot: *dataroot
   test:
     SyntheticDataset:
       mode: 'test'
       nsamples: 128
       new_size: *new_size
+      dataroot: *dataroot
 
 # Model
 model:
   SimpleCNN: 
-    flat_layer: 200
+    flat_layer: 2
 
 # Optimizer
 optimizer:

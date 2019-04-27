@@ -2,8 +2,9 @@
 hostname
 export LANG=C.UTF-8
 source $HOME/.bashrc
+source activate gradmask
 
-python3 -u main.py train --config config/lungmsd.yml $@
+python3 -u main.py train --config config/synth.yml $@
 
 rc=$?
 echo "Exit code is $?"

@@ -413,8 +413,8 @@ def processImageSmall(text, i, sample, model, cuda=True):
 #     ax5.set_title("nonhealthy masked")
 #     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
     
-    ax6.set_title("contrast")
-    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
+    ax6.set_title("nonhealthy")
+    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
     
 #     try:
