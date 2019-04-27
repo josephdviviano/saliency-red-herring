@@ -179,7 +179,6 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
         x.requires_grad=True
 
         class_output, representation = model(x)
-
         loss = criterion(class_output, target)
         
         # TODO: this place is suuuuper slow. Should be optimized by using advance indexing or something.

@@ -1,0 +1,53 @@
+# General
+cuda: True
+penalise_grad: 'False'
+n_iter: 30
+penalise_grad_lambda_1: 1
+penalise_grad_lambda_2: 1
+conditional_reg: False
+penalise_grad_usemasks: True 
+nsamples_train: 500
+maxmasks_train: 256
+new_size: &new_size 512
+
+# Training
+num_epochs: 200
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    SyntheticDataset:
+      mode: 'train'
+      blur: 7
+      new_size: *new_size
+  valid:
+    SyntheticDataset:
+      mode: 'valid'
+      nsamples: 128
+      blur: 7
+      new_size: *new_size
+  test:
+    SyntheticDataset:
+      mode: 'test'
+      nsamples: 128
+      new_size: *new_size
+
+# Model
+model:
+  SimpleCNN: 
+    flat_layer: 200
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: 0.0001
+
+transform:
+        train: {}
+        valid: {}
+        test: {}
+

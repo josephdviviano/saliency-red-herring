@@ -1,15 +1,20 @@
 from torch.utils.data import Dataset
 import os
 import pandas as pd
+import numpy as np
+import utils.register as register
+from PIL import Image
+import torchvision.transforms.functional as TF
 
+@register.setdatasetname("SyntheticDataset")
 class SyntheticDataset(Dataset):
     def __init__(self, mode, dataroot="/network/data1/GM", blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=28):
 
-        self.root = root
+        self.root = dataroot
         self.mode = mode
         
-        self._all_files = [f for f in os.listdir(root) if "seg" not in f and ".csv" not in f]
-        self._seg_files = [f for f in os.listdir(root) if "seg" in f and ".csv" not in f]
+        self._all_files = [f for f in os.listdir(self.root) if "seg" not in f and ".csv" not in f]
+        self._seg_files = [f for f in os.listdir(self.root) if "seg" in f and ".csv" not in f]
         # random split based on seed
         np.random.seed(seed)
         np.random.shuffle(self._all_files)
@@ -25,7 +30,7 @@ class SyntheticDataset(Dataset):
             raise Exception("Unknown mode")
         
         # get the corresponding labels
-        all_labels = pd.read_csv("{}/{}_labels.csv".format(root, mode))
+        all_labels = pd.read_csv("{}/{}_labels.csv".format(self.root, mode))
         
         # randomly choose based on nsamples
         np.random.seed(seed)
@@ -48,9 +53,11 @@ class SyntheticDataset(Dataset):
         return len(self.idx)
 
     def __getitem__(self, index):
-        img = np.load(self.idx[index])
-        img_seg = np.load(self.mask_idx[index])
-        
+        img = Image.fromarray(np.load(self.idx[index]))
+        img_seg = Image.fromarray(np.load(self.mask_idx[index]))
+        img = TF.to_tensor(img)
+        img_seg = TF.to_tensor(img_seg)
         label = self.labels[index]
+        
         # TODO: fix maxmasks so that the 1 returned here is whether the img mask was selected to be used
-        return (img, img_seg), label, 1
+        return (img, img_seg), int(label), 1
