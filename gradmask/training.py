@@ -98,8 +98,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
     test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
 
-    img_viz0 = dataset_train[0]
-    img_viz1 = dataset_valid[0]
+    img_viz0 = dataset_train[2]
+    img_viz1 = dataset_valid[2]
     
     for epoch in range(num_epochs):
         
@@ -384,7 +384,7 @@ def processImageSmall(text, i, sample, model, cuda=True):
     gcf = plt.gcf()
     gcf.set_size_inches(20, 10)
     fig.set_canvas(gcf.canvas)
-    gridsize = (3,6)
+    gridsize = (2,3)
     x, target, use_mask = sample
     
     if cuda:
@@ -397,15 +397,15 @@ def processImageSmall(text, i, sample, model, cuda=True):
 
     ax2 = plt.subplot2grid(gridsize, (1, 0))
     ax3 = plt.subplot2grid(gridsize, (1, 1))
-#     ax4 = plt.subplot2grid(gridsize, (0, 0), colspan=1)
-#     ax5 = plt.subplot2grid(gridsize, (0, 1), rowspan=1)
-    ax6 = plt.subplot2grid(gridsize, (1, 2))
-#     ax7 = plt.subplot2grid(gridsize, (0, 3), rowspan=1)
+#     ax4 = plt.subplot2grid(gridsize, (0, 0))
+#     ax5 = plt.subplot2grid(gridsize, (0, 1))
+    ax6 = plt.subplot2grid(gridsize, (0, 0))
+    ax7 = plt.subplot2grid(gridsize, (0, 1))
 
-    ax2.set_title(str(i) + "Input Image")
+    ax2.set_title(str(i) + " Input Image")
     ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
-    ax3.set_title("Masked input")
-    ax3.imshow((x[1][0]*x[0][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
+    ax3.set_title("Mask")
+    ax3.imshow((x[1][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
     
 #     ax4.set_title("nonhealthy")
 #     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
@@ -413,9 +413,13 @@ def processImageSmall(text, i, sample, model, cuda=True):
 #     ax5.set_title("nonhealthy masked")
 #     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
     
-    ax6.set_title("nonhealthy")
+    ax6.set_title("nonhealthy dy/dx")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    
+    ax7.set_title("contrast d|y0-y1|/dx")
+    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
+    ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
     
 #     try:
 #         ax7.set_title("diff_from_ref")

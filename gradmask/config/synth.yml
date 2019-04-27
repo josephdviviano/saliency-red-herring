@@ -1,5 +1,5 @@
 # General
-cuda: False
+cuda: True
 penalise_grad: 'False'
 n_iter: 30
 penalise_grad_lambda_1: 1
@@ -22,14 +22,14 @@ dataset:
   train:
     SyntheticDataset:
       mode: 'train'
-      blur: 7
+      blur: 0.4
       new_size: *new_size
       dataroot: &dataroot './data/synth/'
   valid:
     SyntheticDataset:
       mode: 'valid'
       nsamples: 128
-      blur: 7
+      blur: 0.4
       new_size: *new_size
       dataroot: *dataroot
   test:
@@ -47,7 +47,7 @@ model:
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.0001
+    lr: 0.00001
 
 transform:
         train: {}

@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 import os
 import pandas as pd
+import skimage, skimage.transform
 import numpy as np
 import utils.register as register
 from PIL import Image
@@ -12,6 +13,7 @@ class SyntheticDataset(Dataset):
 
         self.root = dataroot
         self.mode = mode
+        self.blur = blur
         
         self._all_files = [f for f in os.listdir(self.root) if "seg" not in f and ".csv" not in f]
         self._seg_files = [f for f in os.listdir(self.root) if "seg" in f and ".csv" not in f]
@@ -54,10 +56,17 @@ class SyntheticDataset(Dataset):
 
     def __getitem__(self, index):
         img = Image.fromarray(np.load(self.idx[index].replace("/network/data1/GM/",self.root)))
-        img_seg = Image.fromarray(np.load(self.mask_idx[index].replace("/network/data1/GM/",self.root)))
+        seg = np.load(self.mask_idx[index].replace("/network/data1/GM/",self.root))
+        
+        if (self.blur > 0) and (seg.max() != 0):
+            seg = skimage.filters.gaussian(seg, self.blur)
+            seg = seg / seg.max()
+
+        seg = (seg > 0) * 1.
+        
         img = TF.to_tensor(img)
-        img_seg = TF.to_tensor(img_seg)
+        seg = TF.to_tensor(seg)
         label = self.labels[index]
         
         # TODO: fix maxmasks so that the 1 returned here is whether the img mask was selected to be used
-        return (img, img_seg), int(label), 1
+        return (img, seg), int(label), 1
