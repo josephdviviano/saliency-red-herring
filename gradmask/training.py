@@ -68,15 +68,15 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     train_loader = torch.utils.data.DataLoader(dataset_train,
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
-                                                num_workers=0, pin_memory=True)
+                                                num_workers=0, pin_memory=cuda)
     valid_loader = torch.utils.data.DataLoader(dataset_valid,
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
-                                                num_workers=0, pin_memory=True)
+                                                num_workers=0, pin_memory=cuda)
     test_loader = torch.utils.data.DataLoader(dataset_test, 
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
-                                                num_workers=0, pin_memory=True)
+                                                num_workers=0, pin_memory=cuda)
 
     
     model = configuration.setup_model(cfg).to(device)
@@ -104,8 +104,9 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     for epoch in range(num_epochs):
         
         if cfg['viz']:
-            processImageSmall("0",epoch, img_viz0, model)
-            processImageSmall("1",epoch, img_viz1, model)
+            print("CUDA: ", cuda)
+            processImageSmall("0",epoch, img_viz0, model, cuda)
+            processImageSmall("1",epoch, img_viz1, model, cuda)
 
         if do_gradmask:
             # every other epoch to a grad correcting epoch
@@ -332,7 +333,7 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
     print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}'.format(name, data_loss, auc))
     return auc
 
-def processImage(text, i, sample, model):
+def processImage(text, i, sample, model, cuda=True):
     fig = plt.Figure(figsize=(20, 10), dpi=160)
     gcf = plt.gcf()
     gcf.set_size_inches(20, 10)
@@ -340,7 +341,10 @@ def processImage(text, i, sample, model):
     gridsize = (3,6)
     x, target, use_mask = sample
     
-    x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
+    if cuda:
+        x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
+    else:
+        x_var = torch.autograd.Variable(x[0].unsqueeze(0), requires_grad=True)
     model.eval()
     class_output, res = model(x_var)
 
@@ -375,7 +379,7 @@ def processImage(text, i, sample, model):
     fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
 
 #to make video: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
-def processImageSmall(text, i, sample, model):
+def processImageSmall(text, i, sample, model, cuda=True):
     fig = plt.Figure(figsize=(20, 10), dpi=160)
     gcf = plt.gcf()
     gcf.set_size_inches(20, 10)
@@ -383,7 +387,11 @@ def processImageSmall(text, i, sample, model):
     gridsize = (3,6)
     x, target, use_mask = sample
     
-    x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
+    if cuda:
+        x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
+    else:
+        x_var = torch.autograd.Variable(x[0].unsqueeze(0), requires_grad=True)
+        
     model.eval()
     class_output, res = model(x_var)
 
