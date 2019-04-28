@@ -31,10 +31,6 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     num_epochs = cfg['num_epochs']
     # maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
-    if penalise_grad == 'False':
-        do_gradmask = False
-    else:
-        do_gradmask = True
 
     penalise_grad_usemasks = cfg.get('penalise_grad_usemasks')
     conditional_reg = cfg.get('conditional_reg', False)
@@ -108,16 +104,12 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
             processImageSmall("0",epoch, img_viz0, model, cuda)
             processImageSmall("1",epoch, img_viz1, model, cuda)
 
-        if do_gradmask:
-            # every other epoch to a grad correcting epoch
-            if epoch %2 == 0:
-                penalise_grad_epoch = "False" 
-            else:
-                penalise_grad_epoch = penalise_grad
-        else:
-            # only do gradmask correction if the original penalise_grad was not False
-            print("Not using GradMask")
+        # every other epoch to a grad correcting epoch
+        if (epoch %2 == 0):
             penalise_grad_epoch = "False"
+        else:
+            # if penalise_grad was false already then it stays false
+            penalise_grad_epoch = penalise_grad
             
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
@@ -129,7 +121,14 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                 penalise_grad_usemasks=penalise_grad_usemasks,
                                 conditional_reg=conditional_reg,
                                 penalise_grad_lambdas=penalise_grad_lambdas)
-
+        
+#         auc_train = valid_wrap_epoch(name="train",
+#                                      epoch=epoch,
+#                                      model=model,
+#                                      device=device,
+#                                      data_loader=train_loader,
+#                                      criterion=criterion)
+        
         auc_valid = valid_wrap_epoch(name="valid",
                                      epoch=epoch,
                                      model=model,
@@ -166,7 +165,6 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemasks, conditional_reg, penalise_grad_lambdas):
 
-    print(penalise_grad)
     model.train()
     avg_loss = []
     t = tqdm(train_loader)
@@ -219,7 +217,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
             loss = gradmask_loss
 
         avg_loss.append(loss.detach().cpu().numpy())
-        t.set_description('Train (loss={:4.4f})'.format(np.mean(avg_loss)))
+        t.set_description(penalise_grad + ' Train (loss={:4.4f})'.format(np.mean(avg_loss)))
         loss.backward()
 
         optimizer.step()
@@ -413,7 +411,7 @@ def processImageSmall(text, i, sample, model, cuda=True):
 #     ax5.set_title("nonhealthy masked")
 #     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
     
-    ax6.set_title("nonhealthy dy/dx")
+    ax6.set_title("nonhealthy d|y|/dx")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
     
