@@ -35,9 +35,9 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     penalise_grad_usemasks = cfg.get('penalise_grad_usemasks')
     conditional_reg = cfg.get('conditional_reg', False)
     penalise_grad_lambdas = [cfg['penalise_grad_lambda_1'], cfg['penalise_grad_lambda_2']]
-    
+
     device = 'cuda' if cuda else 'cpu'
-    
+
     # Setting the seed.
     np.random.seed(seed)
     random.seed(seed)
@@ -69,12 +69,12 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
                                                 num_workers=0, pin_memory=cuda)
-    test_loader = torch.utils.data.DataLoader(dataset_test, 
+    test_loader = torch.utils.data.DataLoader(dataset_test,
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
                                                 num_workers=0, pin_memory=cuda)
 
-    
+
     model = configuration.setup_model(cfg).to(device)
     print(model)
     # TODO: checkpointing
@@ -96,21 +96,22 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     img_viz0 = dataset_train[2]
     img_viz1 = dataset_valid[2]
-    
+
     for epoch in range(num_epochs):
-        
+
         if cfg['viz']:
             print("CUDA: ", cuda)
             processImageSmall("0",epoch, img_viz0, model, cuda)
             processImageSmall("1",epoch, img_viz1, model, cuda)
 
         # every other epoch to a grad correcting epoch
-        if (epoch %2 == 0):
-            penalise_grad_epoch = "False"
-        else:
-            # if penalise_grad was false already then it stays false
-            penalise_grad_epoch = penalise_grad
-            
+        #if (epoch %2 == 0):
+        #    penalise_grad_epoch = "False"
+        #else:
+        #    # if penalise_grad was false already then it stays false
+        #    penalise_grad_epoch = penalise_grad
+        penalise_grad_epoch = penalise_grad
+
         avg_loss = train_epoch( epoch=epoch,
                                 model=model,
                                 device=device,
@@ -121,14 +122,14 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                 penalise_grad_usemasks=penalise_grad_usemasks,
                                 conditional_reg=conditional_reg,
                                 penalise_grad_lambdas=penalise_grad_lambdas)
-        
+
 #         auc_train = valid_wrap_epoch(name="train",
 #                                      epoch=epoch,
 #                                      model=model,
 #                                      device=device,
 #                                      data_loader=train_loader,
 #                                      criterion=criterion)
-        
+
         auc_valid = valid_wrap_epoch(name="valid",
                                      epoch=epoch,
                                      model=model,
@@ -148,7 +149,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
             testauc_for_best_validauc = auc_test
 
         stat = {"epoch": epoch,
-                "trainloss": avg_loss, 
+                "trainloss": avg_loss,
                 "validauc": auc_valid,
                 #"testauc": auc_test,
                 "testauc_for_best_validauc": testauc_for_best_validauc}
@@ -166,23 +167,26 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemasks, conditional_reg, penalise_grad_lambdas):
 
     model.train()
+    avg_clf_loss = []
+    avg_gradmask_loss = []
     avg_loss = []
     t = tqdm(train_loader)
     for batch_idx, (data, target, use_mask) in enumerate(t):
 
         #use_mask = torch.ones((len(target))) # TODO change here.
         optimizer.zero_grad()
-        
+
         x, seg = data
         x, seg, target, use_mask = x.to(device), seg.to(device), target.to(device), use_mask.to(device)
         x.requires_grad=True
 
         class_output, representation = model(x)
-        loss = criterion(class_output, target)
-        
+        clf_loss = criterion(class_output, target)
+        gradmask_loss = 0
+
         # TODO: this place is suuuuper slow. Should be optimized by using advance indexing or something.
         if penalise_grad != "False":
-            
+
             input_grads = get_gradmask_loss(x, class_output, model, target, penalise_grad)
 
             # only apply to positive examples
@@ -214,14 +218,23 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                             gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
 
             gradmask_loss = gradmask_loss.sum()
-            loss = gradmask_loss
 
+        # final loss is two terms combined
+        loss = clf_loss + 0*gradmask_loss
+
+        # reporting
+        avg_clf_loss.append(clf_loss.detach().cpu().numpy())
+        avg_gradmask_loss.append(gradmask_loss.detach().cpu().numpy())
         avg_loss.append(loss.detach().cpu().numpy())
-        t.set_description(penalise_grad + ' Train (loss={:4.4f})'.format(np.mean(avg_loss)))
+        t.set_description((penalise_grad +
+            ' Train (clf={:4.4f} mask={:4.4f} total={:4.4f})'.format(
+                np.mean(avg_clf_loss),
+                np.mean(avg_gradmask_loss),
+                np.mean(avg_loss))))
         loss.backward()
 
         optimizer.step()
-                
+
     return np.mean(avg_loss)
 
 def get_gradmask_loss(x, class_output, model, target, penalise_grad):
@@ -232,21 +245,30 @@ def get_gradmask_loss(x, class_output, model, target, penalise_grad):
                                 create_graph=True)[0]
     elif penalise_grad == "nonhealthy":
         # select the non healthy class d(y_1)/dx
-        input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(), 
+        input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(),
                                 inputs=x, allow_unused=True,
                                 create_graph=True)[0]
     elif penalise_grad == "diff_from_ref":
         # do the deep lift style ref update and diff-to-ref calculations here
 
-        # update the reference stuff 
+        # update the reference stuff
         # 1) mask all_activations to get healthy only
-        target = target.to(x.get_device())
+
+        try:
+            target = target.to(x.get_device())
+        except:
+            pass
+
         healthy_mask = target.float().reshape(-1, 1, 1, 1).clone()
         healthy_mask[target.float().reshape(-1, 1, 1, 1) == 0] = 1
         healthy_mask[target.float().reshape(-1, 1, 1, 1) != 0] = 0
 
         diff = torch.FloatTensor()
-        diff = diff.to(x.get_device())
+
+        try:
+            diff = diff.to(x.get_device())
+        except:
+            pass
 
         # print("Activation lengths: ", len(model.all_activations))
         for i in range(len(model.all_activations)):
@@ -297,11 +319,11 @@ def get_gradmask_loss(x, class_output, model, target, penalise_grad):
         # In the style of the Model-Agnostic Saliency Detector paper: https://arxiv.org/pdf/1807.07784.pdf
 
         print(class_output.shape, representation.shape)
-        # outputs should now be: abs(diff(area_seg - area_saliency_map)) + 
+        # outputs should now be: abs(diff(area_seg - area_saliency_map)) +
         # WIP
     else:
         raise Exception("Unknown style of penalise_grad. Options are: contrast, nonhealthy, diff_from_ref")
-    
+
     return input_grads
 
 
@@ -319,9 +341,9 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
 
             x, seg, target = data[0].to(device), data[1].to(device), target.to(device)
             class_output, representation = model(x)
-            
+
             data_loss += criterion(class_output, target).sum().item() # sum up batch loss
-            
+
             targets.append(target.cpu().data.numpy())
             predictions.append(class_output.cpu().data.numpy())
 
@@ -338,7 +360,7 @@ def processImage(text, i, sample, model, cuda=True):
     fig.set_canvas(gcf.canvas)
     gridsize = (3,6)
     x, target, use_mask = sample
-    
+
     if cuda:
         x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
     else:
@@ -357,22 +379,22 @@ def processImage(text, i, sample, model, cuda=True):
     ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
     ax3.set_title("Masked input")
     ax3.imshow((x[1][0]*x[0][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
-    
+
     ax4.set_title("nonhealthy")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax4.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
     ax5.set_title("nonhealthy masked")
     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
-    
+
     ax6.set_title("contrast")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
+
     ax7.set_title("diff_from_ref")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
     ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
-    if not os.path.exists('images'): 
+
+    if not os.path.exists('images'):
         os.mkdir('images')
     fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
 
@@ -384,12 +406,12 @@ def processImageSmall(text, i, sample, model, cuda=True):
     fig.set_canvas(gcf.canvas)
     gridsize = (2,3)
     x, target, use_mask = sample
-    
+
     if cuda:
         x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
     else:
         x_var = torch.autograd.Variable(x[0].unsqueeze(0), requires_grad=True)
-        
+
     model.eval()
     class_output, res = model(x_var)
 
@@ -404,32 +426,32 @@ def processImageSmall(text, i, sample, model, cuda=True):
     ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
     ax3.set_title("Mask")
     ax3.imshow((x[1][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
-    
+
 #     ax4.set_title("nonhealthy")
 #     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
 #     ax4.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
 #     ax5.set_title("nonhealthy masked")
 #     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
-    
+
     ax6.set_title("nonhealthy d|y|/dx")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
+
     ax7.set_title("contrast d|y0-y1|/dx")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
     ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
+
 #     try:
 #         ax7.set_title("diff_from_ref")
 #         gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
 #         ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
 #     except:
 #         pass
-    
-    if not os.path.exists('images'): 
+
+    if not os.path.exists('images'):
         os.mkdir('images')
     fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
-    
+
 
 @mlflow_logger.log_experiment(nested=False)
 def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, new_size, train_function=train):
@@ -513,13 +535,13 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, new
 
         print(i, "metric",metric,"metric_test",metric_test,"this_cfg",this_cfg)
         opt_results = optimizer.tell(suggestion, - metric) # We minimize the negative accuracy/AUC
-        
+
         #record metrics to write and plot
         if best_metric < metric:
             best_metric = metric
             best_metrics = metrics
             print(i, "New best metric: ", best_metric, "Best metric test: ", metric_test)
-            
+
     print("The best metric: ", best_metric, "Best bmetric test: ", metric_test)
     # Done! Hyperparameters tuning has never been this easy.
 
@@ -533,5 +555,5 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, new
     except:
         # sorry buddy, the feature you are seeking is not available.
         pass
-    
+
     return best_metrics
