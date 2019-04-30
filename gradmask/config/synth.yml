@@ -1,11 +1,11 @@
 # General
-cuda: True
-penalise_grad: 'False'
+cuda: False
 n_iter: 30
+penalise_grad: 'contrast'
 penalise_grad_lambda_1: 1
 penalise_grad_lambda_2: 1
+penalise_grad_usemasks: True
 conditional_reg: False
-penalise_grad_usemasks: True 
 nsamples_train: 500
 maxmasks_train: 256
 new_size: &new_size 512
@@ -25,6 +25,7 @@ dataset:
       blur: 0.4
       new_size: *new_size
       dataroot: &dataroot './data/synth/'
+      distract_noise: 0.5
   valid:
     SyntheticDataset:
       mode: 'valid'
@@ -41,13 +42,13 @@ dataset:
 
 # Model
 model:
-  SimpleCNN: 
+  SimpleCNN:
     flat_layer: 2
 
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.00001
+    lr: 0.00001 # 0.00001
 
 transform:
         train: {}
