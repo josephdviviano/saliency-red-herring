@@ -1,14 +1,14 @@
 # General
-cuda: False
-n_iter: 30
+cuda: True
+n_iter: 200
 penalise_grad: 'contrast'
-penalise_grad_lambda_1: 1
-penalise_grad_lambda_2: 1
+gradmask_lambda: 1
+bre_lambda: 2
 penalise_grad_usemasks: True
 conditional_reg: False
 nsamples_train: 500
 maxmasks_train: 256
-new_size: &new_size 512
+new_size: &new_size 28
 
 # Training
 num_epochs: 50
@@ -22,15 +22,16 @@ dataset:
   train:
     SyntheticDataset:
       mode: 'train'
-      blur: 0.4
+      blur: 10
+      nsamples: 500
       new_size: *new_size
       dataroot: &dataroot './data/synth/'
-      distract_noise: 0.5
+      distract_noise: 0
   valid:
     SyntheticDataset:
-      mode: 'valid'
+      mode: 'train_flip'
       nsamples: 128
-      blur: 0.4
+      blur: 10
       new_size: *new_size
       dataroot: *dataroot
   test:
@@ -44,11 +45,12 @@ dataset:
 model:
   SimpleCNN:
     flat_layer: 2
+    img_size: 28
 
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.00001 # 0.00001
+    lr:  0.001 # 0.0001
 
 transform:
         train: {}
