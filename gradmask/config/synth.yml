@@ -3,7 +3,7 @@ cuda: True
 n_iter: 200
 penalise_grad: 'contrast'
 gradmask_lambda: 1
-bre_lambda: 2
+bre_lambda: 1
 penalise_grad_usemasks: True
 conditional_reg: False
 nsamples_train: 500
@@ -25,7 +25,7 @@ dataset:
       blur: 10
       nsamples: 500
       new_size: *new_size
-      dataroot: &dataroot './data/synth/'
+      dataroot: &dataroot './data/single-pixel/'
       distract_noise: 0
   valid:
     SyntheticDataset:
@@ -43,7 +43,7 @@ dataset:
 
 # Model
 model:
-  SimpleCNN:
+  SimpleUNet:
     flat_layer: 2
     img_size: 28
 

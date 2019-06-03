@@ -1,20 +1,20 @@
-from tqdm import tqdm
-import torch
-from sklearn.metrics import accuracy_score
-import numpy as np
-import logging
-import torch
-import numpy as np
-import random
 from collections import OrderedDict
+from sklearn.metrics import accuracy_score
+from tqdm import tqdm
 import copy
+import itertools
+import logging
+import manager.mlflow.logger as mlflow_logger
+import notebooks.auto_ipynb as auto_ipynb
+import numpy as np
+import numpy as np
+import pprint
+import random
+import time, os, sys
+import torch
+import torch.nn as nn
 import utils.configuration as configuration
 import utils.monitoring as monitoring
-import time, os, sys
-import manager.mlflow.logger as mlflow_logger
-import itertools
-import notebooks.auto_ipynb as auto_ipynb
-import pprint
 
 # Fix backend so I can print images on the cluster.
 import matplotlib
@@ -170,12 +170,15 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
     model.train()
 
-    # Three losses: cross-entropy + gradmask + bre
+    recon_criterion = nn.MSELoss()
+
+    # losses: cross-entropy + reconstruction + gradmask + bre
     avg_clf_loss = []
     avg_gradmask_loss = []
+    avg_recon_loss = []
     avg_bre_loss = []
-
     avg_loss = []
+
     t = tqdm(train_loader)
     for batch_idx, (data, target, use_mask) in enumerate(t):
 
@@ -188,6 +191,9 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
         class_output, representation = model(x)
         clf_loss = criterion(class_output, target)
+
+        # Reconstruction Loss.
+        recon_loss = recon_criterion(x, representation)
 
         # Gradmask Loss.
         # TODO: slow! Optimized using advance indexing or something?
@@ -235,16 +241,18 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         bre_loss *= bre_lambda
 
         # Final loss is three terms combined.
-        loss = clf_loss + gradmask_loss + bre_loss
+        loss = clf_loss + gradmask_loss + recon_loss + bre_loss
 
         # Reporting.
         avg_clf_loss.append(clf_loss.detach().cpu().numpy())
+        avg_recon_loss.append(recon_loss.detach().cpu().numpy())
         avg_gradmask_loss.append(gradmask_loss.detach().cpu().numpy())
         avg_bre_loss.append(bre_loss.detach().cpu().numpy())
         avg_loss.append(loss.detach().cpu().numpy())
         t.set_description((penalise_grad +
-            ' Train (clf={:4.4f} mask={:4.4f}  bre={:4.4f} total={:4.4f})'.format(
+            ' Train (clf={:4.4f} recon={:4.4f} mask={:4.4f}  bre={:4.4f} total={:4.4f})'.format(
                 np.mean(avg_clf_loss),
+                np.mean(avg_recon_loss),
                 np.mean(avg_gradmask_loss),
                 np.mean(avg_bre_loss),
                 np.mean(avg_loss))))
