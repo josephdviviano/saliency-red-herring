@@ -23,15 +23,15 @@ dataset:
   train:
     SyntheticDataset2:
       mode: 'distractor1'
-      blur: 10
+      blur: 0.5
       nsamples: 500
       new_size: *new_size
-      dataroot: &dataroot './data/synth2/'
+      dataroot: &dataroot './data/synth3/'
       distract_noise: 0
   valid:
     SyntheticDataset2:
       mode: 'distractor2'
-      blur: 10
+      blur: 0.5
       nsamples: 128
       new_size: *new_size
       dataroot: *dataroot
@@ -39,7 +39,7 @@ dataset:
   test:
     SyntheticDataset2:
       mode: 'distractor3'
-      blur: 10
+      blur: 0.5
       nsamples: 128
       new_size: *new_size
       dataroot: *dataroot
