@@ -236,7 +236,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
             gradmask_loss = use_mask.reshape(-1, 1).float() * \
                             gradmask_loss.float().reshape(
                                 -1, np.prod(gradmask_loss.shape[1:]))
-            gradmask_loss = gradmask_loss.sum()
+            gradmask_loss = gradmask_loss.abs().sum()
             gradmask_loss *= gradmask_lambda
 
         # BRE loss.
