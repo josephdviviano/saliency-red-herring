@@ -59,8 +59,8 @@ class UNet(nn.Module):
         self.conv_last = nn.Conv2d(64, 1, 1)
 
         # Make prediction off of bottleneck
-        self.fc1 = nn.Linear(512 * 3**2, flat_layer)
-        self.fc2 = nn.Linear(flat_layer, num_class)
+        self.fc1 = nn.Linear(512 * 3**2, num_class)
+        #self.fc2 = nn.Linear(flat_layer, num_class)
 
 
     def forward(self, x):
@@ -87,9 +87,9 @@ class UNet(nn.Module):
         # Generate predictions, saving activations.
         pred = conv4.view(conv4.size(0), -1)
         pred = self.fc1(pred)
-        self.all_activations.append(pred)
-        pred = self.activation(pred)
-        pred = self.fc2(pred)  # Softmax operator used, so no scaling.
+        #self.all_activations.append(pred)
+        #pred = self.activation(pred)
+        #pred = self.fc2(pred)  # Softmax operator used, so no scaling.
 
         # Reconstruct the input.
         x = self.upsample3(conv4)

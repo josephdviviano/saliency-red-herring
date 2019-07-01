@@ -77,7 +77,6 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                 shuffle=cfg['shuffle'],
                                                 num_workers=0, pin_memory=cuda)
 
-
     model = configuration.setup_model(cfg).to(device)
     print(model)
     # TODO: checkpointing
@@ -119,7 +118,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                penalise_grad_usemasks=penalise_grad_usemasks,
                                conditional_reg=conditional_reg,
                                gradmask_lambda=cfg['gradmask_lambda'],
-                               bre_lambda=cfg['bre_lambda'])
+                               bre_lambda=cfg['bre_lambda'],
+                               recon_lambda=cfg['recon_lambda'])
 
         auc_train = valid_wrap_epoch(name="train",
                                      epoch=epoch,
@@ -166,7 +166,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer,
                 criterion, penalise_grad, penalise_grad_usemasks,
-                 conditional_reg, gradmask_lambda, bre_lambda):
+                conditional_reg, gradmask_lambda, bre_lambda, recon_lambda):
 
     model.train()
 
@@ -189,11 +189,15 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         x, seg, target, use_mask = x.to(device), seg.to(device), target.to(device), use_mask.to(device)
         x.requires_grad = True
 
-        class_output, representation = model(x)
+        class_output, reconstruction = model(x)
         clf_loss = criterion(class_output, target)
 
         # Reconstruction Loss.
-        recon_loss = recon_criterion(x, representation)
+        if recon_lambda > 0:
+            recon_loss = recon_criterion(x, reconstruction)
+            recon_loss *= recon_lambda
+        else:
+            recon_loss = torch.zeros(1).to(device)
 
         # Gradmask Loss.
         # TODO: slow! Optimized using advance indexing or something?
@@ -225,14 +229,13 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
             gradmask_loss = input_grads
 
             # Gradmask loss increases over epochs.
-            gradmask_loss = epoch * (gradmask_loss ** 2)
-            n_iter = len(train_loader) * epoch + batch_idx
+            #gradmask_loss = epoch * (gradmask_loss ** 2)
+            #n_iter = len(train_loader) * epoch + batch_idx
 
             # Simulate that we only have some masks
             gradmask_loss = use_mask.reshape(-1, 1).float() * \
                             gradmask_loss.float().reshape(
                                 -1, np.prod(gradmask_loss.shape[1:]))
-
             gradmask_loss = gradmask_loss.sum()
             gradmask_loss *= gradmask_lambda
 
@@ -258,6 +261,9 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
                 np.mean(avg_loss))))
 
         # Learning.
+        if np.isnan(loss.detach().cpu().numpy()):
+            print('loss is nan!')
+            import IPython; IPython.embed()
         loss.backward()
         optimizer.step()
 
@@ -489,8 +495,10 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
         for (data, target, use_mask) in data_loader:
 
             x, seg, target = data[0].to(device), data[1].to(device), target.to(device)
-            class_output, representation = model(x)
-            data_loss += criterion(class_output, target).sum().item() # sum up batch loss
+            class_output, _ = model(x)
+
+            # sum up batch loss
+            data_loss += criterion(class_output, target).sum().item()
 
             targets.append(target.cpu().data.numpy())
             predictions.append(class_output.cpu().data.numpy())
@@ -500,7 +508,7 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
     auc = accuracy_score(np.concatenate(targets), np.concatenate(predictions).argmax(axis=1))
     predictions_bin = np.hstack(predictions_bin)
 
-    data_loss /= len(data_loader.dataset)
+    data_loss /= len(data_loader)
     print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}, pred: {}/{}'.format(
         name, data_loss, auc,
         np.sum(predictions_bin==0), np.sum(predictions_bin==1)))
