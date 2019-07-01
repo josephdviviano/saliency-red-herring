@@ -1,20 +1,24 @@
-from tqdm import tqdm
-import torch
-from sklearn.metrics import accuracy_score
-import numpy as np
-import logging
-import torch
-import numpy as np
-import random
 from collections import OrderedDict
+from sklearn.metrics import accuracy_score
+from tqdm import tqdm
 import copy
+import itertools
+import logging
+import manager.mlflow.logger as mlflow_logger
+import notebooks.auto_ipynb as auto_ipynb
+import numpy as np
+import numpy as np
+import pprint
+import random
+import time, os, sys
+import torch
+import torch.nn as nn
 import utils.configuration as configuration
 import utils.monitoring as monitoring
-import time, os, sys
-import manager.mlflow.logger as mlflow_logger
-import itertools
-import notebooks.auto_ipynb as auto_ipynb
-import pprint
+
+# Fix backend so I can print images on the cluster.
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 _LOG = logging.getLogger(__name__)
@@ -26,18 +30,17 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     print("Our config:")
     pprint.pprint(cfg)
 
+    # Get information from configuration.
     seed = cfg['seed']
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
     # maxmasks = cfg['maxmasks']
     penalise_grad = cfg['penalise_grad']
-
     penalise_grad_usemasks = cfg.get('penalise_grad_usemasks')
     conditional_reg = cfg.get('conditional_reg', False)
-    penalise_grad_lambdas = [cfg['penalise_grad_lambda_1'], cfg['penalise_grad_lambda_2']]
-    
+
     device = 'cuda' if cuda else 'cpu'
-    
+
     # Setting the seed.
     np.random.seed(seed)
     random.seed(seed)
@@ -69,12 +72,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
                                                 num_workers=0, pin_memory=cuda)
-    test_loader = torch.utils.data.DataLoader(dataset_test, 
+    test_loader = torch.utils.data.DataLoader(dataset_test,
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
                                                 num_workers=0, pin_memory=cuda)
 
-    
     model = configuration.setup_model(cfg).to(device)
     print(model)
     # TODO: checkpointing
@@ -96,39 +98,36 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     img_viz0 = dataset_train[2]
     img_viz1 = dataset_valid[2]
-    
+
     for epoch in range(num_epochs):
-        
+
         if cfg['viz']:
             print("CUDA: ", cuda)
             processImageSmall("0",epoch, img_viz0, model, cuda)
             processImageSmall("1",epoch, img_viz1, model, cuda)
 
-        # every other epoch to a grad correcting epoch
-        if (epoch %2 == 0):
-            penalise_grad_epoch = "False"
-        else:
-            # if penalise_grad was false already then it stays false
-            penalise_grad_epoch = penalise_grad
-            
-        avg_loss = train_epoch( epoch=epoch,
-                                model=model,
-                                device=device,
-                                optimizer=optim,
-                                train_loader=train_loader,
-                                criterion=criterion,
-                                penalise_grad=penalise_grad_epoch,
-                                penalise_grad_usemasks=penalise_grad_usemasks,
-                                conditional_reg=conditional_reg,
-                                penalise_grad_lambdas=penalise_grad_lambdas)
-        
-#         auc_train = valid_wrap_epoch(name="train",
-#                                      epoch=epoch,
-#                                      model=model,
-#                                      device=device,
-#                                      data_loader=train_loader,
-#                                      criterion=criterion)
-        
+        penalise_grad_epoch = penalise_grad
+
+        avg_loss = train_epoch(epoch=epoch,
+                               model=model,
+                               device=device,
+                               optimizer=optim,
+                               train_loader=train_loader,
+                               criterion=criterion,
+                               penalise_grad=penalise_grad_epoch,
+                               penalise_grad_usemasks=penalise_grad_usemasks,
+                               conditional_reg=conditional_reg,
+                               gradmask_lambda=cfg['gradmask_lambda'],
+                               bre_lambda=cfg['bre_lambda'],
+                               recon_lambda=cfg['recon_lambda'])
+
+        auc_train = valid_wrap_epoch(name="train",
+                                     epoch=epoch,
+                                     model=model,
+                                     device=device,
+                                     data_loader=train_loader,
+                                     criterion=criterion)
+
         auc_valid = valid_wrap_epoch(name="valid",
                                      epoch=epoch,
                                      model=model,
@@ -138,6 +137,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
         if auc_valid > best_metric:
             best_metric = auc_valid
+
             # only compute when we need to
             auc_test = test_wrap_epoch(name="test",
                                    epoch=epoch,
@@ -148,9 +148,10 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
             testauc_for_best_validauc = auc_test
 
         stat = {"epoch": epoch,
-                "trainloss": avg_loss, 
+                "trainloss": avg_loss,
                 "validauc": auc_valid,
-                #"testauc": auc_test,
+                "trainauc": auc_train,
+                "testauc": auc_test,
                 "testauc_for_best_validauc": testauc_for_best_validauc}
         stat.update(configuration.process_config(cfg))
 
@@ -163,38 +164,62 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                                     'dataset_test': dataset_test}
 
 @mlflow_logger.log_metric('train_loss')
-def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penalise_grad, penalise_grad_usemasks, conditional_reg, penalise_grad_lambdas):
+def train_epoch(epoch, model, device, train_loader, optimizer,
+                criterion, penalise_grad, penalise_grad_usemasks,
+                conditional_reg, gradmask_lambda, bre_lambda, recon_lambda):
 
     model.train()
+
+    recon_criterion = nn.MSELoss()
+
+    # losses: cross-entropy + reconstruction + gradmask + bre
+    avg_clf_loss = []
+    avg_gradmask_loss = []
+    avg_recon_loss = []
+    avg_bre_loss = []
     avg_loss = []
+
     t = tqdm(train_loader)
     for batch_idx, (data, target, use_mask) in enumerate(t):
 
         #use_mask = torch.ones((len(target))) # TODO change here.
         optimizer.zero_grad()
-        
+
         x, seg = data
         x, seg, target, use_mask = x.to(device), seg.to(device), target.to(device), use_mask.to(device)
-        x.requires_grad=True
+        x.requires_grad = True
 
-        class_output, representation = model(x)
-        loss = criterion(class_output, target)
-        
-        # TODO: this place is suuuuper slow. Should be optimized by using advance indexing or something.
+        class_output, reconstruction = model(x)
+        clf_loss = criterion(class_output, target)
+
+        # Reconstruction Loss.
+        if recon_lambda > 0:
+            recon_loss = recon_criterion(x, reconstruction)
+            recon_loss *= recon_lambda
+        else:
+            recon_loss = torch.zeros(1).to(device)
+
+        # Gradmask Loss.
+        # TODO: slow! Optimized using advance indexing or something?
+        gradmask_loss = torch.Tensor([0]).to(device)  # default
+
         if penalise_grad != "False":
-            
-            input_grads = get_gradmask_loss(x, class_output, model, target, penalise_grad)
+
+            input_grads = get_gradmask_loss(
+                x, class_output, model, target, penalise_grad)
 
             # only apply to positive examples
             if penalise_grad != "diff_from_ref":
-                # only do it here because the masking happens elsewhere in the diff_from_ref architecture
-#                 print("target mask: ", target.float().reshape(-1, 1, 1, 1).shape)
+                # only do it here because the masking happens elsewhere in
+                # the diff_from_ref architecture
+                # print("target mask: ", target.float().reshape(-1, 1, 1, 1).shape)
                 input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
 
             if conditional_reg:
                 temp_softmax = torch.softmax(class_output, dim=1).detach()
-                certainty_mask = 1 - torch.argmax((temp_softmax > 0.95).float(), dim=1)
-                input_grads = certainty_mask.float().reshape(-1, 1, 1, 1) * input_grads
+                certainty_mask = 1 - torch.argmax(
+                    (temp_softmax > 0.95).float(), dim=1)
+                input_grads *= certainty_mask.float().reshape(-1, 1, 1, 1)
 
             if penalise_grad_usemasks:
                 input_grads = input_grads * (1 - seg.float())
@@ -202,27 +227,48 @@ def train_epoch(epoch, model, device, train_loader, optimizer, criterion, penali
                 input_grads = input_grads
 
             gradmask_loss = input_grads
-            gradmask_loss = epoch * (gradmask_loss ** 2)
-            n_iter = len(train_loader) * epoch + batch_idx
-            #import ipdb; ipdb.set_trace()
-#             penalty = penalise_grad_lambdas[0] * float(np.exp(penalise_grad_lambdas[1] * n_iter))
-#             penalty = min(penalty, 1000)
-#             gradmask_loss = penalty * (gradmask_loss ** 2)
+
+            # Gradmask loss increases over epochs.
+            #gradmask_loss = epoch * (gradmask_loss ** 2)
+            #n_iter = len(train_loader) * epoch + batch_idx
 
             # Simulate that we only have some masks
             gradmask_loss = use_mask.reshape(-1, 1).float() * \
-                            gradmask_loss.float().reshape(-1, np.prod(gradmask_loss.shape[1:]))
-
+                            gradmask_loss.float().reshape(
+                                -1, np.prod(gradmask_loss.shape[1:]))
             gradmask_loss = gradmask_loss.sum()
-            loss = gradmask_loss
+            gradmask_loss *= gradmask_lambda
 
+        # BRE loss.
+        bre_loss, me_loss, ac_loss, me_stats, ac_stats = get_bre_loss(model)
+        bre_loss *= bre_lambda
+
+        # Final loss is three terms combined.
+        loss = clf_loss + gradmask_loss + recon_loss + bre_loss
+
+        # Reporting.
+        avg_clf_loss.append(clf_loss.detach().cpu().numpy())
+        avg_recon_loss.append(recon_loss.detach().cpu().numpy())
+        avg_gradmask_loss.append(gradmask_loss.detach().cpu().numpy())
+        avg_bre_loss.append(bre_loss.detach().cpu().numpy())
         avg_loss.append(loss.detach().cpu().numpy())
-        t.set_description(penalise_grad + ' Train (loss={:4.4f})'.format(np.mean(avg_loss)))
-        loss.backward()
+        t.set_description((penalise_grad +
+            ' Train (clf={:4.4f} recon={:4.4f} mask={:4.4f}  bre={:4.4f} total={:4.4f})'.format(
+                np.mean(avg_clf_loss),
+                np.mean(avg_recon_loss),
+                np.mean(avg_gradmask_loss),
+                np.mean(avg_bre_loss),
+                np.mean(avg_loss))))
 
+        # Learning.
+        if np.isnan(loss.detach().cpu().numpy()):
+            print('loss is nan!')
+            import IPython; IPython.embed()
+        loss.backward()
         optimizer.step()
-                
+
     return np.mean(avg_loss)
+
 
 def get_gradmask_loss(x, class_output, model, target, penalise_grad):
     if penalise_grad == "contrast":
@@ -232,21 +278,30 @@ def get_gradmask_loss(x, class_output, model, target, penalise_grad):
                                 create_graph=True)[0]
     elif penalise_grad == "nonhealthy":
         # select the non healthy class d(y_1)/dx
-        input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(), 
+        input_grads = torch.autograd.grad(outputs=torch.abs(class_output[:, 1]).sum(),
                                 inputs=x, allow_unused=True,
                                 create_graph=True)[0]
     elif penalise_grad == "diff_from_ref":
         # do the deep lift style ref update and diff-to-ref calculations here
 
-        # update the reference stuff 
+        # update the reference stuff
         # 1) mask all_activations to get healthy only
-        target = target.to(x.get_device())
+
+        try:
+            target = target.to(x.get_device())
+        except:
+            pass
+
         healthy_mask = target.float().reshape(-1, 1, 1, 1).clone()
         healthy_mask[target.float().reshape(-1, 1, 1, 1) == 0] = 1
         healthy_mask[target.float().reshape(-1, 1, 1, 1) != 0] = 0
 
         diff = torch.FloatTensor()
-        diff = diff.to(x.get_device())
+
+        try:
+            diff = diff.to(x.get_device())
+        except:
+            pass
 
         # print("Activation lengths: ", len(model.all_activations))
         for i in range(len(model.all_activations)):
@@ -297,13 +352,134 @@ def get_gradmask_loss(x, class_output, model, target, penalise_grad):
         # In the style of the Model-Agnostic Saliency Detector paper: https://arxiv.org/pdf/1807.07784.pdf
 
         print(class_output.shape, representation.shape)
-        # outputs should now be: abs(diff(area_seg - area_saliency_map)) + 
+        # outputs should now be: abs(diff(area_seg - area_saliency_map)) +
         # WIP
     else:
         raise Exception("Unknown style of penalise_grad. Options are: contrast, nonhealthy, diff_from_ref")
-    
+
     return input_grads
 
+
+def dim2margin(d, s=3.):
+    """
+    s is a hyperparameter which tunes how smooth the transition is from
+    +1 to -1.
+    """
+    _base_var = 1.  # .25 is for 0-1 bernoulli, this is +/- bernoulli
+    return(s*np.sqrt(_base_var / d))
+
+
+def softsign(h, epsilon=1e-3):
+    """
+    A somewhat-smooth representation of a binarized vector, which allows
+    for gradients to flow.
+    """
+    _mu = abs(h).mean()
+    h_epsilon = np.float32(epsilon) * _mu
+    h_epsilon = h_epsilon.detach()
+    act = (h / (abs(h) + h_epsilon))
+    return(act)
+
+
+def get_bre_loss(model, epsilon=1e-3, binarizer="softsign", s=3.0):
+    """
+    Improving GAN training via binarized representation entropy regularization.
+    Cao et al. ICLR 2018.
+
+    """
+
+    me_value, me_stats = me_term(
+        model.all_activations, epsilon=epsilon, binarizer=binarizer)
+    ac_value, ac_stats = ac_term(
+        model.all_activations, epsilon=epsilon, binarizer=binarizer, s=s)
+    bre_loss = me_value + ac_value
+    return(bre_loss, me_value, ac_value, me_stats, ac_stats)
+
+
+def me_term(hs, epsilon=1e-3, binarizer='softsign'):
+    """
+    Gets the marginal of the joint entropy of the binarized activations
+    for each layer, averaging across layers.
+    """
+    h_me = []
+    stats = []
+    binarizer = globals()[binarizer]
+
+    for h in hs:
+
+        # Flatten each member of the minibatch.
+        h = torch.flatten(h, 1)
+
+        # Debug mean of absoloute activations.
+        stats.append(abs(h).mean())
+
+        act = binarizer(h, epsilon)
+
+        # Mean of the i-th activations across the minibatch k, squared, then
+        # mean of those i activations.
+        h_me.append(torch.mean(act, 0).pow(2).mean())
+
+    # Mean of the me term across all layers.
+    hs_me = sum(h_me) /  np.float32(len(hs))
+    stats = sum(stats) / np.float32(len(stats))
+
+    return(hs_me, stats)
+
+
+def ac_term(hs, epsilon=1e-3, s=3., binarizer='softsign'):
+    """
+    Get the mean correlation of the activation vectors.
+    """
+    assert s >= 1.
+
+    C = 0.0
+    stats_C = 0.0
+    stats_abs_mean = []  # Keeps track of the mean(abs()) value.
+    stats_sat90_ratio = []  # Keeps track of the % of values over abs(0.90).
+    stats_sat99_ratio = []  # Keeps track of the % of values over abs(0.99).
+    binarizer = globals()[binarizer]
+
+    for h in hs:
+        act = binarizer(h, epsilon)
+
+        stats_abs_mean.append(torch.mean(abs(act)))
+        stats_sat90_ratio.append(torch.mean((abs(act) > .90).double()))
+        stats_sat99_ratio.append(torch.mean((abs(act) > .99).double()))
+
+        act = torch.flatten(act, 1)
+
+        # Dot product of activations with transpose.
+        l_C = torch.mm(act, act.t()) / act.shape[1]
+        stats_C += l_C
+
+        # Store the max of (0, l_C) in C.
+        C_tmp = abs(l_C) - dim2margin(act.shape[1], s)
+        C_tmp[C_tmp < 0] = 0
+        C += C_tmp
+
+    # Calculate final mean correlation across all layers.
+    C /= np.float32(len(hs))
+    C -= torch.diag(torch.diag(C))
+    C = torch.mean(C)
+
+    # Calculate statistics for debugging and reporting.
+    stats_abs_mean = sum(stats_abs_mean) / np.float32(len(hs))
+    stats_sat90_ratio = sum(stats_sat90_ratio) / np.float32(len(hs))
+    stats_sat99_ratio = sum(stats_sat99_ratio) / np.float32(len(hs))
+    stats_C /= np.float32(len(hs))
+    stats_Cmin = stats_C.min(1)[0]  # collect before we 0 the diagonal
+    stats_C -= torch.diag(torch.diag(stats_C))
+    stats_Cmean = stats_C.sum(0) / stats_C.shape[1]-1
+    stats_Cmax = stats_C.max(0)
+
+    stats = {"cmin": stats_Cmin,
+             "cmean": stats_Cmean,
+             "cmax": stats_Cmax,
+             "abs_mean": stats_abs_mean,
+             "sat90_ratio": stats_sat90_ratio,
+             "sat99_ratio": stats_sat99_ratio}
+
+    return(C, stats)
 
 
 def test_epoch(name, epoch, model, device, data_loader, criterion):
@@ -313,22 +489,30 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
 
     targets = []
     predictions = []
+    predictions_bin = []  # Keep track of actual predictions.
 
     with torch.no_grad():
         for (data, target, use_mask) in data_loader:
 
             x, seg, target = data[0].to(device), data[1].to(device), target.to(device)
-            class_output, representation = model(x)
-            
-            data_loss += criterion(class_output, target).sum().item() # sum up batch loss
-            
+            class_output, _ = model(x)
+
+            # sum up batch loss
+            data_loss += criterion(class_output, target).sum().item()
+
             targets.append(target.cpu().data.numpy())
             predictions.append(class_output.cpu().data.numpy())
+            predictions_bin.append(
+                torch.max(class_output, 1)[1].detach().cpu().numpy())
 
     auc = accuracy_score(np.concatenate(targets), np.concatenate(predictions).argmax(axis=1))
+    predictions_bin = np.hstack(predictions_bin)
 
-    data_loss /= len(data_loader.dataset)
-    print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}'.format(name, data_loss, auc))
+    data_loss /= len(data_loader)
+    print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}, pred: {}/{}'.format(
+        name, data_loss, auc,
+        np.sum(predictions_bin==0), np.sum(predictions_bin==1)))
+
     return auc
 
 def processImage(text, i, sample, model, cuda=True):
@@ -338,7 +522,7 @@ def processImage(text, i, sample, model, cuda=True):
     fig.set_canvas(gcf.canvas)
     gridsize = (3,6)
     x, target, use_mask = sample
-    
+
     if cuda:
         x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
     else:
@@ -357,22 +541,22 @@ def processImage(text, i, sample, model, cuda=True):
     ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
     ax3.set_title("Masked input")
     ax3.imshow((x[1][0]*x[0][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
-    
+
     ax4.set_title("nonhealthy")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax4.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
     ax5.set_title("nonhealthy masked")
     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
-    
+
     ax6.set_title("contrast")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
+
     ax7.set_title("diff_from_ref")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
     ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
-    if not os.path.exists('images'): 
+
+    if not os.path.exists('images'):
         os.mkdir('images')
     fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
 
@@ -384,12 +568,12 @@ def processImageSmall(text, i, sample, model, cuda=True):
     fig.set_canvas(gcf.canvas)
     gridsize = (2,3)
     x, target, use_mask = sample
-    
+
     if cuda:
         x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), requires_grad=True)
     else:
         x_var = torch.autograd.Variable(x[0].unsqueeze(0), requires_grad=True)
-        
+
     model.eval()
     class_output, res = model(x_var)
 
@@ -404,32 +588,32 @@ def processImageSmall(text, i, sample, model, cuda=True):
     ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
     ax3.set_title("Mask")
     ax3.imshow((x[1][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
-    
+
 #     ax4.set_title("nonhealthy")
 #     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
 #     ax4.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
 #     ax5.set_title("nonhealthy masked")
 #     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
-    
+
     ax6.set_title("nonhealthy d|y|/dx")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
+
     ax7.set_title("contrast d|y0-y1|/dx")
     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
     ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    
+
 #     try:
 #         ax7.set_title("diff_from_ref")
 #         gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
 #         ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
 #     except:
 #         pass
-    
-    if not os.path.exists('images'): 
+
+    if not os.path.exists('images'):
         os.mkdir('images')
     fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
-    
+
 
 @mlflow_logger.log_experiment(nested=False)
 def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, new_size, train_function=train):
@@ -513,13 +697,13 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, new
 
         print(i, "metric",metric,"metric_test",metric_test,"this_cfg",this_cfg)
         opt_results = optimizer.tell(suggestion, - metric) # We minimize the negative accuracy/AUC
-        
+
         #record metrics to write and plot
         if best_metric < metric:
             best_metric = metric
             best_metrics = metrics
             print(i, "New best metric: ", best_metric, "Best metric test: ", metric_test)
-            
+
     print("The best metric: ", best_metric, "Best bmetric test: ", metric_test)
     # Done! Hyperparameters tuning has never been this easy.
 
@@ -533,5 +717,5 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, new
     except:
         # sorry buddy, the feature you are seeking is not available.
         pass
-    
+
     return best_metrics

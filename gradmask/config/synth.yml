@@ -1,56 +1,62 @@
 # General
 cuda: True
-penalise_grad: 'False'
-n_iter: 30
-penalise_grad_lambda_1: 1
-penalise_grad_lambda_2: 1
+n_iter: 200
+penalise_grad: 'contrast'
+gradmask_lambda: 10
+bre_lambda: 1
+recon_lambda: 1
+penalise_grad_usemasks: True
 conditional_reg: False
-penalise_grad_usemasks: True 
 nsamples_train: 500
 maxmasks_train: 256
-new_size: &new_size 512
+new_size: &new_size 28
 
 # Training
-num_epochs: 50
+num_epochs: 100
 
 # DataLoader
-batch_size: 32
+batch_size: 128
 shuffle: True
 
 # Dataset
 dataset:
   train:
-    SyntheticDataset:
-      mode: 'train'
-      blur: 0.4
+    SyntheticDataset2:
+      mode: 'distractor1'
+      blur: 10
+      nsamples: 500
       new_size: *new_size
-      dataroot: &dataroot './data/synth/'
+      dataroot: &dataroot './data/synth2/'
+      distract_noise: 0
   valid:
-    SyntheticDataset:
-      mode: 'valid'
+    SyntheticDataset2:
+      mode: 'distractor2'
+      blur: 10
       nsamples: 128
-      blur: 0.4
       new_size: *new_size
       dataroot: *dataroot
+      distract_noise: 1
   test:
-    SyntheticDataset:
-      mode: 'test'
+    SyntheticDataset2:
+      mode: 'distractor3'
+      blur: 10
       nsamples: 128
       new_size: *new_size
       dataroot: *dataroot
+      distract_noise: 1
 
 # Model
 model:
-  SimpleCNN: 
+  SimpleUNet:
     flat_layer: 2
+    img_size: 28
 
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.00001
+    lr:  0.0001 # 0.0001
 
 transform:
         train: {}
         valid: {}
         test: {}
-
