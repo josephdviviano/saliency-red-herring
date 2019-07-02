@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from sklearn.metrics import accuracy_score
+from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
 import copy
 import itertools
@@ -19,6 +20,7 @@ import utils.monitoring as monitoring
 # Fix backend so I can print images on the cluster.
 import matplotlib
 matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 
 _LOG = logging.getLogger(__name__)
@@ -83,6 +85,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     # Optimizer
     optim = configuration.setup_optimizer(cfg)(model.parameters())
+    scheduler = StepLR(optim, step_size=cfg['schedule_steps'], gamma=0.1)
     print(optim)
 
     criterion = torch.nn.CrossEntropyLoss()
@@ -96,8 +99,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
     test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
 
-    img_viz0 = dataset_train[2]
-    img_viz1 = dataset_valid[2]
+    img_viz0 = dataset_train[10]
+    img_viz1 = dataset_valid[10]
 
     for epoch in range(num_epochs):
 
@@ -119,7 +122,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                conditional_reg=conditional_reg,
                                gradmask_lambda=cfg['gradmask_lambda'],
                                bre_lambda=cfg['bre_lambda'],
-                               recon_lambda=cfg['recon_lambda'])
+                               recon_lambda=cfg['recon_lambda'],
+                               actdiff_lambda=cfg['actdiff_lambda'])
 
         auc_train = valid_wrap_epoch(name="train",
                                      epoch=epoch,
@@ -166,17 +170,19 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer,
                 criterion, penalise_grad, penalise_grad_usemasks,
-                conditional_reg, gradmask_lambda, bre_lambda, recon_lambda):
+                conditional_reg, gradmask_lambda, bre_lambda, recon_lambda,
+                actdiff_lambda):
 
     model.train()
 
     recon_criterion = nn.MSELoss()
 
-    # losses: cross-entropy + reconstruction + gradmask + bre
+    # losses: cross-entropy + reconstruction + gradmask + bre + actdiff
     avg_clf_loss = []
     avg_gradmask_loss = []
     avg_recon_loss = []
     avg_bre_loss = []
+    avg_actdiff_loss = []
     avg_loss = []
 
     t = tqdm(train_loader)
@@ -185,28 +191,46 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         #use_mask = torch.ones((len(target))) # TODO change here.
         optimizer.zero_grad()
 
-        x, seg = data
-        x, seg, target, use_mask = x.to(device), seg.to(device), target.to(device), use_mask.to(device)
-        x.requires_grad = True
+        X, seg = data
+        X, seg, target, use_mask = X.to(device), seg.to(device), target.to(device), use_mask.to(device)
+        X.requires_grad = True
 
-        class_output, reconstruction = model(x)
-        clf_loss = criterion(class_output, target)
+        # Activation Difference loss.
+        if actdiff_lambda > 0:
+
+            # Get activations of model when passed masked X.
+            X_masked = X * seg
+            _, _  = model(X_masked)
+            masked_activations = model.all_activations
+        else:
+            actdiff_loss = torch.zeros(1).to(device)
+
+        # Do a forward pass with the data.
+        y_pred, X_recon = model(X)
+        clf_loss = criterion(y_pred, target)
+
+        # Calculate l2 norm between the activations using masked and
+        # unmasked data.
+        if actdiff_lambda > 0:
+            actdiff_loss = compare_activations(
+                masked_activations, model.all_activations)
+
+            actdiff_loss *= actdiff_lambda
 
         # Reconstruction Loss.
         if recon_lambda > 0:
-            recon_loss = recon_criterion(x, reconstruction)
+            recon_loss = recon_criterion(X, X_recon)
             recon_loss *= recon_lambda
         else:
             recon_loss = torch.zeros(1).to(device)
 
-        # Gradmask Loss.
-        # TODO: slow! Optimized using advance indexing or something?
-        gradmask_loss = torch.Tensor([0]).to(device)  # default
+        # Gradmask Loss... TODO: not optimized.
+        gradmask_loss = torch.Tensor([0]).to(device)  # Default values.
 
-        if penalise_grad != "False":
+        if gradmask_lambda > 0:
 
             input_grads = get_gradmask_loss(
-                x, class_output, model, target, penalise_grad)
+                X, class_output, model, target, penalise_grad)
 
             # only apply to positive examples
             if penalise_grad != "diff_from_ref":
@@ -240,24 +264,30 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
             gradmask_loss *= gradmask_lambda
 
         # BRE loss.
-        bre_loss, me_loss, ac_loss, me_stats, ac_stats = get_bre_loss(model)
-        bre_loss *= bre_lambda
+        if bre_lambda > 0:
+            bre_loss, me_loss, ac_loss, me_stats, ac_stats = get_bre_loss(model)
+            bre_loss *= bre_lambda
+        else:
+            bre_loss = torch.zeros(1).to(device)
 
         # Final loss is three terms combined.
         loss = clf_loss + gradmask_loss + recon_loss + bre_loss
+
 
         # Reporting.
         avg_clf_loss.append(clf_loss.detach().cpu().numpy())
         avg_recon_loss.append(recon_loss.detach().cpu().numpy())
         avg_gradmask_loss.append(gradmask_loss.detach().cpu().numpy())
         avg_bre_loss.append(bre_loss.detach().cpu().numpy())
+        avg_actdiff_loss.append(actdiff_loss.detach().cpu().numpy())
         avg_loss.append(loss.detach().cpu().numpy())
         t.set_description((penalise_grad +
-            ' Train (clf={:4.4f} recon={:4.4f} mask={:4.4f}  bre={:4.4f} total={:4.4f})'.format(
+            ' Train (clf={:4.4f} recon={:4.4f} mask={:4.4f}  bre={:4.4f} actdif={:4.4f} total={:4.4f})'.format(
                 np.mean(avg_clf_loss),
                 np.mean(avg_recon_loss),
                 np.mean(avg_gradmask_loss),
                 np.mean(avg_bre_loss),
+                np.mean(avg_actdiff_loss),
                 np.mean(avg_loss))))
 
         # Learning.
@@ -268,6 +298,25 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         optimizer.step()
 
     return np.mean(avg_loss)
+
+
+def compare_activations(act_a, act_b):
+    """
+    Calculates the mean l2 norm between the lists of activations
+    act_a and act_b.
+    """
+    assert len(act_a) == len(act_b)
+    dist = torch.nn.modules.distance.PairwiseDistance(p=2)
+    all_dists = []
+
+    # Gather all L2 distances between the activations
+    for a, b in zip(act_a, act_b):
+        all_dists.append(dist(a, b).view(-1))
+
+    all_dists = torch.cat(all_dists)
+    actdiff_loss = all_dists.sum() / len(all_dists)
+
+    return(actdiff_loss)
 
 
 def get_gradmask_loss(x, class_output, model, target, penalise_grad):
