@@ -2,9 +2,10 @@
 cuda: True
 n_iter: 200
 penalise_grad: 'contrast'
-gradmask_lambda: 10
-bre_lambda: 1
-recon_lambda: 1
+gradmask_lambda: 0
+bre_lambda: 0
+recon_lambda: 0
+actdiff_lambda: 0
 penalise_grad_usemasks: True
 conditional_reg: False
 nsamples_train: 500
@@ -13,6 +14,7 @@ new_size: &new_size 28
 
 # Training
 num_epochs: 100
+schedule_steps: 10
 
 # DataLoader
 batch_size: 128
@@ -53,8 +55,8 @@ model:
 
 # Optimizer
 optimizer:
-  Adam:
-    lr:  0.0001 # 0.0001
+  SGD:
+    lr:  0.1 # 0.0001
 
 transform:
         train: {}
