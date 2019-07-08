@@ -32,7 +32,7 @@ class DeconvBlock(nn.Module):
 @register.setmodelname("SimpleUNet")
 class UNet(nn.Module):
 
-    def __init__(self, img_size=300, num_class=2, flat_layer=1):
+    def __init__(self, img_size=300, num_class=2, flat_layer=1, nc=64):
         super().__init__()
 
         flat_layer = flat_layer * 200
@@ -43,25 +43,36 @@ class UNet(nn.Module):
         self.activation = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
 
+        # Architecture.
+        l1_size = self._calc_layer_size(nc*1, img_size//1)
+        l2_size = self._calc_layer_size(nc*2, img_size//2)
+        l3_size = self._calc_layer_size(nc*4, img_size//4)
+        l4_size = self._calc_layer_size(nc*8, img_size//8)
+
         # Convolve down to bottleneck
-        self.dconv_down1 = DeconvBlock(1, 64, img_size)
-        self.dconv_down2 = DeconvBlock(64, 128, self.dconv_down1.output_size)
-        self.dconv_down3 = DeconvBlock(128, 256, self.dconv_down2.output_size)
-        self.dconv_down4 = DeconvBlock(256, 512, self.dconv_down3.output_size)
+        self.dconv_down1 = DeconvBlock(1,    nc*1, img_size)
+        self.dconv_down2 = DeconvBlock(nc*1, nc*2, self.dconv_down1.output_size)
+        self.dconv_down3 = DeconvBlock(nc*2, nc*4, self.dconv_down2.output_size)
+        self.dconv_down4 = DeconvBlock(nc*4, nc*8, self.dconv_down3.output_size)
 
         # Upsample from bottleneck (for reconstruction)
-        self.upsample3 = nn.Upsample(size=(7, 7), mode='bilinear', align_corners=True)
-        self.dconv_up3 = DeconvBlock(256+512, 256, self.dconv_down4.output_size)
-        self.upsample2 = nn.Upsample(size=(14, 14), mode='bilinear', align_corners=True)
-        self.dconv_up2 = DeconvBlock(128+256, 128, self.dconv_down4.output_size)
-        self.upsample1 = nn.Upsample(size=(28, 28), mode='bilinear', align_corners=True)
-        self.dconv_up1 = DeconvBlock(128+64, 64, self.dconv_down4.output_size)
-        self.conv_last = nn.Conv2d(64, 1, 1)
+        self.upsample3 = nn.Upsample(size=(img_size//4, img_size//4),
+                                     mode='bilinear', align_corners=True)
+        self.dconv_up3 = DeconvBlock(nc*4+nc*8, nc*4, self.dconv_down4.output_size)
+        self.upsample2 = nn.Upsample(size=(img_size//2, img_size//2),
+                                     mode='bilinear', align_corners=True)
+        self.dconv_up2 = DeconvBlock(nc*2+nc*4, nc*2, self.dconv_down4.output_size)
+        self.upsample1 = nn.Upsample(size=(img_size, img_size),
+                                     mode='bilinear', align_corners=True)
+        self.dconv_up1 = DeconvBlock(nc*1+nc*2, nc*1, self.dconv_down4.output_size)
+        self.conv_last = nn.Sequential(nn.Conv2d(nc, 1, 1), nn.Sigmoid())
 
         # Make prediction off of bottleneck
-        self.fc1 = nn.Linear(512 * 3**2, num_class)
+        self.fc1 = nn.Linear(l4_size, num_class)
         #self.fc2 = nn.Linear(flat_layer, num_class)
 
+    def _calc_layer_size(self, channels, img_size):
+        return(channels * img_size**2)
 
     def forward(self, x):
         """Outputs predictions from bottleneck as well as reconstruction."""
@@ -105,6 +116,5 @@ class UNet(nn.Module):
         x, _ = self.dconv_up1(x)
 
         x_prime = self.conv_last(x)
-        x_prime = self.sigmoid(x_prime)  # Scale b/t [0 1]
 
         return(pred, x_prime)
