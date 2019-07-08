@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from sklearn.metrics import accuracy_score
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from tqdm import tqdm
 import copy
 import itertools
@@ -24,6 +24,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 _LOG = logging.getLogger(__name__)
+VIZ_IDX = 10
+
 
 @mlflow_logger.log_experiment(nested=True)
 @mlflow_logger.log_metric('best_metric', 'testauc_for_best_validauc')
@@ -85,7 +87,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     # Optimizer
     optim = configuration.setup_optimizer(cfg)(model.parameters())
-    scheduler = StepLR(optim, step_size=cfg['schedule_steps'], gamma=0.1)
+    scheduler = ReduceLROnPlateau(optim, mode='max')
     print(optim)
 
     criterion = torch.nn.CrossEntropyLoss()
@@ -98,18 +100,20 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     # Wrap the function for mlflow. Don't worry buddy, if you don't have mlflow it will still work.
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
     test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
+    auc_valid = 0.5  # Default
 
-    img_viz0 = dataset_train[10]
-    img_viz1 = dataset_valid[10]
+    img_viz_train = dataset_train[VIZ_IDX]
+    img_viz_valid = dataset_valid[VIZ_IDX]
 
     for epoch in range(num_epochs):
 
         if cfg['viz']:
             print("CUDA: ", cuda)
-            processImageSmall("0",epoch, img_viz0, model, cuda)
-            processImageSmall("1",epoch, img_viz1, model, cuda)
+            process_img_small("train", epoch, img_viz_train, model, cuda)
+            process_img_small("valid", epoch, img_viz_valid, model, cuda)
 
         penalise_grad_epoch = penalise_grad
+        #scheduler.step(auc_valid)
 
         avg_loss = train_epoch(epoch=epoch,
                                model=model,
@@ -175,7 +179,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
     model.train()
 
-    recon_criterion = nn.MSELoss()
+    recon_criterion = nn.BCELoss()
 
     # losses: cross-entropy + reconstruction + gradmask + bre + actdiff
     avg_clf_loss = []
@@ -219,7 +223,8 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
         # Reconstruction Loss.
         if recon_lambda > 0:
-            recon_loss = recon_criterion(X, X_recon)
+            X_target = X.detach()
+            recon_loss = recon_criterion(X_recon, X_target)
             recon_loss *= recon_lambda
         else:
             recon_loss = torch.zeros(1).to(device)
@@ -271,8 +276,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
             bre_loss = torch.zeros(1).to(device)
 
         # Final loss is three terms combined.
-        loss = clf_loss + gradmask_loss + recon_loss + bre_loss
-
+        loss = clf_loss + gradmask_loss + actdiff_loss + recon_loss + bre_loss
 
         # Reporting.
         avg_clf_loss.append(clf_loss.detach().cpu().numpy())
@@ -610,7 +614,8 @@ def processImage(text, i, sample, model, cuda=True):
     fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
 
 #to make video: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
-def processImageSmall(text, i, sample, model, cuda=True):
+def process_img_small(text, i, sample, model, cuda=True):
+
     fig = plt.Figure(figsize=(20, 10), dpi=160)
     gcf = plt.gcf()
     gcf.set_size_inches(20, 10)
@@ -624,44 +629,33 @@ def processImageSmall(text, i, sample, model, cuda=True):
         x_var = torch.autograd.Variable(x[0].unsqueeze(0), requires_grad=True)
 
     model.eval()
-    class_output, res = model(x_var)
+    y_prime, x_prime = model(x_var)
 
     ax2 = plt.subplot2grid(gridsize, (1, 0))
     ax3 = plt.subplot2grid(gridsize, (1, 1))
-#     ax4 = plt.subplot2grid(gridsize, (0, 0))
-#     ax5 = plt.subplot2grid(gridsize, (0, 1))
     ax6 = plt.subplot2grid(gridsize, (0, 0))
     ax7 = plt.subplot2grid(gridsize, (0, 1))
 
-    ax2.set_title(str(i) + " Input Image")
-    ax2.imshow(x[0][0].cpu().numpy(), interpolation='none', cmap='Greys_r')
-    ax3.set_title("Mask")
-    ax3.imshow((x[1][0]).cpu().numpy(), interpolation='none', cmap='Greys_r')
+    ax2.set_title(str(i) + " Masked Image")
+    ax2.imshow(x[0][0].cpu().numpy() + x[1][0].cpu().numpy()*0.5,
+               interpolation='none', cmap='Greys_r')
 
-#     ax4.set_title("nonhealthy")
-#     gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
-#     ax4.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-#     ax5.set_title("nonhealthy masked")
-#     ax5.imshow(np.abs(gradmask)*x[1][0].cpu().numpy(), cmap="jet", interpolation='none')
+    ax3.set_title("Reconstruction")
+    ax3.imshow(x_prime[0][0].detach().cpu().numpy(),
+               interpolation='none', cmap='Greys_r')
 
     ax6.set_title("nonhealthy d|y|/dx")
-    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
+    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.), "nonhealthy").detach().cpu().numpy()[0][0]
     ax6.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
 
     ax7.set_title("contrast d|y0-y1|/dx")
-    gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
+    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.), "contrast").detach().cpu().numpy()[0][0]
     ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-
-#     try:
-#         ax7.set_title("diff_from_ref")
-#         gradmask = get_gradmask_loss(x_var, class_output, model, torch.tensor(1.), "diff_from_ref").detach().cpu().numpy()[0][0]
-#         ax7.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-#     except:
-#         pass
 
     if not os.path.exists('images'):
         os.mkdir('images')
-    fig.savefig('images/image-' + text + "-" + str(i) + '.png', bbox_inches='tight', pad_inches=0)
+    fig.savefig('images/image-{0}-{1:03d}.png'.format(text, i),
+                bbox_inches='tight', pad_inches=0)
 
 
 @mlflow_logger.log_experiment(nested=False)
