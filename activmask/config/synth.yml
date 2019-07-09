@@ -49,8 +49,7 @@ dataset:
 
 # Model
 model:
-  SimpleUNet:
-    flat_layer: 2
+  UNet:
     img_size: 28
     nc: 4
 
