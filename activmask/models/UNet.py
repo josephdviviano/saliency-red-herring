@@ -1,148 +1,120 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import utils.register as register
 
+class DeconvBlock(nn.Module):
 
-@register.setmodelname("UNet")
-class UNet(nn.Module):
-    def __init__(self, img_size=300, num_class=2, flat_layer=1):
-        super(UNet, self).__init__()
+    def __init__(self, in_ch, out_ch, in_size):
+        super().__init__()
 
-        flat_layer = flat_layer * 200
+        self.activation = nn.ReLU(inplace=True)
+        self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
+        self.output_size = self.calc_size(in_size, kernel=3, stride=1, pad=1)
 
-        self.activations = []
-
-        # encode down the blocks
-        self.unet_enc_1, out_size = self.unet_encode_block(1, img_size)
-        self.unet_enc_2, out_size = self.unet_encode_block(2, out_size)
-        self.unet_enc_3, out_size = self.unet_encode_block(3, out_size)
-        self.unet_enc_4, out_size = self.unet_encode_block(4, out_size)
-
-        # decode the blocks up
-        self.unet_dec_4, out_size = self.unet_decode_block(4, out_size)
-        self.unet_dec_3, out_size = self.unet_decode_block(3, out_size)
-        self.unet_dec_2, out_size = self.unet_decode_block(2, out_size)
-        self.unet_dec_1, out_size = self.unet_decode_block(1, out_size)
-
-        self.fc1 = nn.Linear(17 * out_size * out_size, flat_layer)
-
-        self.out = nn.Linear(flat_layer, num_class)
-
-    def unet_encode_block(self, block_num, in_size, base_filter_size=32):
-        internal_layers = []
-        if block_num != 1:
-            # if it's not the first layer, do max pool first and multiply conv filters by layer_num
-            internal_layers.append(nn.MaxPool2d(2).cuda())
-            # number of channels becomes whatever the number of output filters was on the last layer
-            in_channels = (block_num - 1) * base_filter_size
-            # get the output size for the max pool layer
-            output_size = self.output_size(in_size, kernel_size=2, stride=2, padding=0)
-        else:
-            # stuff for the first layer - 1 channel and output_size = whatever the image size is!
-            output_size = in_size
-            in_channels = 1
-
-        for i in range(2):
-            # do conv, ELU, BN twice through and store the layers
-            internal_layers.append(nn.Conv2d(
-                        in_channels=in_channels,
-                        out_channels=block_num*base_filter_size,
-                        kernel_size=3,
-                        stride=1,
-                        padding=0,
-                     ).cuda())
-            output_size = self.output_size(output_size, kernel_size=3, stride=1, padding=0)
-            internal_layers.append(nn.ELU().cuda())
-            internal_layers.append(nn.BatchNorm2d(block_num*base_filter_size).cuda())
-
-            in_channels = base_filter_size*block_num
-
-        return internal_layers, output_size
-
-    def unet_decode_block(self, block_num, in_size, base_filter_size=32):
-        internal_layers = []
-        # do the thing
-        output_size = in_size
-        if block_num != 4:
-            # not the first (i.e. coming from the fourth encoder block) decode block, so do dropout, 2x(conv, ELU), upsample
-            internal_layers.append(nn.Dropout())
-            in_channels = (block_num + 1) * base_filter_size
-            for i in range(2):
-
-                internal_layers.append(nn.Conv2d(
-                    in_channels=in_channels,
-                    out_channels=block_num * base_filter_size,
-                    kernel_size=3,
-                    stride=1,
-                    padding=0
-                ))
-                internal_layers.append(nn.ELU())
-                output_size = self.output_size(output_size, kernel_size=3, stride=1, padding=0)
-                in_channels = block_num * base_filter_size
-
-            if block_num != 1:
-                internal_layers.append(nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True))
-                output_size = output_size * 2
-        else:
-            # first decode block so just do upsample
-            internal_layers.append(nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True))
-
-        return internal_layers, output_size
-
-    def output_size(self, in_size, kernel_size, stride, padding):
-        output = int((in_size - kernel_size + 2*(padding)) / stride) + 1
-        return(output)
+    def calc_size(self, in_size, kernel, stride, pad):
+        return(int((in_size - kernel + 2*(pad)) / stride) + 1)
 
     def forward(self, x):
-        self.activations = []
+        """Double Convolution."""
+        pre_activations = []
 
-        for layer in self.unet_enc_1:
-            x = layer(x).cuda()
-            self.activations.append(x)
+        x = self.conv1(x)
+        pre_activations.append(x)
+        x = self.activation(x)
+        x = self.conv2(x)
+        pre_activations.append(x)
+        x = self.activation(x)
 
-        skip_1 = x # output of the first block for skip connections
+        return(x, pre_activations)
 
-        for layer in self.unet_enc_2:
-            x = layer(x)
-            self.activations.append(x)
 
-        skip_2 = x
+@register.setmodelname("SimpleUNet")
+class UNet(nn.Module):
 
-        for layer in self.unet_enc_3:
-            x = layer(x)
-            self.activations.append(x)
+    def __init__(self, img_size=300, num_class=2, flat_layer=1, nc=64):
+        super().__init__()
 
-        skip_3 = x
+        flat_layer = flat_layer * 200
+        self.all_activations = []
 
-        for layer in self.unet_enc_4:
-            x = layer(x)
-            self.activations.append(x)
+        # Auxilary layers
+        self.maxpool = nn.MaxPool2d(2)
+        self.activation = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
 
-        for layer in self.unet_dec_4:
-            x = layer(x)
-            self.activations.append(x)
+        # Architecture.
+        l1_size = self._calc_layer_size(nc*1, img_size//1)
+        l2_size = self._calc_layer_size(nc*2, img_size//2)
+        l3_size = self._calc_layer_size(nc*4, img_size//4)
+        l4_size = self._calc_layer_size(nc*8, img_size//8)
 
-        x = torch.cat([x, skip_3], dim=1)
+        # Convolve down to bottleneck
+        self.dconv_down1 = DeconvBlock(1,    nc*1, img_size)
+        self.dconv_down2 = DeconvBlock(nc*1, nc*2, self.dconv_down1.output_size)
+        self.dconv_down3 = DeconvBlock(nc*2, nc*4, self.dconv_down2.output_size)
+        self.dconv_down4 = DeconvBlock(nc*4, nc*8, self.dconv_down3.output_size)
 
-        for layer in self.unet_dec_3:
-            x = layer(x)
-            self.activations.append(x)
+        # Upsample from bottleneck (for reconstruction)
+        self.upsample3 = nn.Upsample(size=(img_size//4, img_size//4),
+                                     mode='bilinear', align_corners=True)
+        self.dconv_up3 = DeconvBlock(nc*4+nc*8, nc*4, self.dconv_down4.output_size)
+        self.upsample2 = nn.Upsample(size=(img_size//2, img_size//2),
+                                     mode='bilinear', align_corners=True)
+        self.dconv_up2 = DeconvBlock(nc*2+nc*4, nc*2, self.dconv_down4.output_size)
+        self.upsample1 = nn.Upsample(size=(img_size, img_size),
+                                     mode='bilinear', align_corners=True)
+        self.dconv_up1 = DeconvBlock(nc*1+nc*2, nc*1, self.dconv_down4.output_size)
+        self.conv_last = nn.Sequential(nn.Conv2d(nc, 1, 1), nn.Sigmoid())
 
-        x = torch.cat([x, skip_2], dim=1)
+        # Make prediction off of bottleneck
+        self.fc1 = nn.Linear(l4_size, num_class)
+        #self.fc2 = nn.Linear(flat_layer, num_class)
 
-        for layer in self.unet_dec_2:
-            x = layer(x)
-            self.activations.append(x)
+    def _calc_layer_size(self, channels, img_size):
+        return(channels * img_size**2)
 
-        x = torch.cat([x, skip_1], dim=1)
+    def forward(self, x):
+        """Outputs predictions from bottleneck as well as reconstruction."""
+        # Reset so we only get the activations for this batch.
+        self.all_activations = []
 
-        for layer in self.unet_dec_1:
-            x = layer(x)
-            self.activations.append(x)
+        # Convolve down to the bottleneck, saving activations.
+        conv1, pre_activations = self.dconv_down1(x)
+        self.all_activations.extend(pre_activations)
+        x = self.maxpool(conv1)
 
-        x = self.fc1(x)
-        self.activations.append(x)
-        out = self.out(x)
+        conv2, pre_activations = self.dconv_down2(x)
+        self.all_activations.extend(pre_activations)
+        x = self.maxpool(conv2)
 
-        return out, x
+        conv3, pre_activations = self.dconv_down3(x)
+        self.all_activations.extend(pre_activations)
+        x = self.maxpool(conv3)
+
+        conv4, pre_activations = self.dconv_down4(x)
+        self.all_activations.extend(pre_activations)
+
+        # Generate predictions, saving activations.
+        pred = conv4.view(conv4.size(0), -1)
+        pred = self.fc1(pred)
+        #self.all_activations.append(pred)
+        #pred = self.activation(pred)
+        #pred = self.fc2(pred)  # Softmax operator used, so no scaling.
+
+        # Reconstruct the input.
+        x = self.upsample3(conv4)
+        x = torch.cat([x, conv3], dim=1)
+        x, _ = self.dconv_up3(x)  # Don't collect activations for upsamples
+
+        x = self.upsample2(x)
+        x = torch.cat([x, conv2], dim=1)
+        x, _ = self.dconv_up2(x)
+
+        x = self.upsample1(x)
+        x = torch.cat([x, conv1], dim=1)
+        x, _ = self.dconv_up1(x)
+
+        x_prime = self.conv_last(x)
+
+        return(pred, x_prime)
