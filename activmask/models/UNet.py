@@ -29,13 +29,12 @@ class DeconvBlock(nn.Module):
         return(x, pre_activations)
 
 
-@register.setmodelname("SimpleUNet")
+@register.setmodelname("UNet")
 class UNet(nn.Module):
 
-    def __init__(self, img_size=300, num_class=2, flat_layer=1, nc=64):
+    def __init__(self, img_size=300, num_class=2, nc=64):
         super().__init__()
 
-        flat_layer = flat_layer * 200
         self.all_activations = []
 
         # Auxilary layers
@@ -69,7 +68,6 @@ class UNet(nn.Module):
 
         # Make prediction off of bottleneck
         self.fc1 = nn.Linear(l4_size, num_class)
-        #self.fc2 = nn.Linear(flat_layer, num_class)
 
     def _calc_layer_size(self, channels, img_size):
         return(channels * img_size**2)
@@ -95,12 +93,9 @@ class UNet(nn.Module):
         conv4, pre_activations = self.dconv_down4(x)
         self.all_activations.extend(pre_activations)
 
-        # Generate predictions, saving activations.
+        # Generate predictions directly off of bottleneck.
         pred = conv4.view(conv4.size(0), -1)
         pred = self.fc1(pred)
-        #self.all_activations.append(pred)
-        #pred = self.activation(pred)
-        #pred = self.fc2(pred)  # Softmax operator used, so no scaling.
 
         # Reconstruct the input.
         x = self.upsample3(conv4)
