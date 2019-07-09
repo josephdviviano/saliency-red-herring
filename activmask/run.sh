@@ -4,7 +4,7 @@ export LANG=C.UTF-8
 source $HOME/.bashrc
 source activate activmask
 
-python -u main.py --config config/synth.yml $@
+python -u main.py train --config config/synth.yml $@
 
 rc=$?
 echo "Exit code is $?"
