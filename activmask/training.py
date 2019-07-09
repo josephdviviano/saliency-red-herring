@@ -8,7 +8,6 @@ import logging
 import manager.mlflow.logger as mlflow_logger
 import notebooks.auto_ipynb as auto_ipynb
 import numpy as np
-import numpy as np
 import pprint
 import random
 import time, os, sys
@@ -17,10 +16,9 @@ import torch.nn as nn
 import utils.configuration as configuration
 import utils.monitoring as monitoring
 
-# Fix backend so I can print images on the cluster.
+# Fix backend so one can generate plots without Display set.
 import matplotlib
 matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
 
 _LOG = logging.getLogger(__name__)
@@ -97,7 +95,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     testauc_for_best_validauc = 0.
     metrics = []
 
-    # Wrap the function for mlflow. Don't worry buddy, if you don't have mlflow it will still work.
+    # Wrap the function for mlflow. Don't worry buddy, if you don't have
+    # mlflow it will still work.
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
     test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
     auc_valid = 0.5  # Default
@@ -146,7 +145,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
         if auc_valid > best_metric:
             best_metric = auc_valid
 
-            # only compute when we need to
+            # Only compute when we need to.
             auc_test = test_wrap_epoch(name="test",
                                    epoch=epoch,
                                    model=model,
@@ -162,14 +161,15 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                 "testauc": auc_test,
                 "testauc_for_best_validauc": testauc_for_best_validauc}
         stat.update(configuration.process_config(cfg))
-
         metrics.append(stat)
 
     monitoring.log_experiment_csv(cfg, [best_metric])
 
-    return metrics, best_metric, testauc_for_best_validauc, {'dataset_train': dataset_train,
-                                                    'dataset_valid': dataset_valid,
-                                                    'dataset_test': dataset_test}
+    results_dict = {'dataset_train': dataset_train,
+                    'dataset_valid': dataset_valid,
+                    'dataset_test': dataset_test}
+
+    return(metrics, best_metric, testauc_for_best_validauc, results_dict)
 
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer,
