@@ -2,9 +2,9 @@
 hostname
 export LANG=C.UTF-8
 source $HOME/.bashrc
-source activate gradmask
+source activate activmask
 
-python3 -u main.py train-skopt --config config/lungmsd_skopt.yml $@
+python -u main.py --config config/synth.yml $@
 
 rc=$?
 echo "Exit code is $?"
@@ -13,8 +13,3 @@ if  [[ $rc == 0 ]]; then
 else
     echo "Command failed"
 fi
-
-#for i in {0..5}; do
-#    python3 -u main.py train --config config/lungmsd.yml -seed $i -penalise_grad=False
-#    python3 -u main.py train --config config/lungmsd.yml -seed $i -penalise_grad=nonhealthy
-#done
