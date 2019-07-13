@@ -10,24 +10,28 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
-penalise_grad_choices = ["contrast", "diff_from_ref", "nonhealthy"]
-
 @click.group()
 def run():
     pass
 
 @run.command()
-@click.option('--config', '-cgf', type=click.Path(exists=True, resolve_path=True), help='Configuration file.')
+@click.option('--config', '-cgf', 
+              type=click.Path(exists=True, resolve_path=True), 
+              help='Configuration file.')
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-penalise_grad', type=str, help='penalise_grad')
-@click.option('-penalise_grad_usemasks', type=bool, help='penalise_grad_usemasks')
+@click.option('-penalise_grad_usemasks', type=bool, 
+              help='penalise_grad_usemasks')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-maxmasks_train', type=int, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
-def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, viz):
+def train(config, seed, penalise_grad, nsamples_train, num_epochs, 
+          penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, 
+          viz):
+
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
@@ -83,8 +87,6 @@ def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
 
-    # TODO: put the new_size into the model config too so it gets the right size...
-
     cfg["viz"] = viz
 
     log_folder = get_log_folder_name(cfg)
@@ -97,9 +99,8 @@ def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad
 
     metrics, best_metric, testauc_for_best_validauc, state = training.train(cfg)
 
-    # Plot train / valid AUC
-    train_auc = []
-    valid_auc = []
+    # Plot train / valid AUC.
+    train_auc, valid_auc = [], []
 
     for metric in metrics:
         train_auc.append(metric['trainauc'])
@@ -116,22 +117,34 @@ def train(config, seed, penalise_grad, nsamples_train, num_epochs, penalise_grad
     plt.savefig("{}/auc.jpg".format(log_folder))
 
 @run.command()
-@click.option('--config', '-cgf', type=click.Path(exists=True, resolve_path=True), help='Configuration file.')
+@click.option('--config', '-cgf', 
+              type=click.Path(exists=True, resolve_path=True), 
+              help='Configuration file.')
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-penalise_grad', type=str, help='penalise_grad')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
 @click.option('--n_iter', type=int, default=10, help='Configuration file.')
-@click.option('--base_estimator', type=click.Choice(["GP", "RF", "ET", "GBRT"]), default="GP", help='Estimator.')
-@click.option('--n_initial_points', type=int, default=5, help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
-@click.option('--train_function', type=str, default="train", help='Training function to optimize over.')
-@click.option('-penalise_grad_usemasks', type=bool, help='penalise_grad_usemasks')
+@click.option('--base_estimator', 
+              type=click.Choice(["GP", "RF", "ET", "GBRT"]), 
+              default="GP", help='Estimator.')
+@click.option('--n_initial_points', 
+              type=int, default=5, 
+              help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
+@click.option('--train_function', 
+              type=str, default="train", 
+              help='Training function to optimize over.')
+@click.option('-penalise_grad_usemasks', 
+              type=bool, help='penalise_grad_usemasks')
 @click.option('-conditional_reg', type=bool, help='conditional_reg')
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-maxmasks_train', type=int, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
-def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, base_estimator, n_initial_points, train_function,
-               penalise_grad_usemasks, conditional_reg, new_size, maxmasks_train, num_epochs, viz):
+def train_skopt(config, seed, penalise_grad, nsamples_train, n_iter, 
+                base_estimator, n_initial_points, train_function, 
+                penalise_grad_usemasks, conditional_reg, new_size, 
+                maxmasks_train, num_epochs, viz):
+
     cfg = configuration.load_config(config)
     cfg["skopt"] = True
     if not seed is None:
