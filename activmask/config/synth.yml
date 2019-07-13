@@ -1,64 +1,11 @@
 # General
-cuda: True
-n_iter: 200
-penalise_grad: 'contrast'
-gradmask_lambda: 0
+base: 'base_synth.yml'
 bre_lambda: 0
 recon_lambda: 10
 actdiff_lambda: 10
-penalise_grad_usemasks: True
-conditional_reg: False
-nsamples_train: 500
-maxmasks_train: 256
-new_size: &new_size 28
-
-# Training
-num_epochs: 500
-schedule_steps: 10
-
-# DataLoader
-batch_size: 32
-shuffle: True
-
-# Dataset
-dataset:
-  train:
-    SyntheticDataset2:
-      mode: 'distractor1'
-      blur: 0.5
-      nsamples: 500
-      new_size: *new_size
-      dataroot: &dataroot './data/synth3/'
-      distract_noise: 0
-  valid:
-    SyntheticDataset2:
-      mode: 'distractor2'
-      blur: 0.5
-      nsamples: 128
-      new_size: *new_size
-      dataroot: *dataroot
-      distract_noise: 1
-  test:
-    SyntheticDataset2:
-      mode: 'distractor3'
-      blur: 0.5
-      nsamples: 128
-      new_size: *new_size
-      dataroot: *dataroot
-      distract_noise: 1
 
 # Model
 model:
   UNet:
     img_size: 28
     nc: 4
-
-# Optimizer
-optimizer:
-  Adam:
-    lr:  0.0001
-
-transform:
-        train: {}
-        valid: {}
-        test: {}
