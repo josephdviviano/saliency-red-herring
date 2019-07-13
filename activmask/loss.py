@@ -146,12 +146,12 @@ def get_gradmask_loss(x, class_output, model, target, penalise_grad):
         # d(y_0-y_1)/dx
         input_grads = torch.autograd.grad(
             outputs=torch.abs(class_output[:, 0]-class_output[:, 1]).sum(),
-            inputs=x, allow_unused=True, create_graph:=True)[0]
+            inputs=x, allow_unused=True, create_graph=True)[0]
 
     elif penalise_grad == "nonhealthy":
         # select the non healthy class d(y_1)/dx
         input_grads = torch.autograd.grad(
-            outputs=torch.abs(class_output[:, 1]).sum(), outputs=x, 
+            outputs=torch.abs(class_output[:, 1]).sum(), inputs=x,
             allow_unused=True, create_graph=True)[0]
 
     elif penalise_grad == "diff_from_ref":
@@ -197,23 +197,23 @@ def get_gradmask_loss(x, class_output, model, target, penalise_grad):
 
             # 4) update global reference average in model's deep_lift_ref attr
             if len(model.ref) < len(model.all_activations):
-                # for the first iteration, just make the model.ref == 
+                # for the first iteration, just make the model.ref ==
                 # batch_avg_healthy for that layer
                 model.ref.append(batch_avg_healthy)
             else:
                 # otherwise, a rolling average
                 model.ref[i] = model.ref[i] * 0.8 + batch_avg_healthy
 
-            # 5) TODO: somehow incorporate std to allowing regions of variance 
-            # in the healthy images use the reference layers to get the 
-            # diff-to-ref of each layer and output contribution scores 
-            # contribution scores should be the input_grads? Should be a single 
-            # matrix of values for how each input pixel contributes to the 
-            # output layer, no? Like all the layer-wise diff-from-ref get 
-            # condensed into one thing based on sum(contribution_scores of 
+            # 5) TODO: somehow incorporate std to allowing regions of variance
+            # in the healthy images use the reference layers to get the
+            # diff-to-ref of each layer and output contribution scores
+            # contribution scores should be the input_grads? Should be a single
+            # matrix of values for how each input pixel contributes to the
+            # output layer, no? Like all the layer-wise diff-from-ref get
+            # condensed into one thing based on sum(contribution_scores of
             # (delta_x_i, delta_t)) = delta_t
             # 1) for each layer, t - t0, then mask the unhealthy ones
-            # 2) flatten, 3) stack or join together somehow?, 4) L1 norm, 
+            # 2) flatten, 3) stack or join together somehow?, 4) L1 norm,
             # 5) input grads
             diff = torch.cat(
                 (diff, torch.flatten(
@@ -221,13 +221,13 @@ def get_gradmask_loss(x, class_output, model, target, penalise_grad):
                 )
             )
 
-        input_grads = torch.autograd.grad(outputs=torch.abs(diff).sum(), 
-                                          inputs=x, allow_unused=True, 
+        input_grads = torch.autograd.grad(outputs=torch.abs(diff).sum(),
+                                          inputs=x, allow_unused=True,
                                           create_graph=True)[0]
 
     elif penalise_grad == "masd_style":
-        # In the style of the Model-Agnostic Saliency Detector paper: 
-        # https://arxiv.org/pdf/1807.07784.pdf 
+        # In the style of the Model-Agnostic Saliency Detector paper:
+        # https://arxiv.org/pdf/1807.07784.pdf
         print(class_output.shape, representation.shape)
         # outputs should now be: abs(diff(area_seg - area_saliency_map)) +
         # WIP

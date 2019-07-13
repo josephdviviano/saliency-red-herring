@@ -1,10 +1,11 @@
+import datasets as datasets
 import importlib
 import inspect
 import logging
-import yaml
 import models as models
-import datasets as datasets
+import os
 import torchvision
+import yaml
 
 _LOG = logging.getLogger(__name__)
 
@@ -16,30 +17,30 @@ def process_config(config):
     for mode in ['train', 'valid','test']:
         for key, item in config.items():
             if type(config[key]) == dict:
-                # if the 'value' is actually a dict, iterate through and 
+                # if the 'value' is actually a dict, iterate through and
                 # collect train/valid/test values.
                 try:
-                    # config is of the form main_key: train/test/valid: 
+                    # config is of the form main_key: train/test/valid:
                     # key_val: more_key_val_pairs
                     sub_dict = config[key][mode]
                     main_key_value = list(sub_dict.keys())[0]
                     output_dict["{}_{}".format(mode, key)] = main_key_value
 
                     # e.g. name of optimiser, name of dataset
-                    sub_sub_dict = sub_dict[main_key_value] 
+                    sub_sub_dict = sub_dict[main_key_value]
                     for k, i in sub_sub_dict.items():
                         if type(i) == float:
                             i = round(i, 4)
                         # so we don't have e.g. train_dataset_MSD_mode.
-                        output_dict["{}_{}_{}".format(mode, key, k)] = i 
+                        output_dict["{}_{}_{}".format(mode, key, k)] = i
                 except:
-                    # config is of the form main_key: 
+                    # config is of the form main_key:
                     # key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.1
                     sub_dict = config[key]
                     main_key_value = list(sub_dict.keys())[0]
                     output_dict[key] = main_key_value
                     # e.g. name of optimiser, name of dataset.
-                    sub_sub_dict = sub_dict[main_key_value] 
+                    sub_sub_dict = sub_dict[main_key_value]
 
                     for k, i in sub_sub_dict.items():
                         if type(i) == float:
@@ -77,7 +78,7 @@ def load_config(config_file):
 
     # Load the experiment-level config.
     with open(config_file, 'r') as f:
-        yaml_cfg = yaml.load(f)
+        experiment_cfg = yaml.load(f)
 
     # If it is defined, import the base-config for the experiment.
     if 'base' in experiment_cfg.keys() and experiment_cfg['base'] != None:
@@ -196,7 +197,7 @@ def setup_transform(config, split='train'):
 
         tr_obj = getattr(transform_module, tr_name)
         transforms.append(tr_obj(**tr_args))
-    
+
     compose_transform = torchvision.transforms.Compose(transforms)
     return compose_transform
 
