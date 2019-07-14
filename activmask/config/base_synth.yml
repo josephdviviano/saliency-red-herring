@@ -21,7 +21,7 @@ dataset:
       blur: 0.5
       nsamples: 500
       new_size: *new_size
-      dataroot: &dataroot './data/synth3/'
+      dataroot: &dataroot './data/synth2/'
       distract_noise: 0
   valid:
     SyntheticDataset2:
