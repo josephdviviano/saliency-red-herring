@@ -8,5 +8,5 @@ actdiff_lambda: 10
 model:
   UNet:
     img_size: 28
-    nc: 4
+    nc: 16
     mode: 'ae'

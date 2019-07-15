@@ -8,4 +8,4 @@ actdiff_lambda: 0
 model:
   UNet:
     img_size: 28
-    nc: 4
+    nc: 16
