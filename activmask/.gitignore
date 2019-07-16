@@ -1,2 +1,4 @@
 checkpoints/*
 images/*
+logs/*
+logs-single/*
