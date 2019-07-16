@@ -171,7 +171,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     # Write best model to disk.
     output_dir = os.path.join('checkpoints', exp_name)
     if not os.path.exists(output_dir):
-        os.mkdirs(output_dir)
+        os.makedirs(output_dir)
     torch.save(best_results, os.path.join(output_dir, 'best_results.pth.tar'))
 
     return (metrics, best_metric, testauc_for_best_validauc, results_dict)
@@ -359,7 +359,7 @@ def render_img(text, i, sample, model, exp_name, cuda=True):
 
     output_dir = os.path.join('images', exp_name)
     if not os.path.exists(output_dir):
-        os.mkdirs(output_dir)
+        os.makedirs(output_dir)
     fig.savefig('{0}/image-{1}-{2:03d}.png'.format(output_dir, text, i),
                 bbox_inches='tight', pad_inches=0)
     fig.clf()
