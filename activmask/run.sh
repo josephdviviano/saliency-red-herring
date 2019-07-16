@@ -5,7 +5,7 @@ source $HOME/.bashrc
 source activate activmask
 
 # Main experiment grid!
-python -u main.py train --config config/synth_ae_activmask.yml #$@
+python -u main.py train --config config/synth_ae_activmask.yml
 python -u main.py train --config config/synth_ae_clf.yml
 python -u main.py train --config config/synth_ae_noactdiff.yml
 python -u main.py train --config config/synth_ae_norecon.yml
