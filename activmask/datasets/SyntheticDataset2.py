@@ -10,12 +10,15 @@ import torchvision.transforms.functional as TF
 
 @register.setdatasetname("SyntheticDataset2")
 class SyntheticDataset2(Dataset):
-    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32, maxmasks=32, transform=None, new_size=28, distract_noise=0):
+    def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32,
+                 maxmasks=32, transform=None, new_size=28, distract_noise=0,
+                 mask_all=False):
 
         self.root = dataroot
         self.mode = mode
         self.blur = blur
         self.distract_noise = distract_noise
+        self.mask_all = mask_all
 
         self._all_files = [f for f in os.listdir(self.root) if "seg" not in f and ".csv" not in f]
         self._seg_files = [f for f in os.listdir(self.root) if "seg" in f and ".csv" not in f]
@@ -71,6 +74,11 @@ class SyntheticDataset2(Dataset):
             if np.random.choice([True,False], p=[self.distract_noise, 1-self.distract_noise]):
                 img = torch.flip(img,[2])
                 seg = torch.flip(seg,[2])
+
+        # Control condition where we mask all data. Used to see if traditional
+        # training works.
+        if self.mask_all:
+            img *= seg
 
         # TODO: fix maxmasks so that the 1 returned here is whether the img mask was selected to be used
         return (img, seg), int(label), 1
