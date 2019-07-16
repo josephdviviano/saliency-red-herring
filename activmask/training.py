@@ -38,6 +38,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
     # maxmasks = cfg['maxmasks']
+    exp_name = cfg['experiment_name']
+    recon_masked = cfg['recon_masked']
 
     device = 'cuda' if cuda else 'cpu'
 
@@ -106,8 +108,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
         if cfg['viz']:
             print("CUDA: ", cuda)
-            process_img_small("train", epoch, img_viz_train, model, cuda)
-            process_img_small("valid", epoch, img_viz_valid, model, cuda)
+            render_img("train", epoch, img_viz_train, model, exp_name, cuda)
+            render_img("valid", epoch, img_viz_valid, model, exp_name, cuda)
 
         #scheduler.step(auc_valid)
 
@@ -119,7 +121,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                criterion=criterion,
                                bre_lambda=cfg['bre_lambda'],
                                recon_lambda=cfg['recon_lambda'],
-                               actdiff_lambda=cfg['actdiff_lambda'])
+                               actdiff_lambda=cfg['actdiff_lambda'],
+                               recon_masked=recon_masked)
 
         auc_train = valid_wrap_epoch(name="train",
                                      epoch=epoch,
@@ -147,6 +150,9 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                    criterion=criterion)
             testauc_for_best_validauc = auc_test
 
+            # Save model (early stopping).
+            best_results = copy.deepcopy(model)
+
         stat = {"epoch": epoch,
                 "trainloss": avg_loss,
                 "validauc": auc_valid,
@@ -162,12 +168,19 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                     'dataset_valid': dataset_valid,
                     'dataset_test': dataset_test}
 
+    # Write best model to disk.
+    output_dir = os.path.join('checkpoints', exp_name)
+    if not os.path.exists(output_dir):
+        os.mkdirs(output_dir)
+    torch.save(best_results, os.path.join(output_dir, 'best_results.pth.tar'))
+
     return (metrics, best_metric, testauc_for_best_validauc, results_dict)
 
 
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer,
-                criterion, bre_lambda, recon_lambda, actdiff_lambda):
+                criterion, bre_lambda, recon_lambda, actdiff_lambda,
+                recon_masked):
 
     model.train()
 
@@ -189,61 +202,68 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         target, use_mask = target.to(device), use_mask.to(device)
         X.requires_grad = True
 
-        # Activation Difference loss.
+        if actdiff_lambda > 0 or recon_masked:
+            X_masked = X * seg
+
+        # Activation Difference loss: activations of model when passed masked X.
         if actdiff_lambda > 0:
 
-            # Get activations of model when passed masked X.
-            X_masked = X * seg
+            # Sanity check!!
+            # X_masked = X
+
             _, _  = model(X_masked)
             masked_activations = model.all_activations
         else:
             actdiff_loss = torch.zeros(1).to(device)
 
-        # Do a forward pass with the data.
+        # Classification loss: Do a forward pass with the data.
         y_pred, X_recon = model(X)
         clf_loss = criterion(y_pred, target)
 
-        # Calculate l2 norm between the activations using masked and
-        # unmasked data.
+        # Activation difference loss: Calculate l2 norm between the activations
+        # using masked and unmasked data.
         if actdiff_lambda > 0:
             actdiff_loss = compare_activations(
                 masked_activations, model.all_activations)
 
             actdiff_loss *= actdiff_lambda
 
-        # Reconstruction Loss.
+        # Reconstruction Loss: The target reconstruction can be raw or masked.
         if recon_lambda > 0:
-            X_target = X.detach()
+
+            if recon_masked:
+                X_target = X_masked.detach()
+            else:
+                X_target = X.detach()
+
             recon_loss = recon_criterion(X_recon, X_target)
             recon_loss *= recon_lambda
         else:
             recon_loss = torch.zeros(1).to(device)
 
-        # !! Gradmask Loss. Removed! See graveyard. !!
-
-        # BRE loss.
+        # BRE loss. TODO: Remove?
         if bre_lambda > 0:
             bre_loss, me_loss, ac_loss, me_stats, ac_stats = get_bre_loss(model)
             bre_loss *= bre_lambda
         else:
             bre_loss = torch.zeros(1).to(device)
 
-        # Final loss is three terms combined.
+        # Final loss is all terms combined.
         loss = clf_loss + actdiff_loss + recon_loss + bre_loss
 
         # Reporting.
         avg_clf_loss.append(clf_loss.detach().cpu().numpy())
+        avg_actdiff_loss.append(actdiff_loss.detach().cpu().numpy())
         avg_recon_loss.append(recon_loss.detach().cpu().numpy())
         avg_bre_loss.append(bre_loss.detach().cpu().numpy())
-        avg_actdiff_loss.append(actdiff_loss.detach().cpu().numpy())
         avg_loss.append(loss.detach().cpu().numpy())
 
         t.set_description((
-            ' train (clf={:4.4f} recon={:4.4f} bre={:4.4f} actdif={:4.4f} tot={:4.4f})'.format(
+            ' train (clf={:4.4f} actdif={:4.4f} recon={:4.4f} bre={:4.4f} tot={:4.4f})'.format(
                 np.mean(avg_clf_loss),
+                np.mean(avg_actdiff_loss),
                 np.mean(avg_recon_loss),
                 np.mean(avg_bre_loss),
-                np.mean(avg_actdiff_loss),
                 np.mean(avg_loss))))
 
         # Learning.
@@ -281,7 +301,7 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
             predictions_bin.append(
                 torch.max(class_output, 1)[1].detach().cpu().numpy())
 
-    auc = accuracy_score(np.concatenate(targets), 
+    auc = accuracy_score(np.concatenate(targets),
                          np.concatenate(predictions).argmax(axis=1))
     predictions_bin = np.hstack(predictions_bin)
 
@@ -293,7 +313,7 @@ def test_epoch(name, epoch, model, device, data_loader, criterion):
     return auc
 
 
-def process_img_small(text, i, sample, model, cuda=True):
+def render_img(text, i, sample, model, exp_name, cuda=True):
     """
     Video protip: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
     """
@@ -305,10 +325,10 @@ def process_img_small(text, i, sample, model, cuda=True):
     x, target, use_mask = sample
 
     if cuda:
-        x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(), 
+        x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(),
             requires_grad=True)
     else:
-        x_var = torch.autograd.Variable(x[0].unsqueeze(0), 
+        x_var = torch.autograd.Variable(x[0].unsqueeze(0),
             requires_grad=True)
 
     model.eval()
@@ -328,23 +348,25 @@ def process_img_small(text, i, sample, model, cuda=True):
                interpolation='none', cmap='Greys_r')
 
     ax2.set_title("nonhealthy d|y|/dx")
-    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.), 
+    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.),
                                  "nonhealthy").detach().cpu().numpy()[0][0]
     ax2.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
 
     ax3.set_title("contrast d|y0-y1|/dx")
-    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.), 
+    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.),
                                  "contrast").detach().cpu().numpy()[0][0]
     ax3.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
 
-    if not os.path.exists('images'):
-        os.mkdir('images')
-    fig.savefig('images/image-{0}-{1:03d}.png'.format(text, i),
+    output_dir = os.path.join('images', exp_name)
+    if not os.path.exists(output_dir):
+        os.mkdirs(output_dir)
+    fig.savefig('{0}/image-{1}-{2:03d}.png'.format(output_dir, text, i),
                 bbox_inches='tight', pad_inches=0)
+    fig.clf()
 
 
 @mlflow_logger.log_experiment(nested=False)
-def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state, 
+def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
                 new_size, train_function=train):
     """
     Do a Bayesian hyperparameter optimization.
@@ -441,8 +463,8 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
         # mlflow.sklearn.log_model(opt_results, 'skopt')
         dimensions = list(skopt_args.keys())
         auto_ipynb.to_ipynb(
-            auto_ipynb.plot_optimizer, True, 
-            run_uuid=mlflow.active_run()._info.run_uuid, 
+            auto_ipynb.plot_optimizer, True,
+            run_uuid=mlflow.active_run()._info.run_uuid,
             dimensions=dimensions, path='skopt')
     except:
         print('mlflow unavailable!')
