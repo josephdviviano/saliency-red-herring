@@ -344,8 +344,10 @@ def render_img(text, i, sample, model, exp_name, cuda=True):
                interpolation='none', cmap='Greys_r')
 
     ax1.set_title("Reconstruction")
-    ax1.imshow(x_prime[0][0].detach().cpu().numpy(),
-               interpolation='none', cmap='Greys_r')
+    # Fails for models that output a nonsense reconstruction (CNN, ResNet).
+    if isinstance(x_prime, torch.Tensor):
+        ax1.imshow(x_prime[0][0].detach().cpu().numpy(),
+                   interpolation='none', cmap='Greys_r')
 
     ax2.set_title("nonhealthy d|y|/dx")
     gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.),
