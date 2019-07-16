@@ -9,3 +9,4 @@ model:
   UNet:
     img_size: 28
     nc: 16
+    mode: 'cnn'
