@@ -61,14 +61,14 @@ class UNet(nn.Module):
         self.fc1 = nn.Linear(l4_size, num_class)
 
         # Upsample from bottleneck (for reconstruction: ae and unet)
-        if mode not 'cnn':
-            self.upsample3 = nn.Upsample(size=(img_size//4, img_size//4), 
+        if mode != 'cnn':
+            self.upsample3 = nn.Upsample(size=(img_size//4, img_size//4),
                                          mode='bilinear', align_corners=True)
             if mode == 'unet':
                 in_ch_size = nc*4+nc*8
             elif mode == 'ae':
                 in_ch_size = nc*8
-            self.dconv_up3 = DeconvBlock(in_ch_size, nc*4, 
+            self.dconv_up3 = DeconvBlock(in_ch_size, nc*4,
                                          self.dconv_down4.output_size)
 
             self.upsample2 = nn.Upsample(size=(img_size//2, img_size//2),
@@ -77,7 +77,7 @@ class UNet(nn.Module):
                 in_ch_size = nc*2+nc*4
             elif mode == 'ae':
                 in_ch_size = nc*4
-            self.dconv_up2 = DeconvBlock(in_ch_size, nc*2, 
+            self.dconv_up2 = DeconvBlock(in_ch_size, nc*2,
                                          self.dconv_down4.output_size)
 
             self.upsample1 = nn.Upsample(size=(img_size, img_size),
@@ -86,7 +86,7 @@ class UNet(nn.Module):
                 in_ch_size = nc*1+nc*2
             elif mode == 'ae':
                 in_ch_size = nc*2
-            self.dconv_up1 = DeconvBlock(in_ch_size, nc*1, 
+            self.dconv_up1 = DeconvBlock(in_ch_size, nc*1,
                                          self.dconv_down4.output_size)
 
             self.conv_last = nn.Sequential(nn.Conv2d(nc, 1, 1), nn.Sigmoid())
@@ -99,9 +99,9 @@ class UNet(nn.Module):
         # Reset so we only get the activations for this batch.
         self.all_activations = []
 
-        # We skip the whole reconstruction for cnn mode, so we just copy the 
+        # We skip the whole reconstruction for cnn mode, so we just copy the
         # input data to the output so as to not break the training loop.
-        if mode == 'cnn':
+        if self.mode == 'cnn':
             x_prime = torch.clone(x)
 
         # Convolve down to the bottleneck, saving activations.
@@ -125,15 +125,15 @@ class UNet(nn.Module):
         pred = self.fc1(pred)
 
         # Reconstruct the input in AE and Unet mode.
-        if mode not 'cnn':
+        if self.mode != 'cnn':
             x = self.upsample3(conv4)
- 
+
             if self.mode == 'unet':
                 x = torch.cat([x, conv3], dim=1)
             x, _ = self.dconv_up3(x)  # Don't collect activations for upsamples
 
             x = self.upsample2(x)
- 
+
             if self.mode == 'unet':
                 x = torch.cat([x, conv2], dim=1)
             x, _ = self.dconv_up2(x)
