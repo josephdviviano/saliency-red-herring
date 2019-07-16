@@ -53,6 +53,27 @@ def process_config(config):
                 output_dict[key] = item
     return output_dict
 
+
+def merge(source, destination):
+    """
+    run me with nosetests --with-doctest file.py
+
+    >>> a = { 'first' : { 'all_rows' : { 'pass' : 'dog', 'number' : '1' } } }
+    >>> b = { 'first' : { 'all_rows' : { 'fail' : 'cat', 'number' : '5' } } }
+    >>> merge(b, a) == { 'first' : { 'all_rows' : { 'pass' : 'dog', 'fail' : 'cat', 'number' : '5' } } }
+    True
+    """
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            merge(value, node)
+        else:
+            destination[key] = value
+
+    return destination
+
+
 def load_config(config_file):
     """
     The configuration is managed in a 3-level hierarchy:
@@ -89,7 +110,10 @@ def load_config(config_file):
     else:
         base_cfg = {}
 
-    return {**default_cfg, **base_cfg, **experiment_cfg}
+    full_cfg = merge(experiment_cfg, merge(base_cfg, default_cfg))
+    full_cfg['experiment_name'] = os.path.basename(config_file).split('.')[0]
+
+    return full_cfg
 
 
 def get_available_classes(mod, mod_path, control_variable):
