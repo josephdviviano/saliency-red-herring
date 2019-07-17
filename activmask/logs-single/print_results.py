@@ -19,7 +19,7 @@ if __name__ == "__main__":
             if "metrics.pkl" in fname:
                 files.append(os.path.join(r, fname))
 
-    files.sorted()
+    sorted(files)
     # Print the results.
     for fname in files:
         data = get_data(fname)
