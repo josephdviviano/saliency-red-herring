@@ -4,6 +4,13 @@
 # viddy them on the screen.
 
 for folder in $(ls -d */); do
-    ffmpeg -y -i ${folder}/image-train-%03d.png -vcodec libx264 ${folder}/train.mp4
-    ffmpeg -y -i ${folder}/image-valid-%03d.png -vcodec libx264 ${folder}/valid.mp4
+    ffmpeg -y -i ${folder}/image-train-%03d.png -vcodec libx264 ${folder}/tmp_train.mp4
+    ffmpeg -y -i ${folder}/image-valid-%03d.png -vcodec libx264 ${folder}/tmp_valid.mp4
+    ffmpeg \
+        -i ${folder}/tmp_train.mp4 \
+        -i ${folder}/tmp_valid.mp4 \
+        -filter_complex hstack=inputs=2 \
+        -vcodec libx264 \
+        ${folder}/train_valid.mp4
+    rm ${folder}/tmp_*
 done
