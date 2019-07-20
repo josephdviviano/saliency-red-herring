@@ -1,0 +1,40 @@
+# General
+cuda: True
+n_iter: 30
+nsamples_train: 64
+maxmasks_train: 256
+recon_masked: False
+recon_continuous: True
+
+# Training
+num_epochs: 5
+schedule_steps: 10
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    LiverMSDDataset:
+      mode: 'train'
+      blur: 2
+  valid:
+    LiverMSDDataset:
+      mode: 'valid'
+      nsamples: 256
+  test:
+    LiverMSDDataset:
+      mode: 'test'
+      nsamples: 256
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: 0.001
+
+transform:
+        train: {}
+        valid: {}
+        test: {}
