@@ -83,7 +83,7 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
         print("Log folder exists. Will exit.")
         sys.exit(0)
 
-    metrics, best_metric, testauc_for_best_validauc, state = training.train(cfg)
+    best_metric, testauc_for_best_validauc, metrics, state = training.train(cfg)
 
     # Plot train / valid AUC.
     train_auc, valid_auc = [], []
@@ -167,9 +167,6 @@ def train_skopt(config, seed, nsamples_train, n_iter, base_estimator,
         cfg["dataset"]["valid"][list(dataset.keys())[0]]["new_size"] = int(new_size)
         cfg["dataset"]["test"][list(dataset.keys())[0]]["new_size"] = int(new_size)
         cfg["model"][list(cfg["model"].keys())[0]]["img_size"] = new_size
-
-    if not conditional_reg is None:
-        cfg["conditional_reg"] = conditional_reg
 
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
