@@ -59,7 +59,8 @@ def log_experiment(nested=False):
             source_name = inspect.getabsfile(func)
 
             # Start the run.
-            with mlflow.start_run(source_version=source_version, source_name=source_name, nested=nested):
+            with mlflow.start_run(run_id=source_version,
+                                  experiment_id=source_name, nested=nested):
 
                 # Save the config
                 for key, value in flatten(cfg).items():
