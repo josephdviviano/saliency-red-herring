@@ -170,7 +170,6 @@ def setup_model(config, yaml_section='model'):
     """
     Prepare model according to config file
     """
-
     available_models = get_available_classes(models, 'models.', '_MODEL_NAME')
     models_from_module = importlib.import_module('torchvision.models')
 
@@ -183,7 +182,6 @@ def setup_model(config, yaml_section='model'):
         obj = getattr(models_from_module, model_name)
     else:
         obj = available_models[model_name]
-
     model = obj(**model_args)
     return model
 
