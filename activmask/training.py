@@ -40,6 +40,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     # maxmasks = cfg['maxmasks']
     exp_name = cfg['experiment_name']
     recon_masked = cfg['recon_masked']
+    recon_continuous = cfg['recon_continuous']
 
     device = 'cuda' if cuda else 'cpu'
 
@@ -122,7 +123,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                bre_lambda=cfg['bre_lambda'],
                                recon_lambda=cfg['recon_lambda'],
                                actdiff_lambda=cfg['actdiff_lambda'],
-                               recon_masked=recon_masked)
+                               recon_masked=recon_masked,
+                               recon_continuous=recon_continuous)
 
         auc_train = valid_wrap_epoch(name="train",
                                      epoch=epoch,
@@ -174,17 +176,22 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
         os.makedirs(output_dir)
     torch.save(best_results, os.path.join(output_dir, 'best_results.pth.tar'))
 
-    return (metrics, best_metric, testauc_for_best_validauc, results_dict)
+    return (best_metric, testauc_for_best_validauc, metrics, results_dict)
 
 
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer,
                 criterion, bre_lambda, recon_lambda, actdiff_lambda,
-                recon_masked):
+                recon_masked, recon_continuous=False):
+
 
     model.train()
 
-    recon_criterion = nn.BCELoss()
+    # Simple simages should use recon_criterion=False
+    if recon_continuous:
+        recon_criterion = nn.MSELoss()
+    else:
+        recon_criterion = nn.BCELoss()
 
     # losses: cross-entropy + reconstruction + bre + actdiff
     avg_clf_loss = []
@@ -202,8 +209,25 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         target, use_mask = target.to(device), use_mask.to(device)
         X.requires_grad = True
 
+        # Mask the data by shuffling pixels outside of the mask.
         if actdiff_lambda > 0 or recon_masked:
-            X_masked = X * seg
+
+            X_masked = torch.clone(X)
+
+            # Get the inverse of the mask
+            seg = torch.abs(seg-1).byte()
+
+            # Loop through batch images individually
+            for b in range(seg.shape[0]):
+
+                # Get all of the relevant values using this mask.
+                b_seg = seg[b, :, :, :]
+                tmp = X[b, b_seg]
+
+                # Randomly permute those values.
+                b_idx = torch.randperm(tmp.nelement())
+                tmp = tmp[b_idx]
+                X_masked[b, b_seg] = tmp
 
         # Activation Difference loss: activations of model when passed masked X.
         if actdiff_lambda > 0:
@@ -364,7 +388,7 @@ def render_img(text, i, sample, model, exp_name, cuda=True):
         os.makedirs(output_dir)
     fig.savefig('{0}/image-{1}-{2:03d}.png'.format(output_dir, text, i),
                 bbox_inches='tight', pad_inches=0)
-    fig.clf()
+    plt.close("all")
 
 
 @mlflow_logger.log_experiment(nested=False)
