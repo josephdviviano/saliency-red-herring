@@ -87,7 +87,7 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=2):
+    def __init__(self, block, num_blocks, num_classes=2, base_size=512):
         super(ResNet, self).__init__()
         self.in_planes = 64
         self.all_activations = []
@@ -99,7 +99,7 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layers(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layers(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layers(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.linear = nn.Linear(base_size*block.expansion, num_classes)
 
     def _make_layers(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -142,20 +142,20 @@ class ResNet(nn.Module):
         return out
 
 
-def ResNet18():
-    return ResNet(BasicBlock, [2,2,2,2])
+def ResNet18(base_size=512):
+    return ResNet(BasicBlock, [2,2,2,2], base_size=base_size)
 
-def ResNet34():
-    return ResNet(BasicBlock, [3,4,6,3])
+def ResNet34(base_size=512):
+    return ResNet(BasicBlock, [3,4,6,3], base_size=base_size)
 
-def ResNet50():
-    return ResNet(Bottleneck, [3,4,6,3])
+def ResNet50(base_size=512):
+    return ResNet(Bottleneck, [3,4,6,3], base_size=base_size)
 
-def ResNet101():
-    return ResNet(Bottleneck, [3,4,23,3])
+def ResNet101(base_size=512):
+    return ResNet(Bottleneck, [3,4,23,3], base_size=base_size)
 
-def ResNet152():
-    return ResNet(Bottleneck, [3,8,36,3])
+def ResNet152(base_size=512):
+    return ResNet(Bottleneck, [3,8,36,3], base_size=base_size)
 
 
 def test():
@@ -167,9 +167,9 @@ def test():
 @register.setmodelname("ResNetSmall")
 class ResNetSmall(nn.Module):
 
-    def __init__(self, **model_args):
+    def __init__(self, img_size=1, base_size=512):
         super(ResNetSmall, self).__init__()
-        self.model = ResNet18()
+        self.model = ResNet18(base_size=base_size)
         self.all_activations = []
 
     def forward(self, x):
