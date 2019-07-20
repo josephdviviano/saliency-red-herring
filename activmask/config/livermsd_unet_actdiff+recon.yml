@@ -1,8 +1,8 @@
 # General
 base: "base_livermsd.yml"
 bre_lambda: 0
-recon_lambda: 1
-actdiff_lambda: 1
+recon_lambda: 10
+actdiff_lambda: 10
 
 # Model
 model:
