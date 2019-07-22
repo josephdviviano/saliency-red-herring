@@ -26,6 +26,9 @@ if __name__ == "__main__":
         exp_name = data[-1]['experiment_name']
         train_auc = data[-1]['trainauc']
         valid_auc = data[-1]['validauc']
+        best_valid = data[-1]['best_metric']
+        test_auc = data[-1]['testauc_for_best_validauc']
 
-        print("{}: train={}, valid={}".format(exp_name, train_auc, valid_auc))
+        print("{}: train={}, valid={}, best_valid={}, test={}".format(
+            exp_name, train_auc, valid_auc, best_valid, test_auc))
 
