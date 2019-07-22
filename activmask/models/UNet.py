@@ -32,7 +32,8 @@ class DeconvBlock(nn.Module):
 @register.setmodelname("UNet")
 class UNet(nn.Module):
 
-    def __init__(self, img_size=300, num_class=2, nc=64, mode='unet'):
+    def __init__(self, img_size=300, num_class=2, nc=64, mode='unet',
+                 normrecon=True):
         super().__init__()
 
         assert mode in ['unet', 'ae', 'cnn']
@@ -43,7 +44,6 @@ class UNet(nn.Module):
         # Auxilary layers
         self.maxpool = nn.MaxPool2d(2)
         self.activation = nn.ReLU(inplace=True)
-        self.sigmoid = nn.Sigmoid()
 
         # Architecture.
         l1_size = self._calc_layer_size(nc*1, img_size//1)
@@ -88,8 +88,11 @@ class UNet(nn.Module):
                 in_ch_size = nc*2
             self.dconv_up1 = DeconvBlock(in_ch_size, nc*1,
                                          self.dconv_down4.output_size)
+            if normrecon:
+                self.conv_last = nn.Sequential(nn.Conv2d(nc, 1, 1), nn.Sigmoid())
+            else:
+                self.conv_last = nn.Conv2d(nc, 1, 1)
 
-            self.conv_last = nn.Sequential(nn.Conv2d(nc, 1, 1), nn.Sigmoid())
 
     def _calc_layer_size(self, channels, img_size):
         return(channels * img_size**2)
