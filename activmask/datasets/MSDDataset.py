@@ -106,7 +106,7 @@ def transform(image, mask, is_train, new_size):
         mask = TF.to_tensor(mask)
 
         # Scale image to (maximum) ~[0 1]
-        image = scale(image)
+        #image = scale(image)
         return image, mask
 
 
