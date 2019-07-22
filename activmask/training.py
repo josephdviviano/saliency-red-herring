@@ -160,7 +160,9 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                 "validauc": auc_valid,
                 "trainauc": auc_train,
                 "testauc": auc_test,
-                "testauc_for_best_validauc": testauc_for_best_validauc}
+                "testauc_for_best_validauc": testauc_for_best_validauc,
+                "best_validauc": best_metric}
+
         stat.update(configuration.process_config(cfg))
         metrics.append(stat)
 
