@@ -14,3 +14,4 @@ for folder in $(ls -d */); do
         ${folder}/train_valid.mp4
     rm ${folder}/tmp_*
 done
+
