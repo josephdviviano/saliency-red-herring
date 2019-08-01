@@ -142,6 +142,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
         if auc_valid > best_metric:
             best_metric = auc_valid
+            best_epoch = epoch
 
             # Only compute when we need to.
             auc_test = test_wrap_epoch(name="test",
@@ -171,6 +172,12 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
     results_dict = {'dataset_train': dataset_train,
                     'dataset_valid': dataset_valid,
                     'dataset_test': dataset_test}
+
+    # Render gradients from the best model.
+    render_img("best_train", best_epoch, img_viz_train, best_results, exp_name,
+               cuda)
+    render_img("best_valid", best_epoch, img_viz_valid, best_results, exp_name,
+               cuda)
 
     # Write best model to disk.
     output_dir = os.path.join('checkpoints', exp_name)
@@ -343,11 +350,8 @@ def render_img(text, i, sample, model, exp_name, cuda=True):
     """
     Video protip: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
     """
-    fig = plt.Figure(figsize=(20, 10), dpi=160)
-    gcf = plt.gcf()
-    gcf.set_size_inches(20, 10)
-    fig.set_canvas(gcf.canvas)
-    gridsize = (2,3)
+    fig, (ax0, ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=4,
+                                             figsize=(12, 48), dpi=72)
     x, target, use_mask = sample
 
     if cuda:
@@ -360,31 +364,35 @@ def render_img(text, i, sample, model, exp_name, cuda=True):
     model.eval()
     y_prime, x_prime = model(x_var)
 
-    ax0 = plt.subplot2grid(gridsize, (1, 0))
-    ax1 = plt.subplot2grid(gridsize, (1, 1))
-    ax2 = plt.subplot2grid(gridsize, (0, 0))
-    ax3 = plt.subplot2grid(gridsize, (0, 1))
-
     ax0.set_title(str(i) + " Masked Image")
-    ax0.imshow(x[0][0].cpu().numpy() + x[1][0].cpu().numpy()*0.5,
-               interpolation='none', cmap='Greys_r')
+    img = x[0][0].cpu().numpy()
+    img = img / np.max(img)  # Scales the input image so that the maximum=1.
+    seg = x[1][0].cpu().numpy() #* 0.5  # Makes mask bright, but not too bright.
+    ax0.imshow(img + seg, interpolation='none', cmap='Greys_r')
+    ax0.axis('off')
 
-    ax1.set_title("Reconstruction")
-    # Fails for models that output a nonsense reconstruction (CNN, ResNet).
-    if isinstance(x_prime, torch.Tensor):
-        ax1.imshow(x_prime[0][0].detach().cpu().numpy(),
-                   interpolation='none', cmap='Greys_r')
-
-    ax2.set_title("nonhealthy d|y|/dx")
+    ax1.set_title("nonhealthy d|y|/dx")
     gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.),
                                  "nonhealthy").detach().cpu().numpy()[0][0]
-    ax2.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    ax1.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    ax1.axis('off')
 
-    ax3.set_title("contrast d|y0-y1|/dx")
+    ax2.set_title("contrast d|y0-y1|/dx")
     gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.),
                                  "contrast").detach().cpu().numpy()[0][0]
-    ax3.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    ax2.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
+    ax2.axis('off')
 
+    ax3.set_title("Reconstruction")
+    # Fails for models that output a nonsense reconstruction (CNN, ResNet).
+    if isinstance(x_prime, torch.Tensor):
+        ax3.imshow(x_prime[0][0].detach().cpu().numpy(),
+                   interpolation='none', cmap='Greys_r')
+        ax3.axis('off')
+    else:
+        ax3.remove()
+
+    plt.tight_layout()
     output_dir = os.path.join('images', exp_name)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
