@@ -8,5 +8,3 @@ actdiff_lambda: 10
 model:
   ResNetSmall:
     img_size: 28
-    nc: 16
-    mode: 'cnn'
