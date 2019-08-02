@@ -7,7 +7,7 @@ recon_masked: False
 recon_continuous: True
 
 # Training
-num_epochs: 200
+num_epochs: 100
 schedule_steps: 10
 
 # DataLoader

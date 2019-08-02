@@ -1,5 +1,5 @@
 # General
-base: 'base_synth.yml'
+base: "base_livermsd.yml"
 bre_lambda: 0
 recon_lambda: 0
 actdiff_lambda: 0
@@ -7,4 +7,6 @@ actdiff_lambda: 0
 # Model
 model:
   ResNetSmall:
-    img_size: 28
+    base_size: 4608
+    img_size: 100
+
