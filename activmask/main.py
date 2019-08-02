@@ -23,7 +23,7 @@ def run():
 @click.option('-new_size', type=int, help='new_size')
 @click.option('-maxmasks_train', type=int, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
-@click.option('-viz', type=bool, default=True, help='plot images')
+@click.option('-viz', type=bool, default=False, help='plot images')
 def train(config, seed, nsamples_train, num_epochs, new_size,
           maxmasks_train, viz):
 
