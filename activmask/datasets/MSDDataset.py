@@ -215,7 +215,7 @@ class MSDDataset(Dataset):
         # Control condition where we mask all data. Used to see if traditional
         # training works.
         if self.mask_all:
-            img *= seg
+            image *= seg
 
         return (image, seg), int(label), float(self.idx[index] in self.mask_idx)
 
