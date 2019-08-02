@@ -11,7 +11,7 @@ for i in {1..10}; do
 
     for exp in ${EXPERIMENTS}; do
         for file in $(ls config/${exp}/${exp}_*); do
-            python -u main.py train --config ${file}
+            echo python -u main.py train --config ${file}
         done
     done
 done
