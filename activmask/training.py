@@ -175,10 +175,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
                     'dataset_test': dataset_test}
 
     # Render gradients from the best model.
-    render_img(
-        "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
-    render_img(
-        "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
+    if cfg['viz']:
+        render_img(
+            "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
+        render_img(
+            "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
 
     # Write best model to disk.
     output_dir = os.path.join('checkpoints', exp_name)
