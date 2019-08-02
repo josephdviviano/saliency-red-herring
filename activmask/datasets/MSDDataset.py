@@ -115,11 +115,12 @@ cached_msd_ref = {}
 class MSDDataset(Dataset):
 
     def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32,
-                 maxmasks=32, transform=None, new_size=100):
+                 maxmasks=32, transform=None, new_size=100, mask_all=False):
 
         self.mode = mode
         self.dataroot = dataroot
         self.new_size = new_size
+        self.mask_all = mask_all
 
         filename = self.dataroot + "msd_gz_new.hdf5"
         if not os.path.isfile(filename):
@@ -210,6 +211,11 @@ class MSDDataset(Dataset):
             image, seg = transform(image, seg, True, self.new_size)
         else:
             image, seg = transform(image, seg, False, self.new_size)
+
+        # Control condition where we mask all data. Used to see if traditional
+        # training works.
+        if self.mask_all:
+            img *= seg
 
         return (image, seg), int(label), float(self.idx[index] in self.mask_idx)
 
