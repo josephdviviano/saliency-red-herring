@@ -89,8 +89,8 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
     train_auc, valid_auc = [], []
 
     for metric in metrics:
-        train_auc.append(metric['trainauc'])
-        valid_auc.append(metric['validauc'])
+        train_auc.append(metric['train_auc'])
+        valid_auc.append(metric['valid_auc'])
 
     plt.plot(train_auc)
     plt.plot(valid_auc)

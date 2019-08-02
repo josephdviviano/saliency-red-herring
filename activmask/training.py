@@ -27,8 +27,9 @@ VIZ_IDX = 10
 
 
 @mlflow_logger.log_experiment(nested=True)
-@mlflow_logger.log_metric('best_metric', 'testauc_for_best_validauc')
-def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recompile=True):
+@mlflow_logger.log_metric('best_valid_auc', 'best_test_auc')
+def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
+          recompile=True):
 
     print("Our config:")
     pprint.pprint(cfg)
@@ -91,28 +92,26 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
 
     criterion = torch.nn.CrossEntropyLoss()
 
-    # Aaaaaannnnnd, here we go!
-    best_metric = 0.
-    testauc_for_best_validauc = 0.
+    # Stats for the table.
+    best_epoch, best_train_auc, best_valid_auc, best_test_auc = 0, 0, 0, 0
     metrics = []
+    auc_valid = 0.5  # Default, assumes 2-class problem.
 
-    # Wrap the function for mlflow. Don't worry buddy, if you don't have
-    # mlflow it will still work.
+    # Wrap the function for mlflow (optional).
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
     test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
-    auc_valid = 0.5  # Default
 
     img_viz_train = dataset_train[VIZ_IDX]
     img_viz_valid = dataset_valid[VIZ_IDX]
 
+    print("CUDA: ", cuda)
     for epoch in range(num_epochs):
 
         if cfg['viz']:
-            print("CUDA: ", cuda)
             render_img("train", epoch, img_viz_train, model, exp_name, cuda)
             render_img("valid", epoch, img_viz_valid, model, exp_name, cuda)
 
-        #scheduler.step(auc_valid)
+        # scheduler.step(auc_valid)
 
         avg_loss = train_epoch(epoch=epoch,
                                model=model,
@@ -140,52 +139,54 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None, recomp
                                      data_loader=valid_loader,
                                      criterion=criterion)
 
-        if auc_valid > best_metric:
-            best_metric = auc_valid
-            best_epoch = epoch
+        # Early Stopping: compute best test_auc when we beat best valid score.
+        if auc_valid > best_valid_auc:
 
-            # Only compute when we need to.
             auc_test = test_wrap_epoch(name="test",
                                    epoch=epoch,
                                    model=model,
                                    device=device,
                                    data_loader=test_loader,
                                    criterion=criterion)
-            testauc_for_best_validauc = auc_test
 
-            # Save model (early stopping).
-            best_results = copy.deepcopy(model)
+            best_train_auc = auc_train
+            best_valid_auc = auc_valid
+            best_test_auc = auc_test
+            best_epoch = epoch
+            best_model = copy.deepcopy(model)
 
+        # Update the stat dictionary with each epoch, append to metrics list.
         stat = {"epoch": epoch,
-                "trainloss": avg_loss,
-                "validauc": auc_valid,
-                "trainauc": auc_train,
-                "testauc": auc_test,
-                "testauc_for_best_validauc": testauc_for_best_validauc,
-                "best_validauc": best_metric}
-
+                "train_loss": avg_loss,
+                "valid_auc": auc_valid,
+                "train_auc": auc_train,
+                "test_auc": auc_test,
+                "best_train_auc": best_train_auc,
+                "best_valid_auc": best_valid_auc,
+                "best_test_auc": best_test_auc,
+                "best_epoch": best_epoch}
         stat.update(configuration.process_config(cfg))
         metrics.append(stat)
 
-    monitoring.log_experiment_csv(cfg, [best_metric])
+    monitoring.log_experiment_csv(cfg, [best_valid_auc])
 
     results_dict = {'dataset_train': dataset_train,
                     'dataset_valid': dataset_valid,
                     'dataset_test': dataset_test}
 
     # Render gradients from the best model.
-    render_img("best_train", best_epoch, img_viz_train, best_results, exp_name,
-               cuda)
-    render_img("best_valid", best_epoch, img_viz_valid, best_results, exp_name,
-               cuda)
+    render_img(
+        "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
+    render_img(
+        "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
 
     # Write best model to disk.
     output_dir = os.path.join('checkpoints', exp_name)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    torch.save(best_results, os.path.join(output_dir, 'best_results.pth.tar'))
+    torch.save(best_model, os.path.join(output_dir, 'best_model.pth.tar'))
 
-    return (best_metric, testauc_for_best_validauc, metrics, results_dict)
+    return (best_valid_auc, best_test_auc, metrics, results_dict)
 
 
 @mlflow_logger.log_metric('train_loss')
