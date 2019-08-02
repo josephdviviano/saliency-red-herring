@@ -1,0 +1,53 @@
+# General
+cuda: True
+n_iter: 200
+nsamples_train: 500
+maxmasks_train: 256
+new_size: &new_size 28
+recon_masked: False
+recon_continuous: False
+
+# Training
+num_epochs: 100
+schedule_steps: 10
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    SyntheticDataset2:
+      mode: 'distractor1'
+      blur: 0.5
+      nsamples: 500
+      new_size: *new_size
+      dataroot: &dataroot './data/synth2/'
+      distract_noise: 0
+  valid:
+    SyntheticDataset2:
+      mode: 'distractor2'
+      blur: 0.5
+      nsamples: 128
+      new_size: *new_size
+      dataroot: *dataroot
+      distract_noise: 1
+  test:
+    SyntheticDataset2:
+      mode: 'distractor3'
+      blur: 0.5
+      nsamples: 128
+      new_size: *new_size
+      dataroot: *dataroot
+      distract_noise: 1
+
+# Optimizer
+optimizer:
+  Adam:
+    lr:  0.0001
+
+transform:
+        train: {}
+        valid: {}
+        test: {}
