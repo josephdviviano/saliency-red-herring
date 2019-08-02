@@ -2,14 +2,16 @@
 hostname
 export LANG=C.UTF-8
 source $HOME/.bashrc
-source activate activmask
+#source activate activmask
 
-python -u main.py train --config config/synth.yml $@
+EXPERIMENTS="synth livermsd"
 
-rc=$?
-echo "Exit code is $?"
-if  [[ $rc == 0 ]]; then
-    echo "Command succeeded"
-else
-    echo "Command failed"
-fi
+for i in {1..10}; do
+    echo "ITERATION ${i}:"
+
+    for exp in ${EXPERIMENTS}; do
+        for file in $(ls config/${exp}/${exp}_*); do
+            echo python -u main.py train --config ${file}
+        done
+    done
+done

@@ -32,15 +32,18 @@ class DeconvBlock(nn.Module):
 @register.setmodelname("UNet")
 class UNet(nn.Module):
 
-    def __init__(self, img_size=300, num_class=2, nc=64):
+    def __init__(self, img_size=300, num_class=2, nc=64, mode='unet',
+                 normrecon=True):
         super().__init__()
 
+        assert mode in ['unet', 'ae', 'cnn']
+
         self.all_activations = []
+        self.mode = mode
 
         # Auxilary layers
         self.maxpool = nn.MaxPool2d(2)
         self.activation = nn.ReLU(inplace=True)
-        self.sigmoid = nn.Sigmoid()
 
         # Architecture.
         l1_size = self._calc_layer_size(nc*1, img_size//1)
@@ -54,20 +57,42 @@ class UNet(nn.Module):
         self.dconv_down3 = DeconvBlock(nc*2, nc*4, self.dconv_down2.output_size)
         self.dconv_down4 = DeconvBlock(nc*4, nc*8, self.dconv_down3.output_size)
 
-        # Upsample from bottleneck (for reconstruction)
-        self.upsample3 = nn.Upsample(size=(img_size//4, img_size//4),
-                                     mode='bilinear', align_corners=True)
-        self.dconv_up3 = DeconvBlock(nc*4+nc*8, nc*4, self.dconv_down4.output_size)
-        self.upsample2 = nn.Upsample(size=(img_size//2, img_size//2),
-                                     mode='bilinear', align_corners=True)
-        self.dconv_up2 = DeconvBlock(nc*2+nc*4, nc*2, self.dconv_down4.output_size)
-        self.upsample1 = nn.Upsample(size=(img_size, img_size),
-                                     mode='bilinear', align_corners=True)
-        self.dconv_up1 = DeconvBlock(nc*1+nc*2, nc*1, self.dconv_down4.output_size)
-        self.conv_last = nn.Sequential(nn.Conv2d(nc, 1, 1), nn.Sigmoid())
-
         # Make prediction off of bottleneck
         self.fc1 = nn.Linear(l4_size, num_class)
+
+        # Upsample from bottleneck (for reconstruction: ae and unet)
+        if mode != 'cnn':
+            self.upsample3 = nn.Upsample(size=(img_size//4, img_size//4),
+                                         mode='bilinear', align_corners=True)
+            if mode == 'unet':
+                in_ch_size = nc*4+nc*8
+            elif mode == 'ae':
+                in_ch_size = nc*8
+            self.dconv_up3 = DeconvBlock(in_ch_size, nc*4,
+                                         self.dconv_down4.output_size)
+
+            self.upsample2 = nn.Upsample(size=(img_size//2, img_size//2),
+                                         mode='bilinear', align_corners=True)
+            if mode == 'unet':
+                in_ch_size = nc*2+nc*4
+            elif mode == 'ae':
+                in_ch_size = nc*4
+            self.dconv_up2 = DeconvBlock(in_ch_size, nc*2,
+                                         self.dconv_down4.output_size)
+
+            self.upsample1 = nn.Upsample(size=(img_size, img_size),
+                                         mode='bilinear', align_corners=True)
+            if mode == 'unet':
+                in_ch_size = nc*1+nc*2
+            elif mode == 'ae':
+                in_ch_size = nc*2
+            self.dconv_up1 = DeconvBlock(in_ch_size, nc*1,
+                                         self.dconv_down4.output_size)
+            if normrecon:
+                self.conv_last = nn.Sequential(nn.Conv2d(nc, 1, 1), nn.Sigmoid())
+            else:
+                self.conv_last = nn.Conv2d(nc, 1, 1)
+
 
     def _calc_layer_size(self, channels, img_size):
         return(channels * img_size**2)
@@ -76,6 +101,11 @@ class UNet(nn.Module):
         """Outputs predictions from bottleneck as well as reconstruction."""
         # Reset so we only get the activations for this batch.
         self.all_activations = []
+
+        # We skip the whole reconstruction for cnn mode, so we just copy the
+        # input data to the output so as to not break the training loop.
+        if self.mode == 'cnn':
+            x_prime = torch.clone(x)
 
         # Convolve down to the bottleneck, saving activations.
         conv1, pre_activations = self.dconv_down1(x)
@@ -97,19 +127,26 @@ class UNet(nn.Module):
         pred = conv4.view(conv4.size(0), -1)
         pred = self.fc1(pred)
 
-        # Reconstruct the input.
-        x = self.upsample3(conv4)
-        x = torch.cat([x, conv3], dim=1)
-        x, _ = self.dconv_up3(x)  # Don't collect activations for upsamples
+        # Reconstruct the input in AE and Unet mode.
+        if self.mode != 'cnn':
+            x = self.upsample3(conv4)
 
-        x = self.upsample2(x)
-        x = torch.cat([x, conv2], dim=1)
-        x, _ = self.dconv_up2(x)
+            if self.mode == 'unet':
+                x = torch.cat([x, conv3], dim=1)
+            x, _ = self.dconv_up3(x)  # Don't collect activations for upsamples
 
-        x = self.upsample1(x)
-        x = torch.cat([x, conv1], dim=1)
-        x, _ = self.dconv_up1(x)
+            x = self.upsample2(x)
 
-        x_prime = self.conv_last(x)
+            if self.mode == 'unet':
+                x = torch.cat([x, conv2], dim=1)
+            x, _ = self.dconv_up2(x)
+
+            x = self.upsample1(x)
+
+            if self.mode == 'unet':
+                x = torch.cat([x, conv1], dim=1)
+            x, _ = self.dconv_up1(x)
+
+            x_prime = self.conv_last(x)
 
         return(pred, x_prime)

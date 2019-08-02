@@ -1,38 +1,47 @@
+import datasets as datasets
 import importlib
 import inspect
 import logging
-import yaml
 import models as models
-import datasets as datasets
+import os
 import torchvision
+import yaml
 
 _LOG = logging.getLogger(__name__)
 
 def process_config(config):
     """
-        Here to deconstruct the config file from nested dicts into a flat structure
+    Here to deconstruct the config file from nested dicts into a flat structure.
     """
     output_dict = {}
     for mode in ['train', 'valid','test']:
         for key, item in config.items():
             if type(config[key]) == dict:
-                # if the 'value' is actually a dict, iterate through and collect train/valid/test values
+                # if the 'value' is actually a dict, iterate through and
+                # collect train/valid/test values.
                 try:
-                    # config is of the form main_key: train/test/valid: key_val: more_key_val_pairs
+                    # config is of the form main_key: train/test/valid:
+                    # key_val: more_key_val_pairs
                     sub_dict = config[key][mode]
                     main_key_value = list(sub_dict.keys())[0]
                     output_dict["{}_{}".format(mode, key)] = main_key_value
-                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
+
+                    # e.g. name of optimiser, name of dataset
+                    sub_sub_dict = sub_dict[main_key_value]
                     for k, i in sub_sub_dict.items():
                         if type(i) == float:
                             i = round(i, 4)
-                        output_dict["{}_{}_{}".format(mode, key, k)] = i # so we don't have e.g. train_dataset_MSD_mode
+                        # so we don't have e.g. train_dataset_MSD_mode.
+                        output_dict["{}_{}_{}".format(mode, key, k)] = i
                 except:
-                    # config is of the form main_key: key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.001
+                    # config is of the form main_key:
+                    # key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.1
                     sub_dict = config[key]
                     main_key_value = list(sub_dict.keys())[0]
                     output_dict[key] = main_key_value
-                    sub_sub_dict = sub_dict[main_key_value] # e.g. name of optimiser, name of dataset
+                    # e.g. name of optimiser, name of dataset.
+                    sub_sub_dict = sub_dict[main_key_value]
+
                     for k, i in sub_sub_dict.items():
                         if type(i) == float:
                             i = round(i, 4)
@@ -44,19 +53,67 @@ def process_config(config):
                 output_dict[key] = item
     return output_dict
 
+
+def merge(source, destination):
+    """
+    run me with nosetests --with-doctest file.py
+
+    >>> a = { 'first' : { 'all_rows' : { 'pass' : 'dog', 'number' : '1' } } }
+    >>> b = { 'first' : { 'all_rows' : { 'fail' : 'cat', 'number' : '5' } } }
+    >>> merge(b, a) == { 'first' : { 'all_rows' : { 'pass' : 'dog', 'fail' : 'cat', 'number' : '5' } } }
+    True
+    """
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            merge(value, node)
+        else:
+            destination[key] = value
+
+    return destination
+
+
 def load_config(config_file):
+    """
+    The configuration is managed in a 3-level hierarchy:
+        default < base < experiment.
 
-    default_config = {'cuda': True,
-                      'seed': 0,
-                      'optimizer': {'Adam': {}},
-                      'batch_size': 32,
-                      'num_epochs': 10,
-    }
+    The default configuration is defined below and contains some variables
+    required (at a minimum) for training.py to function.
 
+    The experiment configuration is what is passed at the command line. It
+    contains experiment settings.
+
+    The base configuration can optionally be defined in the experiment
+    configuration using the key-value pair `base: filename.yml`. `filename.yml`
+    is expected to be in the same folder as the experiment configuration. For
+    any settings shared by the base config and the experiment config,
+    training.py will obey the experiment config.
+    """
+    default_cfg = {'cuda': True,
+                   'seed': 0,
+                   'optimizer': {'Adam': {}},
+                   'batch_size': 32,
+                   'num_epochs': 10}
+
+    # Load the experiment-level config.
     with open(config_file, 'r') as f:
-        yaml_cfg = yaml.load(f)
+        experiment_cfg = yaml.load(f)
 
-    return {**default_config, **yaml_cfg}
+    # If it is defined, import the base-config for the experiment.
+    if 'base' in experiment_cfg.keys() and experiment_cfg['base'] != None:
+        basename = os.path.dirname(config_file)
+        base_file = os.path.join(basename, experiment_cfg['base'])
+        with open(base_file, 'r') as f:
+            base_cfg = yaml.load(f)
+    else:
+        base_cfg = {}
+
+    full_cfg = merge(experiment_cfg, merge(base_cfg, default_cfg))
+    full_cfg['experiment_name'] = os.path.basename(config_file).split('.')[0]
+
+    return full_cfg
 
 
 def get_available_classes(mod, mod_path, control_variable):
@@ -113,7 +170,6 @@ def setup_model(config, yaml_section='model'):
     """
     Prepare model according to config file
     """
-
     available_models = get_available_classes(models, 'models.', '_MODEL_NAME')
     models_from_module = importlib.import_module('torchvision.models')
 
@@ -126,7 +182,6 @@ def setup_model(config, yaml_section='model'):
         obj = getattr(models_from_module, model_name)
     else:
         obj = available_models[model_name]
-
     model = obj(**model_args)
     return model
 
@@ -164,7 +219,7 @@ def setup_transform(config, split='train'):
 
         tr_obj = getattr(transform_module, tr_name)
         transforms.append(tr_obj(**tr_args))
-    
+
     compose_transform = torchvision.transforms.Compose(transforms)
     return compose_transform
 
