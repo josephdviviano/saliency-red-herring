@@ -95,7 +95,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     # Stats for the table.
     best_epoch, best_train_auc, best_valid_auc, best_test_auc = 0, 0, 0, 0
     metrics = []
-    auc_valid = 0.5  # Default, assumes 2-class problem.
+    auc_valid = 0
 
     # Wrap the function for mlflow (optional).
     valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
