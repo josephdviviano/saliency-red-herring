@@ -1,0 +1,19 @@
+# General
+base: "base_pancreasmsd.yml"
+bre_lambda: 0
+recon_lambda: 1
+actdiff_lambda: 0
+
+# Model
+model:
+  UNet:
+    img_size: 100
+    nc: 64
+    mode: 'ae'
+    normrecon: False
+
+dataset:
+  train:
+    PancreasMSDDataset:
+        mask_all: True
+

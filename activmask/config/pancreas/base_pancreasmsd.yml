@@ -1,16 +1,14 @@
 # General
 cuda: True
-penalise_grad: 'False'
 n_iter: 30
-penalise_grad_lambda_1: 1.0
-penalise_grad_lambda_2: 1.0
-conditional_reg: True
-penalise_grad_usemasks: True 
 nsamples_train: 128
-maxmasks_train: 128
+maxmasks_train: 256
+recon_masked: False
+recon_continuous: True
 
 # Training
-num_epochs: 200
+num_epochs: 500
+schedule_steps: 10
 
 # DataLoader
 batch_size: 32
@@ -19,31 +17,25 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    HeartMSDDataset:
+    PancreasMSDDataset:
       mode: 'train'
-      blur: 3
+      blur: 8
+      nsamples: 128
   valid:
-    HeartMSDDataset:
+    PancreasMSDDataset:
       mode: 'valid'
       nsamples: 256
-      blur: 3
   test:
-    HeartMSDDataset:
+    PancreasMSDDataset:
       mode: 'test'
       nsamples: 256
-
-# Model
-model:
-  SimpleCNN: 
-    flat_layer: 2
 
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.0001
+    lr: 0.001
 
 transform:
         train: {}
         valid: {}
         test: {}
-
