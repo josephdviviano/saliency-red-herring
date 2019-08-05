@@ -3,7 +3,8 @@
 mkdir cluster_logs
 
 #EXPERIMENTS="synth livermsd"
-EXPERIMENTS="livermsd"
+#EXPERIMENTS="livermsd"
+EXPERIMENTS="synth livermsd cardiacmsd pancreasmsd"
 SEEDS=(1234 3232 3221 9856 1290 1987 3200 6400 8888 0451)
 
 for seed in "${SEEDS[@]}"; do
