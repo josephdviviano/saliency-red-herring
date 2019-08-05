@@ -38,7 +38,6 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     seed = cfg['seed']
     cuda = cfg['cuda']
     num_epochs = cfg['num_epochs']
-    # maxmasks = cfg['maxmasks']
     exp_name = cfg['experiment_name']
     recon_masked = cfg['recon_masked']
     recon_continuous = cfg['recon_continuous']
