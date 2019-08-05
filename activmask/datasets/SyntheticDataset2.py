@@ -11,17 +11,21 @@ import torchvision.transforms.functional as TF
 @register.setdatasetname("SyntheticDataset2")
 class SyntheticDataset2(Dataset):
     def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32,
-                 maxmasks=32, transform=None, new_size=28, distract_noise=0,
+                 maxmasks=1, transform=None, new_size=28, distract_noise=0,
                  mask_all=False):
+
+        assert 0 <= maxmasks <= 1
 
         self.root = dataroot
         self.mode = mode
         self.blur = blur
         self.distract_noise = distract_noise
         self.mask_all = mask_all
+        self.maxmasks = maxmasks
 
         self._all_files = [f for f in os.listdir(self.root) if "seg" not in f and ".csv" not in f]
         self._seg_files = [f for f in os.listdir(self.root) if "seg" in f and ".csv" not in f]
+
         # random split based on seed
         np.random.seed(seed)
         np.random.shuffle(self._all_files)
@@ -33,11 +37,13 @@ class SyntheticDataset2(Dataset):
         all_labels = pd.read_csv("{}/{}_labels.csv".format(self.root, self.mode_file))
 
         # randomly choose based on nsamples
+        n_per_class = nsamples//2
+
         np.random.seed(seed)
         class0 = all_labels["file"].loc[all_labels["class"] == 0].values
         class1 = all_labels["file"].loc[all_labels["class"] == 1].values
-        class0 = np.random.choice(class0, nsamples//2, replace=False)
-        class1 = np.random.choice(class1, nsamples//2, replace=False)
+        class0 = np.random.choice(class0, n_per_class, replace=False)
+        class1 = np.random.choice(class1, n_per_class, replace=False)
 
         # get the corresponding segmentation files
         class0_seg = [f.replace("img","seg") for f in class0]
@@ -47,7 +53,18 @@ class SyntheticDataset2(Dataset):
         self.mask_idx = np.append(class1_seg, class0_seg)
         self.labels = np.append(np.ones(len(class1)), np.zeros(len(class0)))
 
-        # TODO: add in selector for maxmasks
+        # masks_selector is 1 for samples that should have a mask, else zero.
+        self.masks_selector = np.ones(len(self.idx))
+        if maxmasks < 1:
+            n_masks_to_rm = round(n_per_class * (1-maxmasks))
+            idx_masks_class0_to_rm = np.random.choice(
+                np.arange(n_per_class), n_masks_to_rm, replace=False)
+            idx_masks_class1_to_rm = np.random.choice(
+                np.arange(n_per_class, n_per_class*2), n_masks_to_rm,
+                replace=False)
+
+            self.masks_selector[idx_masks_class0_to_rm] = 0
+            self.masks_selector[idx_masks_class1_to_rm] = 0
 
     def __len__(self):
         return len(self.idx)
@@ -56,6 +73,11 @@ class SyntheticDataset2(Dataset):
         img = Image.fromarray(np.load(self.root + "/" + self.idx[index]))
         seg = np.load(self.root + "/" + self.mask_idx[index])
 
+        # Render the segmentation empty if it is not in the list of kept masks.
+        if not self.masks_selector[index]:
+            seg *= 0
+
+        # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (np.max(seg) != 0):
             seg = skimage.filters.gaussian(seg, self.blur)
             seg = seg / np.max(seg)
