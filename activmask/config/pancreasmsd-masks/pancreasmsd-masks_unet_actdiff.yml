@@ -1,9 +1,8 @@
 # General
-base: "base_livermsd.yml"
+base: "base_pancreasmsd.yml"
 bre_lambda: 0
 recon_lambda: 1
-actdiff_lambda: 0
-recon_masked: True
+actdiff_lambda: 1
 
 # Model
 model:

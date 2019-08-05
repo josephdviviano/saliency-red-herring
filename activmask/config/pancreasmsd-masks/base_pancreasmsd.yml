@@ -1,13 +1,13 @@
 # General
 cuda: True
 n_iter: 30
-nsamples_train: 64
+nsamples_train: 128
 maxmasks_train: 256
 recon_masked: False
 recon_continuous: True
 
 # Training
-num_epochs: 100
+num_epochs: 500
 schedule_steps: 10
 
 # DataLoader
@@ -17,22 +17,23 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    LiverMSDDataset:
+    PancreasMSDDataset:
       mode: 'train'
-      blur: "Integer(1, 5)"
+      blur: 8
+      nsamples: 128
   valid:
-    LiverMSDDataset:
+    PancreasMSDDataset:
       mode: 'valid'
       nsamples: 256
   test:
-    LiverMSDDataset:
+    PancreasMSDDataset:
       mode: 'test'
       nsamples: 256
 
 # Optimizer
 optimizer:
   Adam:
-    lr: "Real(10**-6, 10**-2, 'log-uniform')"
+    lr: 0.001
 
 transform:
         train: {}
