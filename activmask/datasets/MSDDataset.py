@@ -241,7 +241,7 @@ class MSDDataset(Dataset):
         if self.mask_all:
             image *= seg
 
-        return (image, seg), int(label), self.masks_selector[index])
+        return (image, seg), int(label), self.masks_selector[index]
 
 @register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
