@@ -41,6 +41,7 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
 
     # maxmasks is always set.
     dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+    cfg["maxmasks_train"] = maxmasks_train
 
     if not new_size is None:
         # new_size passed in from the command line
@@ -136,6 +137,7 @@ def train_skopt(config, seed, nsamples_train, n_iter, base_estimator,
 
     # maxmasks is always set.
     dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+    cfg["maxmasks_train"] = maxmasks_train
 
     if not new_size is None:
         # new_size passed in from the command line
