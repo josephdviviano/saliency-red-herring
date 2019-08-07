@@ -73,9 +73,9 @@ class SyntheticDataset2(Dataset):
         img = Image.fromarray(np.load(self.root + "/" + self.idx[index]))
         seg = np.load(self.root + "/" + self.mask_idx[index])
 
-        # Render the segmentation empty if it is not in the list of kept masks.
+        # Make the segmentation the entire image if it isn't in mask_selector.
         if not self.masks_selector[index]:
-            seg *= 0
+            seg = np.ones(seg.shape)
 
         # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (np.max(seg) != 0):
