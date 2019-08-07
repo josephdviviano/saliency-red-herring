@@ -21,9 +21,9 @@ def run():
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
 @click.option('-new_size', type=int, help='new_size')
-@click.option('-maxmasks_train', type=int, help='maxmasks_train')
+@click.option('-maxmasks_train', type=float, default=1, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
-@click.option('-viz', type=bool, default=True, help='plot images')
+@click.option('-viz', type=bool, default=False, help='plot images')
 def train(config, seed, nsamples_train, num_epochs, new_size,
           maxmasks_train, viz):
 
@@ -39,12 +39,9 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
     if not nsamples_train is None:
         dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
 
-    if not cfg["maxmasks_train"] is None:
-        dataset[list(dataset.keys())[0]]["maxmasks"] = cfg["maxmasks_train"]
-        del cfg["maxmasks_train"]
-
-    if not maxmasks_train is None:
-        dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+    # maxmasks is always set.
+    dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+    cfg["maxmasks_train"] = maxmasks_train
 
     if not new_size is None:
         # new_size passed in from the command line
@@ -119,7 +116,7 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
               type=str, default="train",
               help='Training function to optimize over.')
 @click.option('-new_size', type=int, help='new_size')
-@click.option('-maxmasks_train', type=int, help='maxmasks_train')
+@click.option('-maxmasks_train', type=int, default=1, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
 def train_skopt(config, seed, nsamples_train, n_iter, base_estimator,
@@ -138,11 +135,9 @@ def train_skopt(config, seed, nsamples_train, n_iter, base_estimator,
     if not nsamples_train is None:
         dataset[list(dataset.keys())[0]]["nsamples"] = nsamples_train
 
-    if not cfg["maxmasks_train"] is None:
-        dataset[list(dataset.keys())[0]]["maxmasks"] = cfg["maxmasks_train"]
-        del cfg["maxmasks_train"]
-    if not maxmasks_train is None:
-        dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+    # maxmasks is always set.
+    dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
+    cfg["maxmasks_train"] = maxmasks_train
 
     if not new_size is None:
         # new_size passed in from the command line

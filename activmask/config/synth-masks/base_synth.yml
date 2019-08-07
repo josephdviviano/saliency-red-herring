@@ -2,7 +2,6 @@
 cuda: True
 n_iter: 200
 nsamples_train: 500
-maxmasks_train: 256
 new_size: &new_size 28
 recon_masked: False
 recon_continuous: False

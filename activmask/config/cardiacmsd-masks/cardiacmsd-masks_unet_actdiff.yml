@@ -1,0 +1,14 @@
+# General
+base: "base_cardiacmsd.yml"
+bre_lambda: 0
+recon_lambda: 1
+actdiff_lambda: 1
+
+# Model
+model:
+  UNet:
+    img_size: 100
+    nc: 64
+    mode: 'unet'
+    normrecon: False
+

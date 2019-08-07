@@ -17,16 +17,16 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    LiverMSDDataset:
+    PancreasMSDDataset:
       mode: 'train'
       blur: 8
       nsamples: 128
   valid:
-    LiverMSDDataset:
+    PancreasMSDDataset:
       mode: 'valid'
       nsamples: 256
   test:
-    LiverMSDDataset:
+    PancreasMSDDataset:
       mode: 'test'
       nsamples: 256
 

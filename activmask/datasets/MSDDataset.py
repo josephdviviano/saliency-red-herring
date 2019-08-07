@@ -115,12 +115,15 @@ cached_msd_ref = {}
 class MSDDataset(Dataset):
 
     def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32,
-                 maxmasks=32, transform=None, new_size=100, mask_all=False):
+                 maxmasks=1, transform=None, new_size=100, mask_all=False):
+
+        assert 0 <= maxmasks <= 1
 
         self.mode = mode
         self.dataroot = dataroot
         self.new_size = new_size
         self.mask_all = mask_all
+        self.maxmasks = maxmasks
 
         filename = self.dataroot + "msd_gz_new.hdf5"
         if not os.path.isfile(filename):
@@ -138,6 +141,8 @@ class MSDDataset(Dataset):
 
         all_labels = np.concatenate([self.dataset[i]["labels"] for i in self._all_files])
         print ("Full dataset contains: " + str(collections.Counter(all_labels)))
+
+
 
         np.random.seed(seed)
         np.random.shuffle(self._all_files)
@@ -167,22 +172,36 @@ class MSDDataset(Dataset):
 
         self.idx = np.arange(self.labels.shape[0])
 
+        # randomly choose based on nsamples
+        n_per_class = nsamples//2
         np.random.seed(seed)
         class0 = np.where(self.labels == 0)[0]
         class1 = np.where(self.labels == 1)[0]
-        class0 = np.random.choice(class0, nsamples//2, replace=False)
-        class1 = np.random.choice(class1, nsamples//2, replace=False)
+        class0 = np.random.choice(class0, n_per_class, replace=False)
+        class1 = np.random.choice(class1, n_per_class, replace=False)
         self.idx = np.append(class1, class0)
 
         #these should be in order
         #self.samples = self.samples[self.idx]
         self.labels = self.labels[self.idx]
 
-        print ("This dataloader contains:" + str(collections.Counter(self.labels)))
+        # masks_selector is 1 for samples that should have a mask, else zero.
+        self.masks_selector = np.ones(len(self.idx))
+        if maxmasks < 1:
+            n_masks_to_rm = round(n_per_class * (1-maxmasks))
+            idx_masks_class1_to_rm = np.random.choice(
+                np.arange(n_per_class), n_masks_to_rm, replace=False)
+            idx_masks_class0_to_rm = np.random.choice(
+                np.arange(n_per_class, n_per_class*2), n_masks_to_rm,
+                replace=False)
 
-        # the samples start with labelled ones. past half there should be no labels
-        self.mask_idx = self.idx[:maxmasks]
-        # transform does nothing, it's pass in parameter only to make it compatible with everything else.
+            self.masks_selector[idx_masks_class0_to_rm] = 0
+            self.masks_selector[idx_masks_class1_to_rm] = 0
+
+        print ("This dataloader contains: {}".format(
+            str(collections.Counter(self.labels))))
+
+        # NB: transform does nothing, only exists for compatibility.
 
     def __len__(self):
         return len(self.idx)
@@ -197,6 +216,11 @@ class MSDDataset(Dataset):
         #if self.transform != None:
         #    image = self.transform(image)
 
+        # Render the segmentation empty if it is not in the list of kept masks.
+        if not self.masks_selector[index]:
+            seg *= 0
+
+        # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (seg.max() != 0):
             seg = skimage.filters.gaussian(seg, self.blur)
             seg = seg / seg.max()
@@ -217,7 +241,7 @@ class MSDDataset(Dataset):
         if self.mask_all:
             image *= seg
 
-        return (image, seg), int(label), float(self.idx[index] in self.mask_idx)
+        return (image, seg), int(label), self.masks_selector[index]
 
 @register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
