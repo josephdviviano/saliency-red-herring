@@ -216,9 +216,9 @@ class MSDDataset(Dataset):
         #if self.transform != None:
         #    image = self.transform(image)
 
-        # Render the segmentation empty if it is not in the list of kept masks.
+        # Make the segmentation the entire image if it isn't in masks_selector
         if not self.masks_selector[index]:
-            seg *= 0
+            seg = np.ones(seg.shape)
 
         # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (seg.max() != 0):
