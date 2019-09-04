@@ -184,7 +184,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     output_dir = os.path.join('checkpoints', exp_name)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    torch.save(best_model, os.path.join(output_dir, 'best_model.pth.tar'))
+
+    # Saves maxmasks and seed in the name.
+    output_name = "best_model_{}_{}.pth.tar".format(
+        cfg['seed'], cfg['maxmasks_train'])
+    torch.save(best_model, os.path.join(output_dir, output_name))
 
     return (best_valid_auc, best_test_auc, metrics, results_dict)
 
