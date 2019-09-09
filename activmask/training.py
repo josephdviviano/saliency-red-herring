@@ -184,7 +184,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     output_dir = os.path.join('checkpoints', exp_name)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    torch.save(best_model, os.path.join(output_dir, 'best_model.pth.tar'))
+
+    # Saves maxmasks and seed in the name.
+    output_name = "best_model_{}_{}.pth.tar".format(
+        cfg['seed'], cfg['maxmasks_train'])
+    torch.save(best_model, os.path.join(output_dir, output_name))
 
     return (best_valid_auc, best_test_auc, metrics, results_dict)
 
@@ -467,31 +471,36 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
                                 random_state=random_state)
 
     opt_results = None
-    state = {}
-    best_metric = 0
+    results_dict = {}
+    best_valid_auc = 0
     best_metrics = None
+
     for i in range(n_iter):
 
-        # Do a bunch of loops.
         suggestion = optimizer.ask()
         this_cfg = generate_config(cfg, skopt_args, suggestion)
         opt_dict = this_cfg['optimizer']
-        #opt_dict[list(opt_dict.keys())[0]]['lr'] = 10**float(-opt_dict[list(opt_dict.keys())[0]]['lr'])
 
-        # optimizer.tell(suggestion, - train_function(this_cfg)[0]) # We minimize the negative accuracy/AUC
-        metrics, metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
+        #metrics, metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
+        this_valid_auc, this_test_auc, these_metrics, results_dict = train_function(
+            this_cfg, recompile=results_dict == {}, **results_dict)
 
-        print(i, "metric",metric,"metric_test",metric_test,"this_cfg",this_cfg)
-        opt_results = optimizer.tell(suggestion, - metric) # We minimize the negative accuracy/AUC
+        print("{}: valid auc={}, test auc={}, cfg={}".format(
+            i, this_valid_auc, this_test_auc, this_cfg)
+
+        # We minimize the negative accuracy/AUC
+        opt_results = optimizer.tell(suggestion, - this_valid_auc)
 
         #record metrics to write and plot
-        if best_metric < metric:
-            best_metric = metric
-            best_metrics = metrics
-            print(i, "New best metric: ", best_metric, "Best metric test: ", metric_test)
+        if this_valid_auc > best_valid_auc:
+            best_valid_auc = this_valid_auc
+            best_test_auc = this_test_auc
+            best_metrics = these_metrics
+            print("{}: **New best valid/test AUC**: {}/{}".format(
+                i, this_valid_auc, this_test_auc)
 
-    print("The best metric: ", best_metric, "Best bmetric test: ", metric_test)
-    # Done! Hyperparameters tuning has never been this easy.
+    print("{}: **Final best valid/test AUC**: {}/{}".format(
+        i, best_valid_auc, best_test_auc)
 
     # Saving the skopt results.
     try:
