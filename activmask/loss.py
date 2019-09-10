@@ -141,7 +141,7 @@ def ac_term(hs, epsilon=1e-3, s=3., binarizer='softsign'):
     return (C, stats)
 
 
-def get_gradmask_loss(x, class_output, model, target, penalise_grad):
+def get_gradmask_loss(x, class_output, model, target, penalise_grad="contrast"):
     if penalise_grad == "contrast":
         # d(y_0-y_1)/dx
         input_grads = torch.autograd.grad(
