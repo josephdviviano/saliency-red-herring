@@ -6,6 +6,7 @@ maxmasks_train: 256
 new_size: &new_size 28
 recon_masked: False
 recon_continuous: False
+gradmask_lambda: 0
 
 # Training
 num_epochs: 500

@@ -5,6 +5,7 @@ nsamples_train: 500
 new_size: &new_size 28
 recon_masked: False
 recon_continuous: False
+gradmask_lambda: 0
 
 # Training
 num_epochs: 500
