@@ -121,6 +121,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
                                bre_lambda=cfg['bre_lambda'],
                                recon_lambda=cfg['recon_lambda'],
                                actdiff_lambda=cfg['actdiff_lambda'],
+                               gradmask_lambda=cfg['gradmask_lambda'],
                                recon_masked=recon_masked,
                                recon_continuous=recon_continuous)
 
@@ -195,8 +196,8 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
 
 @mlflow_logger.log_metric('train_loss')
 def train_epoch(epoch, model, device, train_loader, optimizer,
-                criterion, bre_lambda, recon_lambda, actdiff_lambda,
-                recon_masked, recon_continuous=False):
+                criterion, bre_lambda=0, recon_lambda=0, actdiff_lambda=0,
+                gradmask_lambda=0, recon_masked=False, recon_continuous=False):
 
 
     model.train()
@@ -209,7 +210,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
     # losses: cross-entropy + reconstruction + bre + actdiff
     avg_clf_loss = []
-    avg_actdiff_loss, avg_recon_loss, avg_bre_loss = [], [], []
+    avg_actdiff_loss, avg_recon_loss, avg_bre_loss, avg_gradmask_loss = [], [], [], []
     avg_loss = []
 
     t = tqdm(train_loader)
@@ -223,13 +224,13 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         target, use_mask = target.to(device), use_mask.to(device)
         X.requires_grad = True
 
+        # Get the inverse of the mask (1 *outside* ROI).
+        seg = torch.abs(seg-1).byte()
+
         # Mask the data by shuffling pixels outside of the mask.
         if actdiff_lambda > 0 or recon_masked:
 
             X_masked = torch.clone(X)
-
-            # Get the inverse of the mask
-            seg = torch.abs(seg-1).byte()
 
             # Loop through batch images individually
             for b in range(seg.shape[0]):
@@ -286,22 +287,33 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         else:
             bre_loss = torch.zeros(1).to(device)
 
+        # Gradmask loss: Get all gradients, and mask them for the target class.
+        if gradmask_lambda > 0:
+            input_grads = get_gradmask_loss(X, y_pred, model, target)
+            input_grads *= target.float().reshape(-1, 1, 1, 1)
+            input_grads *= seg.float()
+            gradmask_loss = input_grads.abs().sum() * gradmask_lambda
+        else:
+            gradmask_loss = torch.zeros(1).to(device)
+
         # Final loss is all terms combined.
-        loss = clf_loss + actdiff_loss + recon_loss + bre_loss
+        loss = clf_loss + actdiff_loss + recon_loss + bre_loss + gradmask_loss
 
         # Reporting.
         avg_clf_loss.append(clf_loss.detach().cpu().numpy())
         avg_actdiff_loss.append(actdiff_loss.detach().cpu().numpy())
         avg_recon_loss.append(recon_loss.detach().cpu().numpy())
         avg_bre_loss.append(bre_loss.detach().cpu().numpy())
+        avg_gradmask_loss.append(gradmask_loss.detach().cpu().numpy())
         avg_loss.append(loss.detach().cpu().numpy())
 
         t.set_description((
-            ' train (clf={:4.4f} actdif={:4.4f} recon={:4.4f} bre={:4.4f} tot={:4.4f})'.format(
+            ' train (clf={:4.4f} actdif={:4.4f} recon={:4.4f} bre={:4.4f} grd={:4.4f} tot={:4.4f})'.format(
                 np.mean(avg_clf_loss),
                 np.mean(avg_actdiff_loss),
                 np.mean(avg_recon_loss),
                 np.mean(avg_bre_loss),
+                np.mean(avg_gradmask_loss),
                 np.mean(avg_loss))))
 
         # Learning.
@@ -486,7 +498,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
             this_cfg, recompile=results_dict == {}, **results_dict)
 
         print("{}: valid auc={}, test auc={}, cfg={}".format(
-            i, this_valid_auc, this_test_auc, this_cfg)
+            i, this_valid_auc, this_test_auc, this_cfg))
 
         # We minimize the negative accuracy/AUC
         opt_results = optimizer.tell(suggestion, - this_valid_auc)
@@ -497,10 +509,10 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
             best_test_auc = this_test_auc
             best_metrics = these_metrics
             print("{}: **New best valid/test AUC**: {}/{}".format(
-                i, this_valid_auc, this_test_auc)
+                i, this_valid_auc, this_test_auc))
 
     print("{}: **Final best valid/test AUC**: {}/{}".format(
-        i, best_valid_auc, best_test_auc)
+        i, best_valid_auc, best_test_auc))
 
     # Saving the skopt results.
     try:
@@ -517,49 +529,3 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
         pass
 
     return best_metrics
-
-
-def graveyard():
-    """
-    This is a function that contains the gradmask loss functions that I don't
-    want to delete yet, but are very unlikely to be involved in this project.
-    """
-    return "RIP"
-
-    gradmask_loss = torch.Tensor([0]).to(device)  # Default values.
-
-    if gradmask_lambda > 0:
-
-        input_grads = get_gradmask_loss(
-            X, class_output, model, target, penalise_grad)
-
-        # only apply to positive examples
-        if penalise_grad != "diff_from_ref":
-            # only do it here because the masking happens elsewhere in
-            # the diff_from_ref architecture
-            # print("target mask: ", target.float().reshape(-1, 1, 1, 1).shape)
-            input_grads = target.float().reshape(-1, 1, 1, 1) * input_grads
-
-        if conditional_reg:
-            temp_softmax = torch.softmax(class_output, dim=1).detach()
-            certainty_mask = 1 - torch.argmax(
-                (temp_softmax > 0.95).float(), dim=1)
-            input_grads *= certainty_mask.float().reshape(-1, 1, 1, 1)
-
-        if penalise_grad_usemasks:
-            input_grads = input_grads * (1 - seg.float())
-        else:
-            input_grads = input_grads
-
-        gradmask_loss = input_grads
-
-        # Gradmask loss increases over epochs.
-        #gradmask_loss = epoch * (gradmask_loss ** 2)
-        #n_iter = len(train_loader) * epoch + batch_idx
-
-        # Simulate that we only have some masks
-        gradmask_loss = use_mask.reshape(-1, 1).float() * \
-                        gradmask_loss.float().reshape(
-                            -1, np.prod(gradmask_loss.shape[1:]))
-        gradmask_loss = gradmask_loss.abs().sum()
-        gradmask_loss *= gradmask_lambda
