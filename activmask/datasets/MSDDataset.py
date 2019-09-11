@@ -209,15 +209,18 @@ class MSDDataset(Dataset):
     def __getitem__(self, index):
 
         key = self.samples[self.idx[index]]
-        image,seg = self.dataset[key[0]]["slices"][str(key[1])]
+        image, seg = self.dataset[key[0]]["slices"][str(key[1])]
         label = self.labels[index]
 
         image = Image.fromarray(image)
-        #if self.transform != None:
-        #    image = self.transform(image)
 
-        # Make the segmentation the entire image if it isn't in masks_selector
+        # Make the segmentation the entire image if it isn't in masks_selector.
         if not self.masks_selector[index]:
+            seg = np.ones(seg.shape)
+
+        # Make the segmentation the entire image if it is the negative class.
+        import IPython; IPython.embed()
+        if int(label) == 0:
             seg = np.ones(seg.shape)
 
         # If there is a segmentation, blur it a bit.
@@ -226,10 +229,7 @@ class MSDDataset(Dataset):
             seg = seg / seg.max()
 
         seg = (seg > 0) * 1.
-
         seg = Image.fromarray(seg)
-        #if self.transform != None:
-            #seg = self.transform(seg)
 
         if self.mode == "train":
             image, seg = transform(image, seg, True, self.new_size)
