@@ -208,7 +208,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
     else:
         recon_criterion = nn.BCELoss()
 
-    # losses: cross-entropy + reconstruction + bre + actdiff
+    # losses: cross-entropy + reconstruction + bre + actdiff + gradmask
     avg_clf_loss = []
     avg_actdiff_loss, avg_recon_loss, avg_bre_loss, avg_gradmask_loss = [], [], [], []
     avg_loss = []
@@ -216,7 +216,6 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
     t = tqdm(train_loader)
     for batch_idx, (data, target, use_mask) in enumerate(t):
 
-        #use_mask = torch.ones((len(target))) # TODO change here.
         optimizer.zero_grad()
 
         X, seg = data
@@ -225,6 +224,9 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         X.requires_grad = True
 
         # Get the inverse of the mask (1 *outside* ROI).
+        # NB: If no mask for an image, the entire image should start out masked.
+        #     The seg will be inverted to be all 0, and therefore the actdiff
+        #     and gradmask loss will not be applied.
         seg = torch.abs(seg-1).byte()
 
         # Mask the data by shuffling pixels outside of the mask.
@@ -290,7 +292,10 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         # Gradmask loss: Get all gradients, and mask them for the target class.
         if gradmask_lambda > 0:
             input_grads = get_gradmask_loss(X, y_pred, model, target)
-            input_grads *= target.float().reshape(-1, 1, 1, 1)
+
+            # Used to apply gradmask only to the positive class.
+            #input_grads *= target.float().reshape(-1, 1, 1, 1)
+
             input_grads *= seg.float()
             gradmask_loss = input_grads.abs().sum() * gradmask_lambda
         else:
