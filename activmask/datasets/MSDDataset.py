@@ -219,7 +219,6 @@ class MSDDataset(Dataset):
             seg = np.ones(seg.shape)
 
         # Make the segmentation the entire image if it is the negative class.
-        import IPython; IPython.embed()
         if int(label) == 0:
             seg = np.ones(seg.shape)
 
