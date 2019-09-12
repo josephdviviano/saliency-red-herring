@@ -133,7 +133,7 @@ class NIHXrayDataset():
 
     def __getitem__(self, idx):
         im = imread(
-            os.path.join(self.datadir, self.csv['Image Index'][idx]))
+            os.path.join(self.datadir, self.csv['Image Index'].iloc[idx]))
         # For the ChestXRay dataset, range is [0, 255]
 
         # Check that images are 2D arrays
@@ -151,7 +151,7 @@ class NIHXrayDataset():
             im = self.transform(im)
 
         # self.csv['Image Index'][idx]
-        return im, self.labels[idx]
+        return im, self.labels.iloc[idx]
 
 
 class PCXRayDataset(Dataset):
@@ -176,6 +176,11 @@ class PCXRayDataset(Dataset):
         self.flat_dir = flat_dir
         self.csv = pd.read_csv(csvpath)
 
+        # Keep only the PA view.
+        idx_pa = self.csv['ViewPosition_DICOM'].str.contains("POSTEROANTERIOR")
+        idx_pa[idx_pa.isnull()] = False
+        self.csv = self.csv[idx_pa]
+
         # Our two classes.
         idx_sick = self.csv['Labels'].str.contains('pneumonia')
         idx_sick[idx_sick.isnull()] = False
@@ -188,53 +193,24 @@ class PCXRayDataset(Dataset):
         self.csv = self.csv[idx_sick | idx_heal]
         self.labels = self.csv['labels']
 
-        self.idx2pt = {idx:x for idx, x in enumerate(self.csv.PatientID.unique())}
-
-    @property
-    def targets(self):
-        targets = [self.metadata[pt]['Labels'] for pt in self.idx2pt.values()]
-        return self.mb.transform(targets)
-
-    @property
-    def data(self):
-        files = []
-        for pt in self.idx2pt.values():
-            data = self.metadata[pt]
-            pa_dir = str(int(data['ImageDir']['PA'])) if not self.flat_dir else ''
-            pa_path = join(self.datadir, pa_dir, data['ImageID']['PA'])
-            files.append(pa_path)
-
-        print("Reading files")
-        imgs = np.stack([np.array(Image.open(path)) for path in tqdm(files)])
-        imgs = np.expand_dims(imgs, -1)
-        return imgs
-
     def __len__(self):
         return len(self.csv.labels)
 
     def __getitem__(self, idx):
 
-        label = self.labels[idx]
+        label = self.labels.iloc[idx]
+        imgid = self.csv.iloc[idx]['ImageID']
+        img_path = os.path.join(self.datadir, imgid)
+        img = np.array(Image.open(img_path))[..., np.newaxis]
 
-        pa_dir = str(int(data['ImageDir']['PA'])) if not self.flat_dir else ''
-        pa_path = join(self.datadir, pa_dir, data['ImageID']['PA'])
-        pa_img = np.array(Image.open(pa_path))[..., np.newaxis]
-
-        l_dir = str(int(data['ImageDir']['L'])) if not self.flat_dir else ''
-        l_path = join(self.datadir, l_dir, data['ImageID']['L'])
-        l_img = np.array(Image.open(l_path))[..., np.newaxis]
-
+        # Add color channel
         if self.pretrained:
-            # Add color channel
-            pa_img = np.repeat(pa_img, 3, axis=-1)
-            l_img = np.repeat(l_img, 3, axis=-1)
-
-        sample = {'PA': pa_img, 'L': l_img}
+            img = np.repeat(pa_img, 3, axis=-1)
 
         if self.transform is not None:
-            sample = self.transform(sample)
+            img = self.transform(img)
 
-        return sample['PA'], self.labels[idx]
+        return img, label
 
 
 class Normalize(object):
