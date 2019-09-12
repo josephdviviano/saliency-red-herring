@@ -14,11 +14,13 @@ import tarfile, glob
 import torch
 import torch.nn.functional as F
 import torchvision.models as models
+import utils.register as register
 
 @register.setdatasetname("XRayDataset")
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
-                 seed=0):
+                 seed=0, transform=None, nsamples=None, maxmasks=None,
+                 new_size=None):
         self.dataset1 = NIHXrayDataset(d1data, d1csv)
         self.dataset2 = PCXRayDataset(d2data, d2csv)
 
