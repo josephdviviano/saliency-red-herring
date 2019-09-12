@@ -26,7 +26,7 @@ def run():
 @click.option('-viz', type=bool, default=False, help='plot images')
 @click.option('-lr', type=float, default=False, help='learning rate')
 def train(config, seed, nsamples_train, num_epochs, new_size,
-          maxmasks_train, viz):
+          maxmasks_train, viz, lr):
 
     cfg = configuration.load_config(config)
     if not seed is None:
@@ -75,7 +75,7 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
         cfg["num_epochs"] = num_epochs
 
     if not lr is None:
-        cfg["Optimizer"][this_optimizer]["lr"] = lr
+        cfg["optimizer"][this_optimizer]["lr"] = lr
 
     cfg["viz"] = viz
 
