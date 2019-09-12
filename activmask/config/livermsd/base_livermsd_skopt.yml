@@ -5,6 +5,7 @@ nsamples_train: 64
 maxmasks_train: 256
 recon_masked: False
 recon_continuous: True
+gradmask_lambda: 0
 
 # Training
 num_epochs: 100
