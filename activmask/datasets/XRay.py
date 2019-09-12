@@ -6,6 +6,7 @@ from torch.nn.modules.linear import Linear
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
+import os,sys
 import numpy as np
 import pandas as pd
 import pickle
@@ -27,13 +28,13 @@ class JointDataset():
         splits = np.array([0.5,0.25,0.25])
 
         np.random.seed(seed)
-        all_imageids = np.concatenate([np.arange(len(dataset1)),
-                                       np.arange(len(dataset2))]).astype(int)
+        all_imageids = np.concatenate([np.arange(len(self.dataset1)),
+                                       np.arange(len(self.dataset2))]).astype(int)
         all_idx = np.arange(len(all_imageids)).astype(int)
-        all_labels = np.concatenate([dataset1.labels,
-                                     dataset2.labels]).astype(int)
-        all_site = np.concatenate([np.zeros(len(dataset1)),
-                                   np.ones(len(dataset2))]).astype(int)
+        all_labels = np.concatenate([self.dataset1.labels,
+                                     self.dataset2.labels]).astype(int)
+        all_site = np.concatenate([np.zeros(len(self.dataset1)),
+                                   np.ones(len(self.dataset2))]).astype(int)
 
         idx_sick = all_labels==1
         total_per_class = np.min([sum(idx_sick[all_site==0]),
@@ -128,10 +129,10 @@ class NIHXrayDataset():
         self.labels = self.csv['labels']
 
     def __len__(self):
-        return len(self.Data)
+        return len(self.labels)
 
     def __getitem__(self, idx):
-        im = misc.imread(
+        im = imread(
             os.path.join(self.datadir, self.csv['Image Index'][idx]))
         # For the ChestXRay dataset, range is [0, 255]
 
