@@ -17,6 +17,12 @@ import torch.nn.functional as F
 import torchvision.models as models
 import utils.register as register
 
+
+def normalize(sample, maxval):
+    sample = 2 * (sample.astype(np.float32) / maxval) - 1.
+    return sample
+
+
 @register.setdatasetname("XRayDataset")
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
@@ -87,6 +93,7 @@ class JointDataset():
         self.imageids = all_imageids[self.select_idx]
         self.labels = all_labels[self.select_idx]
         self.site = all_site[self.select_idx]
+        self.masks_selector = np.ones(len(self.site))
 
     def __len__(self):
         return len(self.imageids)
@@ -98,7 +105,10 @@ class JointDataset():
         else:
             dataset = self.dataset2
 
-        return dataset[self.imageids[idx]], self.labels[idx], self.site[idx]
+        img, seg, _ = dataset[self.imageids[idx]]
+        site = self.site[idx]
+
+        return (img, seg), self.labels[idx], self.masks_selector[idx]
 
 
 class NIHXrayDataset():
@@ -114,6 +124,7 @@ class NIHXrayDataset():
 
         # Load data
         self.csv = pd.read_csv(csvpath, nrows=nrows)
+        self.MAXVAL = 255  # Range [0 255]
 
         # Remove multi-finding images.
         #self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
@@ -134,7 +145,7 @@ class NIHXrayDataset():
     def __getitem__(self, idx):
         im = imread(
             os.path.join(self.datadir, self.csv['Image Index'].iloc[idx]))
-        # For the ChestXRay dataset, range is [0, 255]
+        im = normalize(im, self.MAXVAL)
 
         # Check that images are 2D arrays
         if len(im.shape) > 2:
@@ -144,14 +155,16 @@ class NIHXrayDataset():
                 self.Data['Image Index'][idx]))
 
         # Add color channel
-        im = im[:, :, None]
+        im = im[None, :, :]
 
         # Tranform
         if self.transform:
             im = self.transform(im)
 
+        seg = np.ones(im.shape)
+
         # self.csv['Image Index'][idx]
-        return im, self.labels.iloc[idx]
+        return im, seg, self.labels.iloc[idx]
 
 
 class PCXRayDataset(Dataset):
@@ -175,6 +188,7 @@ class PCXRayDataset(Dataset):
         self.exclude_labels = exclude_labels
         self.flat_dir = flat_dir
         self.csv = pd.read_csv(csvpath)
+        self.MAXVAL = 65535
 
         # Keep only the PA view.
         idx_pa = self.csv['ViewPosition_DICOM'].str.contains("POSTEROANTERIOR")
@@ -202,32 +216,19 @@ class PCXRayDataset(Dataset):
         imgid = self.csv.iloc[idx]['ImageID']
         img_path = os.path.join(self.datadir, imgid)
         img = np.array(Image.open(img_path))[..., np.newaxis]
+        img = normalize(img, self.MAXVAL)
+        img = np.transpose(img, [-1, 0, 1])
 
         # Add color channel
         if self.pretrained:
-            img = np.repeat(pa_img, 3, axis=-1)
+            img = np.repeat(img, 3, axis=-1)
 
         if self.transform is not None:
             img = self.transform(img)
 
-        return img, label
+        seg = np.ones(img.shape)
 
-
-class Normalize(object):
-    """
-    Changes images values to be between -1 and 1.
-    """
-    def __call__(self, sample):
-        pa_img, l_img = sample['PA'], sample['L']
-
-        pa_img = 2 * (pa_img / 65536) - 1.
-        pa_img = pa_img.astype(np.float32)
-        l_img = 2 * (l_img / 65536) - 1.
-        l_img = l_img.astype(np.float32)
-
-        sample['PA'] = pa_img
-        sample['L'] = l_img
-        return sample
+        return img, seg, label
 
 
 class ToTensor(object):
