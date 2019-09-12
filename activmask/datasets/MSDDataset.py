@@ -5,7 +5,7 @@ from skimage.io import imread, imsave
 from PIL import Image
 import skimage.filters
 import json
-import medpy, medpy.io
+#import medpy, medpy.io
 import numpy as np
 import collections
 import torchvision.transforms
