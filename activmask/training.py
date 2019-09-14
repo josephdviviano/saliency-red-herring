@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import utils.configuration as configuration
 import utils.monitoring as monitoring
+import gc
 
 # Fix backend so one can generate plots without Display set.
 import matplotlib
@@ -94,7 +95,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     criterion = torch.nn.CrossEntropyLoss()
 
     # Stats for the table.
-    best_epoch, best_train_auc, best_valid_auc, best_test_auc = 0, 0, 0, 0
+    best_epoch, best_train_auc, best_valid_auc, best_test_auc = -1, -1, -1, -1
     metrics = []
     auc_valid = 0
 
@@ -329,6 +330,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
         loss.backward()
         optimizer.step()
+        gc.collect()
 
     return np.mean(avg_loss)
 

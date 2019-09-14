@@ -16,6 +16,8 @@ import torch
 import torch.nn.functional as F
 import torchvision.models as models
 import utils.register as register
+import skimage.draw
+
 
 
 def normalize(sample, maxval):
@@ -83,17 +85,22 @@ class JointDataset():
         train_0_neg = np.random.choice(
             train_0_neg, int(len(train_0_neg)*ratio), replace=False)
         train_0_pos = np.random.choice(
-            train_0_pos, int(len(train_0_pos)*ratio), replace=False)
+            train_0_pos, int(len(train_0_pos)*(1-ratio)), replace=False)
         train_1_neg = np.random.choice(
             train_1_neg, int(len(train_1_neg)*(1-ratio)), replace=False)
         train_1_pos = np.random.choice(
-            train_1_pos, int(len(train_1_pos)*(1-ratio)), replace=False)
+            train_1_pos, int(len(train_1_pos)*ratio), replace=False)
 
         self.select_idx = np.concatenate([train_0_neg, train_0_pos, train_1_neg, train_1_pos])
         self.imageids = all_imageids[self.select_idx]
         self.labels = all_labels[self.select_idx]
         self.site = all_site[self.select_idx]
         self.masks_selector = np.ones(len(self.site))
+
+        # Mask
+        rr, cc = skimage.draw.ellipse(112, 112, 100, 90)
+        self.seg = np.zeros((224, 224))
+        self.seg[rr, cc] = 1
 
     def __len__(self):
         return len(self.imageids)
@@ -105,8 +112,9 @@ class JointDataset():
         else:
             dataset = self.dataset2
 
-        img, seg, _ = dataset[self.imageids[idx]]
+        img, _, _ = dataset[self.imageids[idx]]
         site = self.site[idx]
+        seg = self.seg[None, :, :]
 
         return (img, seg), self.labels[idx], self.masks_selector[idx]
 
@@ -215,9 +223,13 @@ class PCXRayDataset(Dataset):
         label = self.labels.iloc[idx]
         imgid = self.csv.iloc[idx]['ImageID']
         img_path = os.path.join(self.datadir, imgid)
+<<<<<<< HEAD
         img = np.array(Image.open(img_path))[..., np.newaxis]
         img = normalize(img, self.MAXVAL)
         img = np.transpose(img, [-1, 0, 1])
+=======
+        img = np.array(Image.open(img_path))[np.newaxis, ...]
+>>>>>>> 5a39685688682d91fdd93fc20d3231dec3c8f75c
 
         # Add color channel
         if self.pretrained:
