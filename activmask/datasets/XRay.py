@@ -77,11 +77,11 @@ class JointDataset():
         train_0_neg = np.random.choice(
             train_0_neg, int(len(train_0_neg)*ratio), replace=False)
         train_0_pos = np.random.choice(
-            train_0_pos, int(len(train_0_pos)*ratio), replace=False)
+            train_0_pos, int(len(train_0_pos)*(1-ratio)), replace=False)
         train_1_neg = np.random.choice(
             train_1_neg, int(len(train_1_neg)*(1-ratio)), replace=False)
         train_1_pos = np.random.choice(
-            train_1_pos, int(len(train_1_pos)*(1-ratio)), replace=False)
+            train_1_pos, int(len(train_1_pos)*ratio), replace=False)
 
         self.select_idx = np.concatenate([train_0_neg, train_0_pos, train_1_neg, train_1_pos])
         self.imageids = all_imageids[self.select_idx]
