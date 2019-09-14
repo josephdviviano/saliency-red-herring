@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import utils.configuration as configuration
 import utils.monitoring as monitoring
+import gc
 
 # Fix backend so one can generate plots without Display set.
 import matplotlib
@@ -328,6 +329,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
         loss.backward()
         optimizer.step()
+        gc.collect()
 
     return np.mean(avg_loss)
 
