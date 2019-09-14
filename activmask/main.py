@@ -24,14 +24,18 @@ def run():
 @click.option('-maxmasks_train', type=float, default=1, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
+@click.option('-lr', type=float, default=False, help='learning rate')
 def train(config, seed, nsamples_train, num_epochs, new_size,
-          maxmasks_train, viz):
+          maxmasks_train, viz, lr):
 
     cfg = configuration.load_config(config)
     if not seed is None:
         cfg["seed"] = seed
 
     dataset = cfg["dataset"]["train"]
+    optimizer = cfg["optimizer"]
+    this_optimizer = list(optimizer.keys())[0]
+
     if not cfg["nsamples_train"] is None:
         dataset[list(dataset.keys())[0]]["nsamples"] = cfg["nsamples_train"]
         del cfg["nsamples_train"]
@@ -69,6 +73,9 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
 
     if not num_epochs is None:
         cfg["num_epochs"] = num_epochs
+
+    if not lr is None:
+        cfg["optimizer"][this_optimizer]["lr"] = lr
 
     cfg["viz"] = viz
 

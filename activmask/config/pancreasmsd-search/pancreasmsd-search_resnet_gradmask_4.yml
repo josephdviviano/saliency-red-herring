@@ -1,5 +1,5 @@
 # General
-base: "base_cardiacmsd.yml"
+base: "base_pancreasmsd.yml"
 bre_lambda: 0
 recon_lambda: 0
 actdiff_lambda: 0
@@ -7,7 +7,7 @@ gradmask_lambda: 1
 
 dataset:
   train:
-    HeartMSDDataset:
+    PancreasMSDDataset:
       blur: 4
 
 # Model

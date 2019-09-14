@@ -9,7 +9,7 @@ recon_continuous: False
 gradmask_lambda: 0
 
 # Training
-num_epochs: 10
+num_epochs: 100
 schedule_steps: 10
 
 # DataLoader

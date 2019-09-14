@@ -67,6 +67,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
         dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
         dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
 
+
     # Dataloader
     train_loader = torch.utils.data.DataLoader(dataset_train,
                                                 batch_size=cfg['batch_size'],
@@ -80,6 +81,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
                                                 batch_size=cfg['batch_size'],
                                                 shuffle=cfg['shuffle'],
                                                 num_workers=0, pin_memory=cuda)
+
 
     model = configuration.setup_model(cfg).to(device)
     print(model)
@@ -199,7 +201,6 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
 def train_epoch(epoch, model, device, train_loader, optimizer,
                 criterion, bre_lambda=0, recon_lambda=0, actdiff_lambda=0,
                 gradmask_lambda=0, recon_masked=False, recon_continuous=False):
-
 
     model.train()
 
