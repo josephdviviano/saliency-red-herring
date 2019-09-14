@@ -98,7 +98,7 @@ class JointDataset():
         else:
             dataset = self.dataset2
 
-        return dataset[self.imageids[idx]], self.labels[idx], self.site[idx]
+        return (dataset[self.imageids[idx]][0].astype(np.float32),0), self.labels[idx], 0#, self.site[idx]
 
 
 class NIHXrayDataset():
@@ -144,7 +144,7 @@ class NIHXrayDataset():
                 self.Data['Image Index'][idx]))
 
         # Add color channel
-        im = im[:, :, None]
+        im = im[None, :, :]
 
         # Tranform
         if self.transform:
@@ -201,7 +201,7 @@ class PCXRayDataset(Dataset):
         label = self.labels.iloc[idx]
         imgid = self.csv.iloc[idx]['ImageID']
         img_path = os.path.join(self.datadir, imgid)
-        img = np.array(Image.open(img_path))[..., np.newaxis]
+        img = np.array(Image.open(img_path))[np.newaxis, ...]
 
         # Add color channel
         if self.pretrained:
