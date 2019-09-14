@@ -22,7 +22,7 @@ for exp in ${EXPERIMENTS}; do
 #SBATCH --ntasks=1
 #SBATCH --time=24:00:00
 #SBATCH --gres=gpu:titanx:1
-
+#SBATCH --mem=8Gb
 
 hostname
 export LANG=C.UTF-8
@@ -38,4 +38,3 @@ EOF
     rm ${runscript}
     done
 done
-
