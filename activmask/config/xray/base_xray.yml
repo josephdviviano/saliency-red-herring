@@ -1,6 +1,6 @@
 # General
 cuda: True
-n_iter: 200
+n_iter: 20
 nsamples_train: 500
 maxmasks_train: 256
 new_size: &new_size 28
@@ -9,41 +9,38 @@ recon_continuous: False
 gradmask_lambda: 0
 
 # Training
-num_epochs: 500
+num_epochs: 10
 schedule_steps: 10
 
 # DataLoader
-batch_size: 32
+batch_size: 16
 shuffle: True
 
 # Dataset
 dataset:
   train:
     XRayDataset:
-      d1data: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC"
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-224"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
-      mode: 'distractor1'
-      ratio: 0.75
+      ratio: 0.9
       mode: "train"
   valid:
     XRayDataset:
-      d1data: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC"
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-224"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
-      mode: 'distractor1'
-      ratio: 0.25
+      ratio: 0.1
       mode: "valid"
   test:
     XRayDataset:
-      d1data: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC"
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-224"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
-      mode: 'distractor1'
-      ratio: 0.5
+      ratio: 0.1
       mode: "test"
 
 # Optimizer
