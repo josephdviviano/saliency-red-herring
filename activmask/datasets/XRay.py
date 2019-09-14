@@ -16,6 +16,8 @@ import torch
 import torch.nn.functional as F
 import torchvision.models as models
 import utils.register as register
+import skimage.draw
+
 
 @register.setdatasetname("XRayDataset")
 class JointDataset():
@@ -87,6 +89,10 @@ class JointDataset():
         self.imageids = all_imageids[self.select_idx]
         self.labels = all_labels[self.select_idx]
         self.site = all_site[self.select_idx]
+        
+        rr, cc = skimage.draw.ellipse(112, 112, 100, 90)
+        self.seg = np.zeros((224, 224), dtype=np.float32)
+        self.seg[rr, cc] = 1
 
     def __len__(self):
         return len(self.imageids)
@@ -98,7 +104,7 @@ class JointDataset():
         else:
             dataset = self.dataset2
 
-        return (dataset[self.imageids[idx]][0].astype(np.float32),0), self.labels[idx], 0#, self.site[idx]
+        return (dataset[self.imageids[idx]][0].astype(np.float32),self.seg[None,:,:]), self.labels[idx], 1#, self.site[idx]
 
 
 class NIHXrayDataset():

@@ -93,7 +93,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     criterion = torch.nn.CrossEntropyLoss()
 
     # Stats for the table.
-    best_epoch, best_train_auc, best_valid_auc, best_test_auc = 0, 0, 0, 0
+    best_epoch, best_train_auc, best_valid_auc, best_test_auc = -1, -1, -1, -1
     metrics = []
     auc_valid = 0
 
