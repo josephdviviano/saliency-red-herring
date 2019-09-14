@@ -223,13 +223,9 @@ class PCXRayDataset(Dataset):
         label = self.labels.iloc[idx]
         imgid = self.csv.iloc[idx]['ImageID']
         img_path = os.path.join(self.datadir, imgid)
-<<<<<<< HEAD
         img = np.array(Image.open(img_path))[..., np.newaxis]
         img = normalize(img, self.MAXVAL)
         img = np.transpose(img, [-1, 0, 1])
-=======
-        img = np.array(Image.open(img_path))[np.newaxis, ...]
->>>>>>> 5a39685688682d91fdd93fc20d3231dec3c8f75c
 
         # Add color channel
         if self.pretrained:
