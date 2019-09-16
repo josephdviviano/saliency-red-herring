@@ -522,18 +522,4 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
     print("{}: **Final best valid/test AUC**: {}/{}".format(
         i, best_valid_auc, best_test_auc))
 
-    # Saving the skopt results.
-    try:
-        import mlflow
-        import mlflow.sklearn
-        # mlflow.sklearn.log_model(opt_results, 'skopt')
-        dimensions = list(skopt_args.keys())
-        auto_ipynb.to_ipynb(
-            auto_ipynb.plot_optimizer, True,
-            run_uuid=mlflow.active_run()._info.run_uuid,
-            dimensions=dimensions, path='skopt')
-    except:
-        print('mlflow unavailable!')
-        pass
-
     return best_metrics
