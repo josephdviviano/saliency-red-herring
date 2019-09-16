@@ -229,7 +229,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         # NB: If no mask for an image, the entire image should start out masked.
         #     The seg will be inverted to be all 0, and therefore the actdiff
         #     and gradmask loss will not be applied.
-        seg = torch.abs(seg-1).bool()
+        seg = torch.abs(seg-1).type(torch.BoolTensor)
 
         # Mask the data by shuffling pixels outside of the mask.
         if actdiff_lambda > 0 or recon_masked:
