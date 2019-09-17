@@ -19,9 +19,9 @@ import utils.register as register
 import skimage.draw
 
 
-
 def normalize(sample, maxval):
-    sample = 2 * (sample.astype(np.float32) / maxval) - 1.
+    """Scales images to be roughly [-1024 1024]."""
+    sample = (2 * (sample.astype(np.float32) / maxval) - 1.) * 1024
     return sample
 
 
@@ -30,12 +30,16 @@ class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
                  seed=0, transform=None, nsamples=None, maxmasks=None,
                  new_size=None):
-        self.dataset1 = NIHXrayDataset(d1data, d1csv)
-        self.dataset2 = PCXRayDataset(d2data, d2csv)
 
         splits = np.array([0.5,0.25,0.25])
+        assert mode in ['train', 'valid', 'test']
+        assert np.sum(splits) == 1.0
 
-        np.random.seed(seed)
+        np.random.seed(seed)  # Reset the seed so all runs are the same.
+
+        self.dataset1 = NIHXrayDataset(d1data, d1csv, seed=seed)
+        self.dataset2 = PCXRayDataset(d2data, d2csv, seed=seed)
+
         all_imageids = np.concatenate([np.arange(len(self.dataset1)),
                                        np.arange(len(self.dataset2))]).astype(int)
         all_idx = np.arange(len(all_imageids)).astype(int)
@@ -45,53 +49,78 @@ class JointDataset():
                                    np.ones(len(self.dataset2))]).astype(int)
 
         idx_sick = all_labels==1
-        total_per_class = np.min([sum(idx_sick[all_site==0]),
-                                  sum(idx_sick[all_site==1])])
-        print("total_per_class", total_per_class)
+        n_per_category = np.min([sum(idx_sick[all_site==0]),
+                                 sum(idx_sick[all_site==1])])
+        print("n_per_category={}".format(n_per_category))
 
-        train_0_neg = all_idx[np.where((all_site==0) & (all_labels==0))]
-        train_0_neg = np.random.choice(train_0_neg, total_per_class,
-                                       replace=False)
-        train_0_pos = all_idx[np.where((all_site==0) & (all_labels==1))]
-        train_0_pos = np.random.choice(train_0_pos, total_per_class,
-                                       replace=False)
-        train_1_neg = all_idx[np.where((all_site==1) & (all_labels==0))]
-        train_1_neg = np.random.choice(train_1_neg, total_per_class,
-                                       replace=False)
-        train_1_pos = all_idx[np.where((all_site==1) & (all_labels==1))]
-        train_1_pos = np.random.choice(train_1_pos, total_per_class,
-                                       replace=False)
+        all_0_neg = all_idx[np.where((all_site==0) & (all_labels==0))]
+        all_0_neg = np.random.choice(all_0_neg, n_per_category, replace=False)
+        all_0_pos = all_idx[np.where((all_site==0) & (all_labels==1))]
+        all_0_pos = np.random.choice(all_0_pos, n_per_category, replace=False)
+        all_1_neg = all_idx[np.where((all_site==1) & (all_labels==0))]
+        all_1_neg = np.random.choice(all_1_neg, n_per_category, replace=False)
+        all_1_pos = all_idx[np.where((all_site==1) & (all_labels==1))]
+        all_1_pos = np.random.choice(all_1_pos, n_per_category, replace=False)
 
-        splits = (splits*total_per_class).astype(int)
+        # TRAIN
+        train_0_neg = np.random.choice(
+            all_0_neg, int(n_per_category*ratio*splits[0]*2), replace=False)
+        train_0_pos = np.random.choice(
+            all_0_pos, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+        train_1_neg = np.random.choice(
+            all_1_neg, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+        train_1_pos = np.random.choice(
+            all_1_pos, int(n_per_category*ratio*splits[0]*2), replace=False)
+
+        # REDUCE POST-TRAIN
+        all_0_neg = np.setdiff1d(all_0_neg, train_0_neg)
+        all_0_pos = np.setdiff1d(all_0_pos, train_0_pos)
+        all_1_neg = np.setdiff1d(all_1_neg, train_1_neg)
+        all_1_pos = np.setdiff1d(all_1_pos, train_1_pos)
+
+        print("TRAIN: neg={}, pos={}".format(len(train_0_neg)+len(train_1_neg),
+                                             len(train_0_pos)+len(train_1_pos)))
+
+        # VALID
+        valid_0_neg = np.random.choice(
+            all_0_neg, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+        valid_0_pos = np.random.choice(
+            all_0_pos, int(n_per_category*ratio*splits[1]*2), replace=False)
+        valid_1_neg = np.random.choice(
+            all_1_neg, int(n_per_category*ratio*splits[1]*2), replace=False)
+        valid_1_pos = np.random.choice(
+            all_1_pos, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+
+        # REDUCE POST-VALID
+        all_0_neg = np.setdiff1d(all_0_neg, valid_0_neg)
+        all_0_pos = np.setdiff1d(all_0_pos, valid_0_pos)
+        all_1_neg = np.setdiff1d(all_1_neg, valid_1_neg)
+        all_1_pos = np.setdiff1d(all_1_pos, valid_1_pos)
+
+        print("VALID: neg={}, pos={}".format(len(valid_0_neg)+len(valid_1_neg),
+                                             len(valid_0_pos)+len(valid_1_pos)))
+
+        # TEST
+        test_0_neg = all_0_neg
+        test_0_pos = all_0_pos
+        test_1_neg = all_1_neg
+        test_1_pos = all_1_pos
+
+        print("TEST: neg={}, pos={}".format(len(test_0_neg)+len(test_1_neg),
+                                            len(test_0_pos)+len(test_1_pos)))
+
         if mode == "train":
-            train_0_neg = train_0_neg[:splits[0]]
-            train_0_pos = train_0_pos[:splits[0]]
-            train_1_neg = train_1_neg[:splits[0]]
-            train_1_pos = train_1_pos[:splits[0]]
+            self.select_idx = np.concatenate([train_0_neg, train_0_pos,
+                                              train_1_neg, train_1_pos])
         elif mode == "valid":
-            train_0_neg = train_0_neg[splits[0]:splits[0]+splits[1]]
-            train_0_pos = train_0_pos[splits[0]:splits[0]+splits[1]]
-            train_1_neg = train_1_neg[splits[0]:splits[0]+splits[1]]
-            train_1_pos = train_1_pos[splits[0]:splits[0]+splits[1]]
+            self.select_idx = np.concatenate([valid_0_neg, valid_0_pos,
+                                              valid_1_neg, valid_1_pos])
         elif mode == "test":
-            train_0_neg = train_0_neg[splits[1]:splits[1]+splits[2]]
-            train_0_pos = train_0_pos[splits[1]:splits[1]+splits[2]]
-            train_1_neg = train_1_neg[splits[1]:splits[1]+splits[2]]
-            train_1_pos = train_1_pos[splits[1]:splits[1]+splits[2]]
+            self.select_idx = np.concatenate([test_0_neg, test_0_pos,
+                                              test_1_neg, test_1_pos])
         else:
             raise Exception("unknown mode")
 
-        #print(train_0_neg)
-        train_0_neg = np.random.choice(
-            train_0_neg, int(len(train_0_neg)*ratio), replace=False)
-        train_0_pos = np.random.choice(
-            train_0_pos, int(len(train_0_pos)*(1-ratio)), replace=False)
-        train_1_neg = np.random.choice(
-            train_1_neg, int(len(train_1_neg)*(1-ratio)), replace=False)
-        train_1_pos = np.random.choice(
-            train_1_pos, int(len(train_1_pos)*ratio), replace=False)
-
-        self.select_idx = np.concatenate([train_0_neg, train_0_pos, train_1_neg, train_1_pos])
         self.imageids = all_imageids[self.select_idx]
         self.labels = all_labels[self.select_idx]
         self.site = all_site[self.select_idx]
@@ -121,8 +150,9 @@ class JointDataset():
 
 class NIHXrayDataset():
 
-    def __init__(self, datadir, csvpath, transform=None, nrows=None):
+    def __init__(self, datadir, csvpath, transform=None, nrows=None, seed=0):
 
+        np.random.seed(seed)  # Reset the seed so all runs are the same.
         self.datadir = datadir
         self.transform = transform
         self.pathologies = ["Atelectasis", "Consolidation", "Infiltration",
@@ -135,7 +165,7 @@ class NIHXrayDataset():
         self.MAXVAL = 255  # Range [0 255]
 
         # Remove multi-finding images.
-        #self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
+        self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
 
         # Get our two classes.
         idx_sick = self.csv["Finding Labels"].str.contains("Pneumonia")
@@ -175,25 +205,18 @@ class NIHXrayDataset():
         return im, seg, self.labels.iloc[idx]
 
 
-class PCXRayDataset(Dataset):
+class PCXRayDataset():
 
-    def __init__(self, datadir, csvpath, transform=None, dataset='train',
-                 pretrained=False, min_patients_per_label=50,
-                 exclude_labels=["other", "normal", "no finding"],
-                 flat_dir=True):
-        """
-        Data reader. Only selects labels that at least min_patients_per_label
-        patients have.
-        """
-        super(PCXRayDataset, self).__init__()
+    def __init__(self, datadir, csvpath, transform=None, pretrained=False,
+                 flat_dir=True, seed=0):
+        # Removed "Dataset" super class...
+        #super(PCXRayDataset, self).__init__()
 
-        assert dataset in ['train', 'val', 'test']
+        np.random.seed(seed)  # Reset the seed so all runs are the same.
 
         self.datadir = datadir
         self.transform = transform
         self.pretrained = pretrained
-        self.threshold = min_patients_per_label
-        self.exclude_labels = exclude_labels
         self.flat_dir = flat_dir
         self.csv = pd.read_csv(csvpath)
         self.MAXVAL = 65535
