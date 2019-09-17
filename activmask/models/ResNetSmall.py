@@ -186,7 +186,7 @@ class ResNetBig(nn.Module):
 
     def __init__(self, img_size=1, base_size=512):
         super(ResNetBig, self).__init__()
-        self.model = ResNet50(base_size=base_size, avg_pool_size=12, avg_pool_stride=36)
+        self.model = ResNet34(base_size=base_size, avg_pool_size=4)
         self.all_activations = []
 
     def forward(self, x):
