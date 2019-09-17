@@ -150,7 +150,8 @@ class JointDataset():
 
 class NIHXrayDataset():
 
-    def __init__(self, datadir, csvpath, transform=None, nrows=None, seed=0):
+    def __init__(self, datadir, csvpath, transform=None, nrows=None, seed=0
+                 pure_labels=False):
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
         self.datadir = datadir
@@ -165,10 +166,11 @@ class NIHXrayDataset():
         self.MAXVAL = 255  # Range [0 255]
 
         # Remove multi-finding images.
-        self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
+        if pure_labels:
+            self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
 
         # Get our two classes.
-        idx_sick = self.csv["Finding Labels"].str.contains("Pneumonia")
+        idx_sick = self.csv["Finding Labels"].str.contains("Cardiomegaly")
         idx_heal = self.csv["Finding Labels"].str.contains("No Finding")
 
         # Exposed for our dataloader wrapper.
@@ -227,7 +229,7 @@ class PCXRayDataset():
         self.csv = self.csv[idx_pa]
 
         # Our two classes.
-        idx_sick = self.csv['Labels'].str.contains('pneumonia')
+        idx_sick = self.csv['Labels'].str.contains('cardiomegaly')
         idx_sick[idx_sick.isnull()] = False
         idx_heal = self.csv['Labels'].str.contains('normal')
         idx_heal[idx_heal.isnull()] = False
