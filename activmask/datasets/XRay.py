@@ -6,17 +6,18 @@ from torch.nn.modules.linear import Linear
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
-import os,sys
 import numpy as np
+import os,sys
 import pandas as pd
 import pickle
 import skimage
+import skimage.draw
 import tarfile, glob
 import torch
 import torch.nn.functional as F
 import torchvision.models as models
+import torchvision.transforms.functional as TF
 import utils.register as register
-import skimage.draw
 
 
 def normalize(sample, maxval):
@@ -145,13 +146,17 @@ class JointDataset():
         site = self.site[idx]
         seg = self.seg[None, :, :]
 
+        # Convert to tensors
+        img = TF.to_tensor(img).permute([1, 0, 2])
+        seg = TF.to_tensor(seg).permute([1, 0, 2])
+
         return (img, seg), self.labels[idx], self.masks_selector[idx]
 
 
 class NIHXrayDataset():
 
     def __init__(self, datadir, csvpath, transform=None, nrows=None, seed=0,
-                 pure_labels=False):
+                 pure_labels=True):
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
         self.datadir = datadir
