@@ -139,7 +139,8 @@ class ResNet(nn.Module):
         out, activations = self._run_layers(self.layer4, out)
         self.all_activations.extend(activations)
 
-        out = F.avg_pool2d(out, self.avg_pool_size, self.avg_pool_stride)
+        #out = F.avg_pool2d(out, self.avg_pool_size, self.avg_pool_stride)
+        out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
