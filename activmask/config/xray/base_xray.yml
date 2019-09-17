@@ -13,7 +13,7 @@ num_epochs: 20
 schedule_steps: 10
 
 # DataLoader
-batch_size: 12
+batch_size: 4
 shuffle: True
 
 # Dataset
@@ -33,7 +33,7 @@ dataset:
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
       d2data: "/lustre04/scratch/cohenjos/PC/images-224"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
-      ratio: 0.1
+      ratio: 0.9
       mode: "valid"
       seed: 1234
   test:
@@ -42,14 +42,19 @@ dataset:
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
       d2data: "/lustre04/scratch/cohenjos/PC/images-224"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
-      ratio: 0.1
+      ratio: 0.9
       mode: "test"
       seed: 1234
 
 # Optimizer
 optimizer:
   Adam:
-    lr:  0.01
+    lr:  0.001
+
+model:
+  ResNetBig:
+    base_size: 320000
+    img_size: 224
 
 transform:
         train: {}
