@@ -188,6 +188,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
         cfg['seed'], cfg['maxmasks_train'])
     torch.save(best_model, os.path.join(output_dir, output_name))
 
+    # Save latest model as well.
+    output_name = "latest_model_{}_{}.pth.tar".format(
+        cfg['seed'], cfg['maxmasks_train'])
+    torch.save(model, os.path.join(output_dir, output_name))
+
     return (best_valid_auc, best_test_auc, metrics, results_dict)
 
 
