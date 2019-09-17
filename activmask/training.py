@@ -109,12 +109,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     print("CUDA: ", cuda)
     for epoch in range(num_epochs):
 
-        if cfg['viz']:
-            render_img("train", epoch, img_viz_train, model, exp_name, cuda)
-            render_img("valid", epoch, img_viz_valid, model, exp_name, cuda)
-
         # scheduler.step(auc_valid)
-
         avg_loss = train_epoch(epoch=epoch,
                                model=model,
                                device=device,
@@ -178,11 +173,10 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
                     'dataset_test': dataset_test}
 
     # Render gradients from the best model.
-    if cfg['viz']:
-        render_img(
-            "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
-        render_img(
-            "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
+    render_img(
+        "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
+    render_img(
+        "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
 
     # Write best model to disk.
     output_dir = os.path.join('checkpoints', exp_name)
