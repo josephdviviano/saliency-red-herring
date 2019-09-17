@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import utils.register as register
+import torchvision
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -192,4 +193,19 @@ class ResNetBig(nn.Module):
     def forward(self, x):
         out = self.model(x)
         self.all_activations = self.model.all_activations
+        return out, None
+
+
+@register.setmodelname("ResNetVision")
+class ResNetVision(nn.Module):
+
+    def __init__(self, img_size=1, base_size=512):
+        super(ResNetVision, self).__init__()
+        self.model = torchvision.models.resnet34(num_classes=2)
+        self.all_activations = []
+
+    def forward(self, x):
+        x = x.repeat(1, 3, 1, 1)
+        out = self.model(x)
+        #self.all_activations = self.model.all_activations
         return out, None
