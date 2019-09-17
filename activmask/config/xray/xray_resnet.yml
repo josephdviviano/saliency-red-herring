@@ -4,10 +4,3 @@ bre_lambda: 0
 recon_lambda: 0
 actdiff_lambda: 0
 gradmask_lambda: 0
-
-# Model
-model:
-  ResNetSmall:
-    base_size: 320000
-    img_size: 224
-
