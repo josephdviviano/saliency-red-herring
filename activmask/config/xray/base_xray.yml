@@ -3,17 +3,17 @@ cuda: True
 n_iter: 20
 nsamples_train: 500
 maxmasks_train: 256
-new_size: &new_size 28
+#new_size: &new_size 28
 recon_masked: False
 recon_continuous: False
 gradmask_lambda: 0
 
 # Training
-num_epochs: 100
+num_epochs: 20
 schedule_steps: 10
 
 # DataLoader
-batch_size: 16
+batch_size: 12
 shuffle: True
 
 # Dataset
@@ -26,6 +26,7 @@ dataset:
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "train"
+      seed: 1234
   valid:
     XRayDataset:
       d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
@@ -34,6 +35,7 @@ dataset:
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.1
       mode: "valid"
+      seed: 1234
   test:
     XRayDataset:
       d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
@@ -42,11 +44,12 @@ dataset:
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.1
       mode: "test"
+      seed: 1234
 
 # Optimizer
 optimizer:
   Adam:
-    lr:  0.0001
+    lr:  0.01
 
 transform:
         train: {}
