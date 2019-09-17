@@ -47,6 +47,12 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
     dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
     cfg["maxmasks_train"] = maxmasks_train
 
+    try:
+        new_size = cfg["model"][list(cfg["model"].keys())[0]]["img_size"]
+        print("size taken from config: {}".format(new_size))
+    except:
+        pass
+
     if not new_size is None:
         # new_size passed in from the command line
         print("USING NEW SIZE from CMD: ", new_size)

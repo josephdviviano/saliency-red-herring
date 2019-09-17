@@ -20,7 +20,7 @@ dataset:
   train:
     PancreasMSDDataset:
       mode: 'train'
-      blur: 8
+      blur: 16
       nsamples: 128
   valid:
     PancreasMSDDataset:
@@ -34,7 +34,7 @@ dataset:
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.001
+    lr: 0.0001
 
 transform:
         train: {}

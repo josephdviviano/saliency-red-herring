@@ -34,7 +34,7 @@ dataset:
 # Optimizer
 optimizer:
   Adam:
-    lr: 0.001
+    lr: 0.004
 
 transform:
         train: {}

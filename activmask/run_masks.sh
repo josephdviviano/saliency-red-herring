@@ -3,8 +3,10 @@
 mkdir cluster_logs
 
 EXPERIMENTS="synth-masks livermsd-masks cardiacmsd-masks pancreasmsd-masks"
-SEEDS=(1234 3232 3221 9856 1290 1987 3200 6400 8888 0451)
-MASKS=(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0)
+SEEDS=(1234 3232 3221 9856 1290)
+#SEEDS=(1987 3200 6400 8888 0451)
+MASKS=(0.2 0.4 0.6 0.8 1.0)
+#MASKS=(0.1 0.3 0.5 0.7 0.9)
 
 for seed in "${SEEDS[@]}"; do
     for mask in "${MASKS[@]}"; do
