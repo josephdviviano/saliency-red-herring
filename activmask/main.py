@@ -24,7 +24,7 @@ def run():
 @click.option('-maxmasks_train', type=float, default=1, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
-@click.option('-lr', type=float,  help='learning rate')
+@click.option('-lr', type=float, help='learning rate')
 def train(config, seed, nsamples_train, num_epochs, new_size,
           maxmasks_train, viz, lr):
 
