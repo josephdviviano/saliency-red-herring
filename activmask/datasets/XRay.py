@@ -156,7 +156,7 @@ class JointDataset():
 class NIHXrayDataset():
 
     def __init__(self, datadir, csvpath, transform=None, nrows=None, seed=0,
-                 pure_labels=True):
+                 pure_labels=False):
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
         self.datadir = datadir
