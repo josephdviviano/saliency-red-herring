@@ -30,14 +30,16 @@ def normalize(sample, maxval):
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
                  seed=0, transform=None, nsamples=None, maxmasks=None,
-                 new_size=None):
+                 new_size=None, mask_all=False):
 
         splits = np.array([0.5,0.25,0.25])
         assert mode in ['train', 'valid', 'test']
         assert np.sum(splits) == 1.0
+        assert mask_all in [True, False]
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
 
+        self.mask_all = mask_all
 
         self.dataset1 = NIHXrayDataset(d1data, d1csv, seed=seed)
         self.dataset2 = PCXRayDataset(d2data, d2csv, seed=seed)
@@ -134,7 +136,7 @@ class JointDataset():
 
         # Mask
         rr, cc = skimage.draw.ellipse(FINAL_SIZE[0]//2, FINAL_SIZE[1]//2,
-                                      FINAL_SIZE[0]/2.5, FINAL_SIZE[1]/4)
+                                      FINAL_SIZE[0]/2.5, FINAL_SIZE[1]/2.5)
         self.seg = np.zeros(FINAL_SIZE)
         self.seg[rr, cc] = 1
 
@@ -156,6 +158,9 @@ class JointDataset():
         img = self.resize(img)
         img = TF.to_tensor(img)
         seg = TF.to_tensor(seg).permute([1, 0, 2])
+
+        if self.mask_all:
+            img *= seg
 
         return (img, seg), self.labels[idx], self.masks_selector[idx]
 
@@ -274,18 +279,6 @@ class PCXRayDataset():
         seg = np.ones(img.shape)
 
         return img, seg, label
-
-
-class ToTensor(object):
-    """
-    Convert ndarrays in sample to Tensors.
-    """
-    def __call__(self, sample):
-        to_tensor = transforms.ToTensor()
-        sample['PA'] = to_tensor(sample['PA'])
-        sample['L'] = to_tensor(sample['L'])
-
-        return sample
 
 
 class XRayResizer(object):
