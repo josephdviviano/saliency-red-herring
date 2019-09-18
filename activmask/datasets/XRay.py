@@ -328,14 +328,14 @@ class RandomRotation(object):
     """
     Adds a random rotation to the PA and L (between -5 and +5).
     """
-    def __call__(self, sample):
-        pa_img, l_img = sample['PA'], sample['L']
+    def rot(self, img, r):
+        new_img = scipy.ndimage.rotate(img,r, axes=[1,2], reshape=False, cval=np.min(img))
+        return new_img
+    
+    def __call__(self, img, seg):
+        rot_amount = np.random.rand() * 10.- 5.
 
-        rot_amount = np.random.rand() * 5.
-        rot = transforms.RandomRotation(rot_amount)
-        pa_img = rot(pa_img)
-        l_img = rot(l_img)
-
-        sample['PA'] = pa_img
-        sample['L'] = l_img
-        return sample
+        img = self.rot(img, rot_amount)
+        seg = self.rot(seg, rot_amount)
+        
+        return img, seg
