@@ -9,11 +9,11 @@ recon_continuous: False
 gradmask_lambda: 0
 
 # Training
-num_epochs: 20
+num_epochs: 30
 schedule_steps: 10
 
 # DataLoader
-batch_size: 4
+batch_size: 32
 shuffle: True
 
 # Dataset
@@ -53,8 +53,8 @@ optimizer:
 
 model:
   ResNetBig:
-    base_size: 320000
-    img_size: 224
+    base_size: 61952
+    img_size: 112
 
 transform:
         train: {}
