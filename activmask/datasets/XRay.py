@@ -38,7 +38,7 @@ class JointDataset():
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
 
-
+        self.new_size = new_size
         self.dataset1 = NIHXrayDataset(d1data, d1csv, seed=seed)
         self.dataset2 = PCXRayDataset(d2data, d2csv, seed=seed)
 
@@ -129,7 +129,7 @@ class JointDataset():
         self.masks_selector = np.ones(len(self.site))
 
         # Image Resizing.
-        FINAL_SIZE = (112, 112)
+        FINAL_SIZE = (self.new_size, self.new_size)
         self.resize = XRayResizer(FINAL_SIZE)
 
         # Mask
@@ -153,7 +153,9 @@ class JointDataset():
         seg = self.seg[None, :, :]
 
         # Convert to properly-sized tensors
-        img = self.resize(img)
+        img = img[0, :, :]
+        if self.new_size != img.shape[1]:
+            img = self.resize(img)
         img = TF.to_tensor(img)
         seg = TF.to_tensor(seg).permute([1, 0, 2])
 
@@ -294,7 +296,7 @@ class XRayResizer(object):
         self.resizer = transforms.Resize(size)
 
     def __call__(self, x):
-        x = self.to_pil(x[0, :, :])
+        x = self.to_pil(x)
         x = self.resizer(x)
         return(x)
 
