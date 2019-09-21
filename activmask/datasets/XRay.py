@@ -38,6 +38,7 @@ class JointDataset():
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
 
+
         self.dataset1 = NIHXrayDataset(d1data, d1csv, seed=seed)
         self.dataset2 = PCXRayDataset(d2data, d2csv, seed=seed)
 
@@ -127,9 +128,14 @@ class JointDataset():
         self.site = all_site[self.select_idx]
         self.masks_selector = np.ones(len(self.site))
 
+        # Image Resizing.
+        FINAL_SIZE = (112, 112)
+        self.resize = XRayResizer(FINAL_SIZE)
+
         # Mask
-        rr, cc = skimage.draw.ellipse(112, 112, 100, 90)
-        self.seg = np.zeros((224, 224))
+        rr, cc = skimage.draw.ellipse(FINAL_SIZE[0]//2, FINAL_SIZE[1]//2,
+                                      FINAL_SIZE[0]/2.5, FINAL_SIZE[1]/4)
+        self.seg = np.zeros(FINAL_SIZE)
         self.seg[rr, cc] = 1
 
     def __len__(self):
@@ -146,8 +152,9 @@ class JointDataset():
         site = self.site[idx]
         seg = self.seg[None, :, :]
 
-        # Convert to tensors
-        img = TF.to_tensor(img).permute([1, 0, 2])
+        # Convert to properly-sized tensors
+        img = self.resize(img)
+        img = TF.to_tensor(img)
         seg = TF.to_tensor(seg).permute([1, 0, 2])
 
         return (img, seg), self.labels[idx], self.masks_selector[idx]
@@ -281,16 +288,23 @@ class ToTensor(object):
         return sample
 
 
-class ToPILImage(object):
-    """
-    Convert ndarrays in sample to PIL images.
-    """
-    def __call__(self, sample):
-        to_pil = transforms.ToPILImage()
-        sample['PA'] = to_pil(sample['PA'])
-        sample['L'] = to_pil(sample['L'])
+class XRayResizer(object):
+    def __init__(self, size):
+        self.to_pil = transforms.ToPILImage(mode="F")
+        self.resizer = transforms.Resize(size)
 
-        return sample
+    def __call__(self, x):
+        x = self.to_pil(x[0, :, :])
+        x = self.resizer(x)
+        return(x)
+
+
+class ToPILImage(object):
+    """Convert ndarrays in sample to PIL images."""
+    def __call__(self, x):
+        to_pil = transforms.ToPILImage()
+        return to_pil(x)
+
 
 
 class GaussianNoise(object):
