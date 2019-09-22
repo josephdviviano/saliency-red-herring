@@ -20,31 +20,34 @@ shuffle: True
 dataset:
   train:
     XRayDataset:
-      d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/cohenjos/PC/images-224"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "train"
       seed: 1234
+      new_size: 128
   valid:
     XRayDataset:
-      d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/cohenjos/PC/images-224"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "valid"
       seed: 1234
+      new_size: 128
   test:
     XRayDataset:
-      d1data: "/lustre04/scratch/cohenjos/NIH/images-224"
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
       d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/cohenjos/PC/images-224"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
       d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "test"
       seed: 1234
+      new_size: 128
 
 # Optimizer
 optimizer:
@@ -53,8 +56,8 @@ optimizer:
 
 model:
   ResNetBig:
-    base_size: 61952
-    img_size: 112
+    base_size: 8192
+    img_size: 128
 
 transform:
         train: {}
