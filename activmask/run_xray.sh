@@ -3,7 +3,7 @@
 mkdir cluster_logs
 
 EXPERIMENTS="xray"
-SEEDS=(1234)
+SEEDS=(1234 3232 3221 9856 1290 1987 3200 6400 8888 0451)
 
 for seed in "${SEEDS[@]}"; do
     echo "SEED ${seed}:"
@@ -32,7 +32,7 @@ for seed in "${SEEDS[@]}"; do
 #SBATCH --ntasks=1
 #SBATCH --time=12:00:00
 #SBATCH --mem=8Gb
-#SBATCH --account=def-bengioy
+#SBATCH --account=rpp-bengioy
 #SBATCH --gres=gpu:v100:1
 
 hostname
