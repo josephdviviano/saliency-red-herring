@@ -1,29 +1,32 @@
 \begin{tabular}{lllll}
 \toprule
-{} & test\_auc\_synth & test\_auc\_livermsd & test\_auc\_cardiacmsd & test\_auc\_pancreasmsd \\
-experiment\_name  &                &                   &                     &                      \\
+{} & Synthetic Test AUC & Liver Test AUC & Heart Test AUC & Pancreas Test AUC \\
+Experiment Name  &                &                   &                     &                      \\
 \midrule
-ae               &  \$0.50\textbackslash pm0.00\$ &     \$0.78\textbackslash pm0.10\$ &       \$0.76\textbackslash pm0.17\$ &        \$0.77\textbackslash pm0.01\$ \\
-ae\_actdiff       &  \$0.78\textbackslash pm0.24\$ &     \$0.80\textbackslash pm0.02\$ &       \$0.84\textbackslash pm0.08\$ &        \$0.76\textbackslash pm0.02\$ \\
-ae\_actgrad       &  \$0.50\textbackslash pm0.00\$ &     \$0.82\textbackslash pm0.01\$ &       \$0.69\textbackslash pm0.17\$ &        \$0.78\textbackslash pm0.02\$ \\
-ae\_clfmasked     &  \$0.79\textbackslash pm0.11\$ &     \$0.59\textbackslash pm0.05\$ &       \$0.69\textbackslash pm0.10\$ &        \$0.51\textbackslash pm0.03\$ \\
-ae\_gradmask      &  \$0.52\textbackslash pm0.05\$ &     \$0.75\textbackslash pm0.09\$ &       \$0.89\textbackslash pm0.10\$ &        \$0.77\textbackslash pm0.02\$ \\
-ae\_reconmasked   &  \$0.50\textbackslash pm0.00\$ &     \$0.84\textbackslash pm0.02\$ &       \$0.82\textbackslash pm0.17\$ &        \$0.81\textbackslash pm0.02\$ \\
-cnn              &  \$0.35\textbackslash pm0.20\$ &     \$0.87\textbackslash pm0.02\$ &       \$0.86\textbackslash pm0.13\$ &        \$0.82\textbackslash pm0.02\$ \\
-cnn\_actdiff      &  \$0.50\textbackslash pm0.00\$ &     \$0.77\textbackslash pm0.12\$ &       \$0.60\textbackslash pm0.11\$ &        \$0.66\textbackslash pm0.12\$ \\
-cnn\_actgrad      &  \$0.50\textbackslash pm0.00\$ &     \$0.79\textbackslash pm0.10\$ &       \$0.50\textbackslash pm0.00\$ &        \$0.66\textbackslash pm0.05\$ \\
-cnn\_clfmasked    &  \$0.74\textbackslash pm0.11\$ &     \$0.57\textbackslash pm0.05\$ &       \$0.75\textbackslash pm0.07\$ &        \$0.50\textbackslash pm0.01\$ \\
-cnn\_gradmask     &  \$0.50\textbackslash pm0.00\$ &     \$0.85\textbackslash pm0.01\$ &       \$0.75\textbackslash pm0.20\$ &        \$0.82\textbackslash pm0.02\$ \\
-resnet           &  \$0.50\textbackslash pm0.00\$ &     \$0.86\textbackslash pm0.02\$ &       \$0.90\textbackslash pm0.03\$ &        \$0.81\textbackslash pm0.02\$ \\
-resnet\_actdiff   &  \$0.98\textbackslash pm0.01\$ &     \$0.86\textbackslash pm0.02\$ &       \$0.88\textbackslash pm0.03\$ &        \$0.81\textbackslash pm0.02\$ \\
-resnet\_actgrad   &  \$0.67\textbackslash pm0.04\$ &     \$0.87\textbackslash pm0.02\$ &       \$0.92\textbackslash pm0.03\$ &        \$0.84\textbackslash pm0.01\$ \\
-resnet\_clfmasked &  \$0.96\textbackslash pm0.03\$ &     \$0.61\textbackslash pm0.03\$ &       \$0.77\textbackslash pm0.08\$ &        \$0.57\textbackslash pm0.05\$ \\
-resnet\_gradmask  &  \$0.71\textbackslash pm0.05\$ &     \$0.89\textbackslash pm0.02\$ &       \$0.93\textbackslash pm0.01\$ &        \$0.82\textbackslash pm0.03\$ \\
-unet             &  \$0.50\textbackslash pm0.00\$ &     \$0.81\textbackslash pm0.07\$ &       \$0.83\textbackslash pm0.17\$ &        \$0.77\textbackslash pm0.09\$ \\
-unet\_actdiff     &  \$0.95\textbackslash pm0.12\$ &     \$0.82\textbackslash pm0.02\$ &       \$0.88\textbackslash pm0.03\$ &        \$0.78\textbackslash pm0.03\$ \\
-unet\_actgrad     &  \$0.63\textbackslash pm0.10\$ &     \$0.78\textbackslash pm0.04\$ &       \$0.78\textbackslash pm0.09\$ &        \$0.76\textbackslash pm0.02\$ \\
-unet\_clfmasked   &  \$0.74\textbackslash pm0.10\$ &     \$0.58\textbackslash pm0.09\$ &       \$0.56\textbackslash pm0.10\$ &        \$0.53\textbackslash pm0.05\$ \\
-unet\_gradmask    &  \$0.55\textbackslash pm0.07\$ &     \$0.81\textbackslash pm0.02\$ &       \$0.82\textbackslash pm0.13\$ &        \$0.79\textbackslash pm0.02\$ \\
-unet\_reconmasked &  \$0.50\textbackslash pm0.00\$ &     \$0.87\textbackslash pm0.01\$ &       \$0.75\textbackslash pm0.20\$ &        \$0.81\textbackslash pm0.03\$ \\
+CNN Classify              &  $0.35\pm0.20$ &     $0.87\pm0.02$ &       $0.86\pm0.13$ &        $0.82\pm0.02$ \\
+CNN Actdiff      &  $0.50\pm0.00$ &     $0.77\pm0.12$ &       $0.60\pm0.11$ &        $0.66\pm0.12$ \\
+CNN Gradmask     &  $0.50\pm0.00$ &     $0.85\pm0.01$ &       $0.75\pm0.20$ &        $0.82\pm0.02$ \\
+CNN Actdiff \& Gradmask      &  $0.50\pm0.00$ &     $0.79\pm0.10$ &       $0.50\pm0.00$ &        $0.66\pm0.05$ \\
+CNN Classify Masked          &  $0.74\pm0.11$ &     $0.57\pm0.05$ &       $0.75\pm0.07$ &        $0.50\pm0.01$ \\
+\midrule
+ResNet Classify   &  $0.50\pm0.00$ &     $0.86\pm0.02$ &       $0.90\pm0.03$ &        $0.81\pm0.02$ \\
+ResNet Actdiff    &  $0.98\pm0.01$ &     $0.86\pm0.02$ &       $0.88\pm0.03$ &        $0.81\pm0.02$ \\
+ResNet Gradmask  &  $0.71\pm0.05$ &     $0.89\pm0.02$ &       $0.93\pm0.01$ &        $0.82\pm0.03$ \\
+ResNet Actdiff \& Gradmask   &  $0.67\pm0.04$ &     $0.87\pm0.02$ &       $0.92\pm0.03$ &        $0.84\pm0.01$ \\
+ResNet Classify Masked       &  $0.96\pm0.03$ &     $0.61\pm0.03$ &       $0.77\pm0.08$ &        $0.57\pm0.05$ \\
+\midrule
+Conv AE Classify  &  $0.50\pm0.00$ &     $0.78\pm0.10$ &       $0.76\pm0.17$ &        $0.77\pm0.01$ \\
+Conv AE Actdiff   &  $0.78\pm0.24$ &     $0.80\pm0.02$ &       $0.84\pm0.08$ &        $0.76\pm0.02$ \\
+Conv AE Gradmask  &  $0.52\pm0.05$ &     $0.75\pm0.09$ &       $0.89\pm0.10$ &        $0.77\pm0.02$ \\
+Conv AE Actdiff \& Gradmask      &  $0.50\pm0.00$ &     $0.82\pm0.01$ &       $0.69\pm0.17$ &        $0.78\pm0.02$ \\
+Conv AE Classify Masked          &  $0.79\pm0.11$ &     $0.59\pm0.05$ &       $0.69\pm0.10$ &        $0.51\pm0.03$ \\
+Conv AE Reconstruct Masked       &  $0.50\pm0.00$ &     $0.84\pm0.02$ &       $0.82\pm0.17$ &        $0.81\pm0.02$ \\
+\midrule
+UNet Classify             &  $0.50\pm0.00$ &     $0.81\pm0.07$ &       $0.83\pm0.17$ &        $0.77\pm0.09$ \\
+UNet Actdiff     &  $0.95\pm0.12$ &     $0.82\pm0.02$ &       $0.88\pm0.03$ &        $0.78\pm0.03$ \\
+UNet Gradmask    &  $0.55\pm0.07$ &     $0.81\pm0.02$ &       $0.82\pm0.13$ &        $0.79\pm0.02$ \\
+UNet Actdiff \& Gradmask     &  $0.63\pm0.10$ &     $0.78\pm0.04$ &       $0.78\pm0.09$ &        $0.76\pm0.02$ \\
+UNet Classify Masked    &  $0.74\pm0.10$ &     $0.58\pm0.09$ &       $0.56\pm0.10$ &        $0.53\pm0.05$ \\
+UNet Reconstruct Masked &  $0.50\pm0.00$ &     $0.87\pm0.01$ &       $0.75\pm0.20$ &        $0.81\pm0.03$ \\
 \bottomrule
 \end{tabular}
