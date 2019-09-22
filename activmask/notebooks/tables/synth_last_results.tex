@@ -1,21 +1,29 @@
-\begin{tabular}{lrrrrrrrrr}
+\begin{tabular}{llll}
 \toprule
-{} &  train\_auc &  valid\_auc &  best\_epoch &  train\_auc\_std &  valid\_auc\_std &  best\_epoch\_std &  train\_auc\_count &  valid\_auc\_count &  best\_epoch\_count \\
-experiment\_name        &            &            &             &                &                &                 &                  &                  &                   \\
+{} &        train\_auc &        valid\_auc &           best\_epoch \\
+experiment\_name        &                  &                  &                      \\
 \midrule
-synth\_ae               &     1.0000 &   0.056250 &         0.0 &       0.000000 &       0.030769 &        0.000000 &               10 &               10 &                10 \\
-synth\_ae\_actdiff       &     0.8500 &   0.846875 &       151.5 &       0.241523 &       0.239419 &      147.292792 &               10 &               10 &                10 \\
-synth\_ae\_clfmasked     &     0.9998 &   0.523438 &        73.0 &       0.000632 &       0.007366 &       95.878395 &               10 &               10 &                10 \\
-synth\_ae\_reconmasked   &     1.0000 &   0.069531 &         0.0 &       0.000000 &       0.044569 &        0.000000 &               10 &               10 &                10 \\
-synth\_cnn              &     1.0000 &   0.004687 &         0.0 &       0.000000 &       0.007548 &        0.000000 &               10 &               10 &                10 \\
-synth\_cnn\_actdiff      &     0.5000 &   0.500000 &         7.3 &       0.000000 &       0.000000 &       23.084627 &               10 &               10 &                10 \\
-synth\_cnn\_clfmasked    &     1.0000 &   0.541406 &         8.3 &       0.000000 &       0.012242 &        2.668749 &               10 &               10 &                10 \\
-synth\_resnet           &     1.0000 &   0.000000 &         0.0 &       0.000000 &       0.000000 &        0.000000 &               10 &               10 &                10 \\
-synth\_resnet\_actdiff   &     1.0000 &   0.997656 &       181.1 &       0.000000 &       0.005273 &      137.526119 &               10 &               10 &                10 \\
-synth\_resnet\_clfmasked &     0.9998 &   0.575781 &        40.3 &       0.000632 &       0.066806 &      107.182140 &               10 &               10 &                10 \\
-synth\_unet             &     1.0000 &   0.039844 &         0.0 &       0.000000 &       0.036911 &        0.000000 &               10 &               10 &                10 \\
-synth\_unet\_actdiff     &     1.0000 &   0.996875 &        63.1 &       0.000000 &       0.005463 &       20.706682 &               10 &               10 &                10 \\
-synth\_unet\_clfmasked   &     1.0000 &   0.528906 &        92.2 &       0.000000 &       0.010449 &      152.371476 &               10 &               10 &                10 \\
-synth\_unet\_reconmasked &     1.0000 &   0.021094 &         1.6 &       0.000000 &       0.014754 &        5.059644 &               10 &               10 &                10 \\
+synth\_ae               &  \$1.000\textbackslash pm0.000\$ &  \$0.056\textbackslash pm0.033\$ &      \$0.000\textbackslash pm0.000\$ \\
+synth\_ae\_actdiff       &  \$0.800\textbackslash pm0.258\$ &  \$0.798\textbackslash pm0.256\$ &  \$140.100\textbackslash pm156.843\$ \\
+synth\_ae\_actgrad       &  \$0.500\textbackslash pm0.000\$ &  \$0.500\textbackslash pm0.000\$ &      \$0.000\textbackslash pm0.000\$ \\
+synth\_ae\_clfmasked     &  \$1.000\textbackslash pm0.000\$ &  \$0.529\textbackslash pm0.012\$ &  \$127.000\textbackslash pm132.237\$ \\
+synth\_ae\_gradmask      &  \$0.500\textbackslash pm0.000\$ &  \$0.500\textbackslash pm0.000\$ &   \$44.700\textbackslash pm102.680\$ \\
+synth\_ae\_reconmasked   &  \$1.000\textbackslash pm0.000\$ &  \$0.056\textbackslash pm0.047\$ &      \$0.000\textbackslash pm0.000\$ \\
+synth\_cnn              &  \$1.000\textbackslash pm0.000\$ &  \$0.004\textbackslash pm0.008\$ &   \$38.100\textbackslash pm120.132\$ \\
+synth\_cnn\_actdiff      &  \$0.500\textbackslash pm0.000\$ &  \$0.500\textbackslash pm0.000\$ &     \$7.300\textbackslash pm23.085\$ \\
+synth\_cnn\_actgrad      &  \$0.500\textbackslash pm0.000\$ &  \$0.500\textbackslash pm0.000\$ &      \$0.000\textbackslash pm0.000\$ \\
+synth\_cnn\_clfmasked    &  \$1.000\textbackslash pm0.000\$ &  \$0.548\textbackslash pm0.017\$ &     \$14.100\textbackslash pm7.355\$ \\
+synth\_cnn\_gradmask     &  \$0.500\textbackslash pm0.000\$ &  \$0.500\textbackslash pm0.000\$ &      \$0.000\textbackslash pm0.000\$ \\
+synth\_resnet           &  \$1.000\textbackslash pm0.000\$ &  \$0.000\textbackslash pm0.000\$ &      \$0.000\textbackslash pm0.000\$ \\
+synth\_resnet\_actdiff   &  \$1.000\textbackslash pm0.000\$ &  \$0.995\textbackslash pm0.007\$ &  \$147.600\textbackslash pm148.586\$ \\
+synth\_resnet\_actgrad   &  \$0.528\textbackslash pm0.035\$ &  \$0.520\textbackslash pm0.034\$ &  \$143.600\textbackslash pm190.568\$ \\
+synth\_resnet\_clfmasked &  \$1.000\textbackslash pm0.000\$ &  \$0.728\textbackslash pm0.205\$ &  \$169.800\textbackslash pm178.952\$ \\
+synth\_resnet\_gradmask  &  \$0.546\textbackslash pm0.061\$ &  \$0.542\textbackslash pm0.073\$ &  \$243.100\textbackslash pm218.661\$ \\
+synth\_unet             &  \$1.000\textbackslash pm0.000\$ &  \$0.053\textbackslash pm0.022\$ &      \$0.000\textbackslash pm0.000\$ \\
+synth\_unet\_actdiff     &  \$1.000\textbackslash pm0.000\$ &  \$0.899\textbackslash pm0.313\$ &    \$43.500\textbackslash pm30.060\$ \\
+synth\_unet\_actgrad     &  \$0.634\textbackslash pm0.136\$ &  \$0.599\textbackslash pm0.094\$ &  \$348.000\textbackslash pm160.692\$ \\
+synth\_unet\_clfmasked   &  \$1.000\textbackslash pm0.000\$ &  \$0.535\textbackslash pm0.038\$ &    \$51.400\textbackslash pm96.288\$ \\
+synth\_unet\_gradmask    &  \$0.500\textbackslash pm0.000\$ &  \$0.500\textbackslash pm0.000\$ &  \$107.100\textbackslash pm142.434\$ \\
+synth\_unet\_reconmasked &  \$1.000\textbackslash pm0.000\$ &  \$0.008\textbackslash pm0.012\$ &      \$0.000\textbackslash pm0.000\$ \\
 \bottomrule
 \end{tabular}

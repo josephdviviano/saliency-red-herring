@@ -1,21 +1,29 @@
-\begin{tabular}{lrrrrrrrr}
+\begin{tabular}{llll}
 \toprule
-{} &  test\_auc\_synth &  test\_auc\_std\_synth &  test\_auc\_livermsd &  test\_auc\_std\_livermsd &  test\_auc\_cardiacmsd &  test\_auc\_std\_cardiacmsd &  test\_auc\_pancreasmsd &  test\_auc\_std\_pancreasmsd \\
-experiment\_name  &                 &                     &                    &                        &                      &                          &                       &                           \\
+{} & test\_auc\_livermsd & test\_auc\_cardiacmsd & test\_auc\_pancreasmsd \\
+experiment\_name  &                   &                     &                      \\
 \midrule
-ae               &        0.500000 &            0.000000 &           0.788281 &               0.103248 &             0.861719 &                 0.129007 &              0.759375 &                  0.022718 \\
-ae\_actdiff       &        0.829688 &            0.227766 &           0.813672 &               0.016781 &             0.890234 &                 0.033117 &              0.759375 &                  0.028717 \\
-ae\_clfmasked     &        0.720313 &            0.081173 &           0.513672 &               0.033716 &             0.710547 &                 0.104758 &              0.529687 &                  0.047636 \\
-ae\_reconmasked   &        0.500000 &            0.000000 &           0.815625 &               0.030692 &             0.843750 &                 0.166218 &              0.759375 &                  0.038984 \\
-cnn              &        0.500000 &            0.000000 &           0.859766 &               0.019352 &             0.911719 &                 0.028360 &              0.811328 &                  0.012360 \\
-cnn\_actdiff      &        0.500000 &            0.000000 &           0.515234 &               0.042570 &             0.520312 &                 0.062873 &              0.514453 &                  0.032736 \\
-cnn\_clfmasked    &        0.687500 &            0.015625 &           0.500000 &               0.000000 &             0.511719 &                 0.030813 &              0.500000 &                  0.000000 \\
-resnet           &        0.500000 &            0.000000 &           0.846094 &               0.014168 &             0.903516 &                 0.018047 &              0.804297 &                  0.017705 \\
-resnet\_actdiff   &        0.973437 &            0.005463 &           0.872266 &               0.022178 &             0.903125 &                 0.030525 &              0.743750 &                  0.029474 \\
-resnet\_clfmasked &        0.917969 &            0.054158 &           0.513281 &               0.028060 &             0.792578 &                 0.080064 &              0.500000 &                  0.000000 \\
-unet             &        0.500000 &            0.000000 &           0.842578 &               0.007823 &             0.926172 &                 0.022055 &              0.742578 &                  0.114234 \\
-unet\_actdiff     &        0.982812 &            0.008869 &           0.836719 &               0.040124 &             0.879297 &                 0.046455 &              0.803906 &                  0.014240 \\
-unet\_clfmasked   &        0.739844 &            0.077081 &           0.513281 &               0.036838 &             0.637109 &                 0.119812 &              0.500000 &                  0.000000 \\
-unet\_reconmasked &        0.503125 &            0.009882 &           0.803125 &               0.029301 &             0.900781 &                 0.036699 &              0.754687 &                  0.035267 \\
+ae               &   \$0.779\textbackslash pm0.100\$ &     \$0.755\textbackslash pm0.172\$ &      \$0.766\textbackslash pm0.013\$ \\
+ae\_actdiff       &   \$0.803\textbackslash pm0.022\$ &     \$0.835\textbackslash pm0.082\$ &      \$0.761\textbackslash pm0.021\$ \\
+ae\_actgrad       &   \$0.817\textbackslash pm0.013\$ &     \$0.688\textbackslash pm0.174\$ &      \$0.783\textbackslash pm0.017\$ \\
+ae\_clfmasked     &   \$0.594\textbackslash pm0.053\$ &     \$0.691\textbackslash pm0.096\$ &      \$0.511\textbackslash pm0.026\$ \\
+ae\_gradmask      &   \$0.751\textbackslash pm0.090\$ &     \$0.887\textbackslash pm0.096\$ &      \$0.774\textbackslash pm0.023\$ \\
+ae\_reconmasked   &   \$0.844\textbackslash pm0.023\$ &     \$0.820\textbackslash pm0.171\$ &      \$0.811\textbackslash pm0.022\$ \\
+cnn              &   \$0.868\textbackslash pm0.015\$ &     \$0.861\textbackslash pm0.131\$ &      \$0.816\textbackslash pm0.017\$ \\
+cnn\_actdiff      &   \$0.774\textbackslash pm0.119\$ &     \$0.605\textbackslash pm0.110\$ &      \$0.659\textbackslash pm0.122\$ \\
+cnn\_actgrad      &   \$0.789\textbackslash pm0.098\$ &     \$0.500\textbackslash pm0.000\$ &      \$0.656\textbackslash pm0.048\$ \\
+cnn\_clfmasked    &   \$0.568\textbackslash pm0.054\$ &     \$0.750\textbackslash pm0.067\$ &      \$0.496\textbackslash pm0.012\$ \\
+cnn\_gradmask     &   \$0.848\textbackslash pm0.014\$ &     \$0.747\textbackslash pm0.202\$ &      \$0.819\textbackslash pm0.021\$ \\
+resnet           &   \$0.861\textbackslash pm0.019\$ &     \$0.901\textbackslash pm0.025\$ &      \$0.811\textbackslash pm0.018\$ \\
+resnet\_actdiff   &   \$0.855\textbackslash pm0.016\$ &     \$0.884\textbackslash pm0.026\$ &      \$0.805\textbackslash pm0.018\$ \\
+resnet\_actgrad   &   \$0.867\textbackslash pm0.018\$ &     \$0.916\textbackslash pm0.029\$ &      \$0.838\textbackslash pm0.008\$ \\
+resnet\_clfmasked &   \$0.612\textbackslash pm0.030\$ &     \$0.770\textbackslash pm0.085\$ &      \$0.567\textbackslash pm0.050\$ \\
+resnet\_gradmask  &   \$0.889\textbackslash pm0.024\$ &     \$0.931\textbackslash pm0.006\$ &      \$0.819\textbackslash pm0.027\$ \\
+unet             &   \$0.811\textbackslash pm0.078\$ &     \$0.829\textbackslash pm0.167\$ &      \$0.769\textbackslash pm0.089\$ \\
+unet\_actdiff     &   \$0.820\textbackslash pm0.024\$ &     \$0.880\textbackslash pm0.033\$ &      \$0.782\textbackslash pm0.030\$ \\
+unet\_actgrad     &   \$0.783\textbackslash pm0.041\$ &     \$0.782\textbackslash pm0.091\$ &      \$0.762\textbackslash pm0.016\$ \\
+unet\_clfmasked   &   \$0.583\textbackslash pm0.087\$ &     \$0.559\textbackslash pm0.096\$ &      \$0.528\textbackslash pm0.048\$ \\
+unet\_gradmask    &   \$0.805\textbackslash pm0.021\$ &     \$0.821\textbackslash pm0.126\$ &      \$0.795\textbackslash pm0.024\$ \\
+unet\_reconmasked &   \$0.873\textbackslash pm0.012\$ &     \$0.749\textbackslash pm0.197\$ &      \$0.814\textbackslash pm0.027\$ \\
 \bottomrule
 \end{tabular}
