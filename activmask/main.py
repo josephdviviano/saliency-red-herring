@@ -24,7 +24,7 @@ def run():
 @click.option('-maxmasks_train', type=float, default=1, help='maxmasks_train')
 @click.option('-num_epochs', type=int, help='num_epochs')
 @click.option('-viz', type=bool, default=False, help='plot images')
-@click.option('-lr', type=float, default=False, help='learning rate')
+@click.option('-lr', type=float, help='learning rate')
 def train(config, seed, nsamples_train, num_epochs, new_size,
           maxmasks_train, viz, lr):
 
@@ -46,6 +46,12 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
     # maxmasks is always set.
     dataset[list(dataset.keys())[0]]["maxmasks"] = maxmasks_train
     cfg["maxmasks_train"] = maxmasks_train
+
+    try:
+        new_size = cfg["model"][list(cfg["model"].keys())[0]]["img_size"]
+        print("size taken from config: {}".format(new_size))
+    except:
+        pass
 
     if not new_size is None:
         # new_size passed in from the command line

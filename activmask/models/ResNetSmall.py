@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import utils.register as register
+import torchvision
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -73,25 +74,28 @@ class Bottleneck(nn.Module):
 
         out = self.bn1(self.conv1(x))
         all_activations.append(out)
-        out = nn.activation(out)
+        out = self.activation(out)
 
         out = self.bn2(self.conv2(out))
         all_activations.append(out)
-        out = nn.activation(out)
+        out = self.activation(out)
 
         out = self.bn3(self.conv3(out))
         out += self.shortcut(x)
         all_activations.append(out)
-        out = nn.activation(out)
+        out = self.activation(out)
         return (out, all_activations)
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=2, base_size=512):
+    def __init__(self, block, num_blocks, num_classes=2, base_size=512,
+                 avg_pool_size=4, avg_pool_stride=1):
         super(ResNet, self).__init__()
         self.in_planes = 64
         self.all_activations = []
         self.activation = nn.ReLU()
+        self.avg_pool_size = avg_pool_size
+        self.avg_pool_stride = avg_pool_stride
 
         self.conv1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -136,25 +140,26 @@ class ResNet(nn.Module):
         out, activations = self._run_layers(self.layer4, out)
         self.all_activations.extend(activations)
 
+        #out = F.avg_pool2d(out, self.avg_pool_size, self.avg_pool_stride)
         out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
 
 
-def ResNet18(base_size=512):
+def ResNet18(base_size=512, avg_pool_size=4):
     return ResNet(BasicBlock, [2,2,2,2], base_size=base_size)
 
-def ResNet34(base_size=512):
+def ResNet34(base_size=512, avg_pool_size=4):
     return ResNet(BasicBlock, [3,4,6,3], base_size=base_size)
 
-def ResNet50(base_size=512):
-    return ResNet(Bottleneck, [3,4,6,3], base_size=base_size)
+def ResNet50(base_size=512, avg_pool_size=4, avg_pool_stride=1):
+    return ResNet(Bottleneck, [3,4,6,3], base_size=base_size, avg_pool_size=avg_pool_size, avg_pool_stride=avg_pool_stride)
 
-def ResNet101(base_size=512):
+def ResNet101(base_size=512, avg_pool_size=4):
     return ResNet(Bottleneck, [3,4,23,3], base_size=base_size)
 
-def ResNet152(base_size=512):
+def ResNet152(base_size=512, avg_pool_size=4):
     return ResNet(Bottleneck, [3,8,36,3], base_size=base_size)
 
 
@@ -169,7 +174,7 @@ class ResNetSmall(nn.Module):
 
     def __init__(self, img_size=1, base_size=512):
         super(ResNetSmall, self).__init__()
-        self.model = ResNet18(base_size=base_size)
+        self.model = ResNet18(base_size=base_size, avg_pool_size=4)
         self.all_activations = []
 
     def forward(self, x):
@@ -178,4 +183,30 @@ class ResNetSmall(nn.Module):
         return out, None
 
 
+@register.setmodelname("ResNetBig")
+class ResNetBig(nn.Module):
 
+    def __init__(self, img_size=1, base_size=512):
+        super(ResNetBig, self).__init__()
+        self.model = ResNet34(base_size=base_size, avg_pool_size=4)
+        self.all_activations = []
+
+    def forward(self, x):
+        out = self.model(x)
+        self.all_activations = self.model.all_activations
+        return out, None
+
+
+@register.setmodelname("ResNetVision")
+class ResNetVision(nn.Module):
+
+    def __init__(self, img_size=1, base_size=512):
+        super(ResNetVision, self).__init__()
+        self.model = torchvision.models.resnet34(num_classes=2)
+        self.all_activations = []
+
+    def forward(self, x):
+        x = x.repeat(1, 3, 1, 1)
+        out = self.model(x)
+        #self.all_activations = self.model.all_activations
+        return out, None

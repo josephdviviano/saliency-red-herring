@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import utils.configuration as configuration
 import utils.monitoring as monitoring
+import gc
 
 # Fix backend so one can generate plots without Display set.
 import matplotlib
@@ -94,7 +95,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     criterion = torch.nn.CrossEntropyLoss()
 
     # Stats for the table.
-    best_epoch, best_train_auc, best_valid_auc, best_test_auc = 0, 0, 0, 0
+    best_epoch, best_train_auc, best_valid_auc, best_test_auc = -1, -1, -1, -1
     metrics = []
     auc_valid = 0
 
@@ -108,12 +109,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     print("CUDA: ", cuda)
     for epoch in range(num_epochs):
 
-        if cfg['viz']:
-            render_img("train", epoch, img_viz_train, model, exp_name, cuda)
-            render_img("valid", epoch, img_viz_valid, model, exp_name, cuda)
-
         # scheduler.step(auc_valid)
-
         avg_loss = train_epoch(epoch=epoch,
                                model=model,
                                device=device,
@@ -177,11 +173,10 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
                     'dataset_test': dataset_test}
 
     # Render gradients from the best model.
-    if cfg['viz']:
-        render_img(
-            "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
-        render_img(
-            "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
+    render_img(
+        "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
+    render_img(
+        "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
 
     # Write best model to disk.
     output_dir = os.path.join('checkpoints', exp_name)
@@ -192,6 +187,11 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
     output_name = "best_model_{}_{}.pth.tar".format(
         cfg['seed'], cfg['maxmasks_train'])
     torch.save(best_model, os.path.join(output_dir, output_name))
+
+    # Save latest model as well.
+    output_name = "latest_model_{}_{}.pth.tar".format(
+        cfg['seed'], cfg['maxmasks_train'])
+    torch.save(model, os.path.join(output_dir, output_name))
 
     return (best_valid_auc, best_test_auc, metrics, results_dict)
 
@@ -228,7 +228,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         # NB: If no mask for an image, the entire image should start out masked.
         #     The seg will be inverted to be all 0, and therefore the actdiff
         #     and gradmask loss will not be applied.
-        seg = torch.abs(seg-1).byte()
+        seg = torch.abs(seg-1).type(torch.BoolTensor).to(device)
 
         # Mask the data by shuffling pixels outside of the mask.
         if actdiff_lambda > 0 or recon_masked:
@@ -293,11 +293,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
         # Gradmask loss: Get all gradients, and mask them for the target class.
         if gradmask_lambda > 0:
             input_grads = get_gradmask_loss(X, y_pred, model, target)
-
-            # Used to apply gradmask only to the positive class.
-            #input_grads *= target.float().reshape(-1, 1, 1, 1)
-
-            input_grads *= seg.float()
+            input_grads = input_grads * seg.float()
             gradmask_loss = input_grads.abs().sum() * gradmask_lambda
         else:
             gradmask_loss = torch.zeros(1).to(device)
@@ -329,6 +325,7 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
 
         loss.backward()
         optimizer.step()
+        gc.collect()
 
     return np.mean(avg_loss)
 
@@ -519,19 +516,5 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
 
     print("{}: **Final best valid/test AUC**: {}/{}".format(
         i, best_valid_auc, best_test_auc))
-
-    # Saving the skopt results.
-    try:
-        import mlflow
-        import mlflow.sklearn
-        # mlflow.sklearn.log_model(opt_results, 'skopt')
-        dimensions = list(skopt_args.keys())
-        auto_ipynb.to_ipynb(
-            auto_ipynb.plot_optimizer, True,
-            run_uuid=mlflow.active_run()._info.run_uuid,
-            dimensions=dimensions, path='skopt')
-    except:
-        print('mlflow unavailable!')
-        pass
 
     return best_metrics
