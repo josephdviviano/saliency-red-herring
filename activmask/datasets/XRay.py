@@ -23,6 +23,7 @@ import utils.register as register
 def normalize(sample, maxval):
     """Scales images to be roughly [-1024 1024]."""
     sample = (2 * (sample.astype(np.float32) / maxval) - 1.) * 1024
+    #sample = sample / np.std(sample)
     return sample
 
 
@@ -30,15 +31,17 @@ def normalize(sample, maxval):
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
                  seed=0, transform=None, nsamples=None, maxmasks=None,
-                 new_size=None):
+                 new_size=None, mask_all=False):
 
         splits = np.array([0.5,0.25,0.25])
         assert mode in ['train', 'valid', 'test']
         assert np.sum(splits) == 1.0
+        assert mask_all in [True, False]
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
 
-
+        self.mask_all = mask_all
+        self.new_size = new_size
         self.dataset1 = NIHXrayDataset(d1data, d1csv, seed=seed)
         self.dataset2 = PCXRayDataset(d2data, d2csv, seed=seed)
 
@@ -129,12 +132,13 @@ class JointDataset():
         self.masks_selector = np.ones(len(self.site))
 
         # Image Resizing.
-        FINAL_SIZE = (112, 112)
+        self.convert = XRayConverter()
+        FINAL_SIZE = (self.new_size, self.new_size)
         self.resize = XRayResizer(FINAL_SIZE)
 
         # Mask
         rr, cc = skimage.draw.ellipse(FINAL_SIZE[0]//2, FINAL_SIZE[1]//2,
-                                      FINAL_SIZE[0]/2.5, FINAL_SIZE[1]/4)
+                                      FINAL_SIZE[0]/2.5, FINAL_SIZE[1]/2.5)
         self.seg = np.zeros(FINAL_SIZE)
         self.seg[rr, cc] = 1
 
@@ -153,9 +157,21 @@ class JointDataset():
         seg = self.seg[None, :, :]
 
         # Convert to properly-sized tensors
-        img = self.resize(img)
-        img = TF.to_tensor(img)
-        seg = TF.to_tensor(seg).permute([1, 0, 2])
+        img = self.convert(img[0, :, :])
+
+        # Enforces that the image is a square.
+        if self.new_size != img.width == img.height:
+            img = self.resize(img)
+
+        # Enforce datatype
+        img = TF.to_tensor(img).float()
+        seg = TF.to_tensor(seg).permute([1, 0, 2]).float()
+
+        if self.mask_all:
+            try:
+                img *= seg
+            except:
+                import IPython; IPython.embed()
 
         return (img, seg), self.labels[idx], self.masks_selector[idx]
 
@@ -182,7 +198,7 @@ class NIHXrayDataset():
             self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
 
         # Get our two classes.
-        idx_sick = self.csv["Finding Labels"].str.contains("Cardiomegaly")
+        idx_sick = self.csv["Finding Labels"].str.contains("Emphysema")
         idx_heal = self.csv["Finding Labels"].str.contains("No Finding")
 
         # Exposed for our dataloader wrapper.
@@ -241,7 +257,7 @@ class PCXRayDataset():
         self.csv = self.csv[idx_pa]
 
         # Our two classes.
-        idx_sick = self.csv['Labels'].str.contains('cardiomegaly')
+        idx_sick = self.csv['Labels'].str.contains('emphysema')
         idx_sick[idx_sick.isnull()] = False
         idx_heal = self.csv['Labels'].str.contains('normal')
         idx_heal[idx_heal.isnull()] = False
@@ -276,27 +292,20 @@ class PCXRayDataset():
         return img, seg, label
 
 
-class ToTensor(object):
-    """
-    Convert ndarrays in sample to Tensors.
-    """
-    def __call__(self, sample):
-        to_tensor = transforms.ToTensor()
-        sample['PA'] = to_tensor(sample['PA'])
-        sample['L'] = to_tensor(sample['L'])
+class XRayConverter(object):
+    def __init__(self):
+        self.to_pil = transforms.ToPILImage(mode="F")
 
-        return sample
+    def __call__(self, x):
+        return(self.to_pil(x))
 
 
 class XRayResizer(object):
     def __init__(self, size):
-        self.to_pil = transforms.ToPILImage(mode="F")
         self.resizer = transforms.Resize(size)
 
     def __call__(self, x):
-        x = self.to_pil(x[0, :, :])
-        x = self.resizer(x)
-        return(x)
+        return(self.resizer(x))
 
 
 class ToPILImage(object):
