@@ -1,6 +1,8 @@
 from PIL import Image
 from os.path import join
 from skimage.io import imread, imsave
+import skimage, skimage.transform
+from skimage.morphology import square
 from torch import nn
 from torch.nn.modules.linear import Linear
 from torch.utils.data import Dataset
