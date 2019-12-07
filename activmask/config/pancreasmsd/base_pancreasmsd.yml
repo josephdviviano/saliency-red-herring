@@ -8,11 +8,11 @@ recon_continuous: True
 gradmask_lambda: 0
 
 # Training
-num_epochs: 500
+num_epochs: 100
 schedule_steps: 10
 
 # DataLoader
-batch_size: 32
+batch_size: 128
 shuffle: True
 
 # Dataset
@@ -20,7 +20,7 @@ dataset:
   train:
     PancreasMSDDataset:
       mode: 'train'
-      blur: 16
+      blur: 4
       nsamples: 128
   valid:
     PancreasMSDDataset:
@@ -30,11 +30,6 @@ dataset:
     PancreasMSDDataset:
       mode: 'test'
       nsamples: 256
-
-# Optimizer
-optimizer:
-  Adam:
-    lr: 0.0001
 
 transform:
         train: {}

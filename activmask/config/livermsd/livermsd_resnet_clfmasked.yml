@@ -15,3 +15,7 @@ dataset:
     LiverMSDDataset:
         mask_all: True
 
+# Optimizer
+optimizer:
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"

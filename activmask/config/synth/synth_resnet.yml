@@ -8,3 +8,9 @@ actdiff_lambda: 0
 model:
   ResNetSmall:
     img_size: 28
+
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"

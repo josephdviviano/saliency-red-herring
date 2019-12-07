@@ -10,3 +10,7 @@ model:
     base_size: 4608
     img_size: 100
 
+# Optimizer
+optimizer:
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"

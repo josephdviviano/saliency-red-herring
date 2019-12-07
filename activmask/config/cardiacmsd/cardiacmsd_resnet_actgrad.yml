@@ -2,8 +2,8 @@
 base: "base_cardiacmsd.yml"
 bre_lambda: 0
 recon_lambda: 0
-actdiff_lambda: 1
-gradmask_lambda: 1
+actdiff_lambda: "Real(10**-4, 10**-1, 'log-uniform')"
+gradmask_lambda: "Real(10**-4, 10**-1, 'log-uniform')"
 
 # Model
 model:
@@ -11,3 +11,7 @@ model:
     base_size: 4608
     img_size: 100
 
+# Optimizer
+optimizer:
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
