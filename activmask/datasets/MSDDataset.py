@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 import os, os.path
 import skimage, skimage.transform
+from skimage.morphology import square
 from skimage.io import imread, imsave
 from PIL import Image
 import skimage.filters
@@ -224,8 +225,7 @@ class MSDDataset(Dataset):
 
         # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (seg.max() != 0):
-            seg = skimage.filters.gaussian(seg, self.blur)
-            seg = seg / seg.max()
+            seg = skimage.morphology.dilation(seg, selem=square(self.blur))
 
         seg = (seg > 0) * 1.
         seg = Image.fromarray(seg)
