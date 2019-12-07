@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+
 def compare_activations(act_a, act_b):
     """
     Calculates the mean l2 norm between the lists of activations

@@ -85,9 +85,7 @@ def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
 
     model = configuration.setup_model(cfg).to(device)
     print(model)
-    # TODO: checkpointing
 
-    # Optimizer
     optim = configuration.setup_optimizer(cfg)(model.parameters())
     scheduler = ReduceLROnPlateau(optim, mode='max')
     print(optim)
