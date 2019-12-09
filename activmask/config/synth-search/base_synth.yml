@@ -13,7 +13,7 @@ num_epochs: 100
 schedule_steps: 10
 
 # DataLoader
-batch_size: 128
+batch_size: 32
 shuffle: True
 
 # Dataset
