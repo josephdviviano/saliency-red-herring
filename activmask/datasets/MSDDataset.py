@@ -245,29 +245,29 @@ class MSDDataset(Dataset):
 @register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task06_Lung/', **kwargs)
 
 @register.setdatasetname("ColonMSDDataset")
 class ColonMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task10_Colon/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task10_Colon/', **kwargs)
 
 @register.setdatasetname("LiverMSDDataset")
 class LiverMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task03_Liver/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task03_Liver/', **kwargs)
 
 @register.setdatasetname("PancreasMSDDataset")
 class PancreasMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task07_Pancreas/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task07_Pancreas/', **kwargs)
 
 @register.setdatasetname("ProstateMSDDataset")
 class ProstateMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task05_Prostate/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task05_Prostate/', **kwargs)
 
 @register.setdatasetname("HeartMSDDataset")
 class HeartMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task02_Heart/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task02_Heart/', **kwargs)
