@@ -19,6 +19,7 @@ dataset:
   train:
     LiverMSDDataset:
       mode: 'train'
+      blur: 'Integer(10, 40)'
       nsamples: 128
   valid:
     LiverMSDDataset:
@@ -28,6 +29,11 @@ dataset:
     LiverMSDDataset:
       mode: 'test'
       nsamples: 256
+
+model:
+  ResNetSmall:
+    base_size: 4608
+    img_size: 100
 
 transform:
         train: {}
