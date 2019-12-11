@@ -10,7 +10,12 @@ model:
     base_size: 4608
     img_size: 100
 
+dataset:
+  train:
+    HeartMSDDataset:
+      blur: "Int(10, 40)"
+
 # Optimizer
 optimizer:
   Adam:
-    lr: "Real(10**-4, 10**-2, 'log-uniform')"
+    lr: "Real(10**-5, 10**-2, 'log-uniform')"

@@ -1,6 +1,5 @@
 # General
 cuda: True
-n_iter: 30
 nsamples_train: 500
 maxmasks_train: 256
 #new_size: &new_size 28
@@ -57,7 +56,7 @@ optimizer:
 
 model:
   ResNetSmall:
-    base_size: 8192
+    base_size: 4608
     img_size: 128
 
 transform:

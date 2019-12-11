@@ -1,6 +1,5 @@
 # General
 cuda: True
-n_iter: 30
 nsamples_train: 500
 maxmasks_train: 256
 new_size: &new_size 28
@@ -21,7 +20,7 @@ dataset:
   train:
     SyntheticDataset:
       mode: 'distractor1'
-      blur: 2
+      blur: 7
       nsamples: 500
       new_size: *new_size
       dataroot: &dataroot './data/synth2/'
@@ -29,7 +28,7 @@ dataset:
   valid:
     SyntheticDataset:
       mode: 'distractor2'
-      blur: 2
+      blur: 7
       nsamples: 128
       new_size: *new_size
       dataroot: *dataroot
@@ -37,7 +36,7 @@ dataset:
   test:
     SyntheticDataset:
       mode: 'distractor3'
-      blur: 2
+      blur: 7
       nsamples: 128
       new_size: *new_size
       dataroot: *dataroot

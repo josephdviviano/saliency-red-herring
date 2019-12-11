@@ -10,7 +10,13 @@ model:
     base_size: 4608
     img_size: 100
 
+dataset:
+  train:
+    PancreasMSDDataset:
+      blur: "Int(10, 40)"
+      mask_all: True
+
 # Optimizer
 optimizer:
   Adam:
-    lr: "Real(10**-4, 10**-2, 'log-uniform')"
+    lr: "Real(10**-5, 10**-2, 'log-uniform')"

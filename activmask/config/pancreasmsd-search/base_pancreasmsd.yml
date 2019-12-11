@@ -1,6 +1,5 @@
 # General
 cuda: True
-n_iter: 30
 nsamples_train: 128
 maxmasks_train: 256
 recon_masked: False
@@ -20,7 +19,6 @@ dataset:
   train:
     PancreasMSDDataset:
       mode: 'train'
-      blur: 4
       nsamples: 128
   valid:
     PancreasMSDDataset:
