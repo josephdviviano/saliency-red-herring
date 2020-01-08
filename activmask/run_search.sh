@@ -2,9 +2,10 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="synth livermsd cardiacmsd pancreasmsd xray"
+EXPERIMENTS="synth-search livermsd-search cardiacmsd-search pancreasmsd-search xray-search"
 SEEDS=(1234)
 #SEEDS=(3232 3221 9856 1290 1987 3200 6400 8888 0451)
+N_ITER=20
 
 for seed in "${SEEDS[@]}"; do
     echo "SEED ${seed}:"
@@ -32,7 +33,7 @@ for seed in "${SEEDS[@]}"; do
 #SBATCH --output=cluster_logs/${filename}_out.txt
 #SBATCH --error=cluster_logs/${filename}_err.txt
 #SBATCH --ntasks=1
-#SBATCH --time=24:00:00
+#SBATCH --time=168:00:00
 #SBATCH --mem=8Gb
 #SBATCH --account=rpp-bengioy
 #SBATCH --gres=gpu:v100:1
@@ -40,7 +41,7 @@ for seed in "${SEEDS[@]}"; do
 hostname
 export LANG=C.UTF-8
 source $HOME/.bashrc
-python -u main.py train --config ${file} -seed=${seed} -viz=${viz}
+python -u main.py train-skopt --config ${file} -seed=${seed} -viz=${viz} --n_iter=${N_ITER}
 EOF
 
         # Only run jobs that don't already have an output log.
