@@ -118,12 +118,12 @@ def train(config, seed, nsamples_train, num_epochs, new_size,
               help='Configuration file.')
 @click.option('-seed', type=int, help='Seed for split and model')
 @click.option('-nsamples_train', type=int, help='nsamples_train')
-@click.option('--n_iter', type=int, default=10, help='Configuration file.')
+@click.option('--n_iter', type=int, default=30, help='Configuration file.')
 @click.option('--base_estimator',
               type=click.Choice(["GP", "RF", "ET", "GBRT"]),
               default="GP", help='Estimator.')
 @click.option('--n_initial_points',
-              type=int, default=5,
+              type=int, default=10,
               help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
 @click.option('--train_function',
               type=str, default="train",
@@ -241,4 +241,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

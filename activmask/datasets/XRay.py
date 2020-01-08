@@ -1,6 +1,8 @@
 from PIL import Image
 from os.path import join
 from skimage.io import imread, imsave
+import skimage, skimage.transform
+from skimage.morphology import square
 from torch import nn
 from torch.nn.modules.linear import Linear
 from torch.utils.data import Dataset
@@ -198,7 +200,7 @@ class NIHXrayDataset():
             self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
 
         # Get our two classes.
-        idx_sick = self.csv["Finding Labels"].str.contains("Emphysema")
+        idx_sick = self.csv["Finding Labels"].str.contains("Cardiomegaly")
         idx_heal = self.csv["Finding Labels"].str.contains("No Finding")
 
         # Exposed for our dataloader wrapper.

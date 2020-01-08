@@ -1,11 +1,12 @@
 from torch.utils.data import Dataset
 import os, os.path
 import skimage, skimage.transform
+from skimage.morphology import square
 from skimage.io import imread, imsave
 from PIL import Image
 import skimage.filters
 import json
-#import medpy, medpy.io
+import medpy, medpy.io
 import numpy as np
 import collections
 import torchvision.transforms
@@ -224,8 +225,7 @@ class MSDDataset(Dataset):
 
         # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (seg.max() != 0):
-            seg = skimage.filters.gaussian(seg, self.blur)
-            seg = seg / seg.max()
+            seg = skimage.morphology.dilation(seg, selem=square(self.blur))
 
         seg = (seg > 0) * 1.
         seg = Image.fromarray(seg)
@@ -245,29 +245,29 @@ class MSDDataset(Dataset):
 @register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task06_Lung/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task06_Lung/', **kwargs)
 
 @register.setdatasetname("ColonMSDDataset")
 class ColonMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task10_Colon/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task10_Colon/', **kwargs)
 
 @register.setdatasetname("LiverMSDDataset")
 class LiverMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task03_Liver/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task03_Liver/', **kwargs)
 
 @register.setdatasetname("PancreasMSDDataset")
 class PancreasMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task07_Pancreas/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task07_Pancreas/', **kwargs)
 
 @register.setdatasetname("ProstateMSDDataset")
 class ProstateMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task05_Prostate/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task05_Prostate/', **kwargs)
 
 @register.setdatasetname("HeartMSDDataset")
 class HeartMSDDataset(MSDDataset):
     def __init__(self, **kwargs):
-        super().__init__(dataroot='/network/data1/MSD/MSD/Task02_Heart/', **kwargs)
+        super().__init__(dataroot='/lustre04/scratch/jdv/MSD/Task02_Heart/', **kwargs)

@@ -1,26 +1,19 @@
-# General
 cuda: True
-n_iter: 30
 nsamples_train: 128
 maxmasks_train: 256
 recon_masked: False
 recon_continuous: True
 gradmask_lambda: 0
-
-# Training
-num_epochs: 500
+num_epochs: 100
 schedule_steps: 10
-
-# DataLoader
 batch_size: 32
 shuffle: True
 
-# Dataset
 dataset:
   train:
     PancreasMSDDataset:
       mode: 'train'
-      blur: 8
+      blur: 'Integer(10, 40)'
       nsamples: 128
   valid:
     PancreasMSDDataset:
@@ -31,10 +24,10 @@ dataset:
       mode: 'test'
       nsamples: 256
 
-# Optimizer
-optimizer:
-  Adam:
-    lr: 0.001
+model:
+  ResNetSmall:
+    base_size: 4608
+    img_size: 100
 
 transform:
         train: {}

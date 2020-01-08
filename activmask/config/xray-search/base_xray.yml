@@ -1,0 +1,65 @@
+# General
+cuda: True
+nsamples_train: 500
+maxmasks_train: 256
+#new_size: &new_size 28
+recon_masked: False
+recon_continuous: False
+gradmask_lambda: 0
+seed: 0
+
+# Training
+num_epochs: 100
+schedule_steps: 10
+
+# DataLoader
+batch_size: 32
+shuffle: True
+
+# Dataset
+dataset:
+  train:
+    XRayDataset:
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
+      d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
+      d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      ratio: 0.9
+      mode: "train"
+      seed: 1234
+      new_size: 128
+  valid:
+    XRayDataset:
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
+      d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
+      d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      ratio: 0.9
+      mode: "valid"
+      seed: 1234
+      new_size: 128
+  test:
+    XRayDataset:
+      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
+      d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
+      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
+      d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      ratio: 0.9
+      mode: "test"
+      seed: 1234
+      new_size: 128
+
+# Optimizer
+optimizer:
+  Adam:
+    lr:  0.001
+
+model:
+  ResNetSmall:
+    base_size: 4608
+    img_size: 128
+
+transform:
+        train: {}
+        valid: {}
+        test: {}

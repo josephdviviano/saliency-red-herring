@@ -1,0 +1,24 @@
+# General
+base: "base_xray_balanced.yml"
+bre_lambda: 0
+recon_lambda: 0
+actdiff_lambda: 0
+gradmask_lambda: 0
+
+# Optimizer
+optimizer:
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
+
+dataset:
+  train:
+    XRayDataset:
+        mask_all: True
+dataset:
+  valid:
+    XRayDataset:
+        mask_all: True
+dataset:
+  test:
+    XRayDataset:
+        mask_all: True

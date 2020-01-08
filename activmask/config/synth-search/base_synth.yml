@@ -1,7 +1,7 @@
 # General
 cuda: True
-n_iter: 30
 nsamples_train: 500
+maxmasks_train: 256
 new_size: &new_size 28
 recon_masked: False
 recon_continuous: False
@@ -18,34 +18,29 @@ shuffle: True
 # Dataset
 dataset:
   train:
-    SyntheticDataset2:
+    SyntheticDataset:
       mode: 'distractor1'
-      blur: 0.5
+      blur: 7
       nsamples: 500
       new_size: *new_size
       dataroot: &dataroot './data/synth2/'
       distract_noise: 0
   valid:
-    SyntheticDataset2:
+    SyntheticDataset:
       mode: 'distractor2'
-      blur: 0.5
+      blur: 7
       nsamples: 128
       new_size: *new_size
       dataroot: *dataroot
       distract_noise: 1
   test:
-    SyntheticDataset2:
+    SyntheticDataset:
       mode: 'distractor3'
-      blur: 0.5
+      blur: 7
       nsamples: 128
       new_size: *new_size
       dataroot: *dataroot
       distract_noise: 1
-
-# Optimizer
-optimizer:
-  Adam:
-    lr:  0.0001
 
 transform:
         train: {}
