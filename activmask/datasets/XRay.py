@@ -200,7 +200,7 @@ class NIHXrayDataset():
             self.csv = self.csv[~self.csv["Finding Labels"].str.contains("\|")]
 
         # Get our two classes.
-        idx_sick = self.csv["Finding Labels"].str.contains("Emphysema")
+        idx_sick = self.csv["Finding Labels"].str.contains("Cardiomegaly")
         idx_heal = self.csv["Finding Labels"].str.contains("No Finding")
 
         # Exposed for our dataloader wrapper.
