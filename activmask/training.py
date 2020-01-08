@@ -317,9 +317,8 @@ def train_epoch(epoch, model, device, train_loader, optimizer,
                 np.mean(avg_loss))))
 
         # Learning.
-        if np.isnan(loss.detach().cpu().numpy()):
-            print('loss is nan!')
-            import IPython; IPython.embed()
+        #if np.isnan(loss.detach().cpu().numpy()):
+        #    print('loss is nan!')
 
         loss.backward()
         optimizer.step()
