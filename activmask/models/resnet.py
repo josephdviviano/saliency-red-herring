@@ -174,7 +174,7 @@ def test():
 @register.setmodelname("ResNet")
 class ResNet(nn.Module):
 
-    def __init__(self, img_size=1, base_size=512, resnet_type="18", 
+    def __init__(self, img_size=1, base_size=512, resnet_type="18",
                  actdiff_lamb=0, gradmask_lamb=0):
 
         assert resnet_type in ["18", "34"]
@@ -206,7 +206,7 @@ class ResNet(nn.Module):
 
         return {'y_pred': y_pred,
                 'X': X,
-                'activations': activations, 
+                'activations': activations,
                 'masked_activations': masked_activations}
 
     def loss(self, y, outputs):
@@ -230,4 +230,3 @@ class ResNet(nn.Module):
                 'actdiff_loss': actdiff_loss,
                 'gradmask_loss': grad_loss}
 
-    return X_masked

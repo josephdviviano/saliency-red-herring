@@ -15,3 +15,5 @@ def shuffle_outside_mask(X, seg):
         b_idx = torch.randperm(tmp.nelement())
         tmp = tmp[b_idx]
         X_masked[b, b_seg] = tmp
+
+    return X_masked
