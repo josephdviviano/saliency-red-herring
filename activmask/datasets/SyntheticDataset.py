@@ -102,7 +102,7 @@ class SyntheticDataset(Dataset):
         if self.mask_all:
             img *= seg
 
-        return (img, seg int(label))
+        return (img, seg, int(label))
 
 if __name__ == "__main__":
 
