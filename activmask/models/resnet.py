@@ -171,17 +171,16 @@ def test():
     print(y.size())
 
 
-@register.setmodelname("ResNet")
-class ResNet(nn.Module):
-
-    def __init__(self, img_size=1, base_size=512, resnet_type="18",
-                 actdiff_lamb=0, gradmask_lamb=0):
+@register.setmodelname("ResNetModel")
+class ResNetModel(nn.Module):
+    def __init__(self, base_size=512, resnet_type="18",  actdiff_lamb=0,
+                 gradmask_lamb=0):
 
         assert resnet_type in ["18", "34"]
         assert actdiff_lamb >= 0
         assert gradmask_lamb >= 0
 
-        super(ResNet, self).__init__()
+        super(ResNetModel, self).__init__()
         if resnet_type == "18":
             self.model = ResNet18(base_size=base_size, avg_pool_size=4)
         elif resnet_type == "34":
@@ -217,14 +216,14 @@ class ResNet(nn.Module):
             actdiff_loss = compare_activations(
                 outputs['masked_activations'], outputs['activations'])
         else:
-            actdiff_loss = torch.zeros(1).to(device)
+            actdiff_loss = torch.zeros(1)[0].to(device)
 
         if self.gradmask_lamb > 0:
             gradients = get_grad_contrast(outputs['X'], outputs['y_pred'], y)
             grad_loss = gradients * seg.float()
             grad_loss = grad_loss.abs().sum() * self.gradmask_lambda
         else:
-            grad_loss = torch.zeros(1).to(device)
+            grad_loss = torch.zeros(1)[0].to(device)
 
         return {'clf_loss': clf_loss,
                 'actdiff_loss': actdiff_loss,
