@@ -1,13 +1,13 @@
 # General
 base: 'base_synth.yml'
-bre_lambda: 0
-recon_lambda: 0
-actdiff_lambda: "Real(10**-3, 10, 'log-uniform')"
 
 # Model
 model:
-  ResNetSmall:
+  ResNet:
     img_size: 28
+    resnet_type: "18"
+    actdiff_lamb: "Real(10**-3, 10, 'log-uniform')"
+    gradmask_lamb: 0
 
 
 # Optimizer

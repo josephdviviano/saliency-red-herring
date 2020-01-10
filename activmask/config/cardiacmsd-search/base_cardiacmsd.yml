@@ -1,10 +1,5 @@
 cuda: True
-nsamples_train: 128
-maxmasks_train: 256
-recon_masked: False
-recon_continuous: True
-gradmask_lambda: 0
-num_epochs: 100
+num_epochs: 500
 schedule_steps: 10
 batch_size: 32
 shuffle: True
@@ -17,7 +12,7 @@ dataset:
   train:
     HeartMSDDataset:
       mode: 'train'
-      blur: 'Integer(10, 40)'
+      blur: 'Integer(2, 40)'
       nsamples: 128
   valid:
     HeartMSDDataset:

@@ -6,8 +6,12 @@ actdiff_lambda: 0
 
 # Model
 model:
-  ResNetSmall:
+  ResNet:
     img_size: 28
+    resnet_type: "18"
+    actdiff_lamb: 0 
+    gradmask_lamb: 0
+
 
 
 # Optimizer

@@ -7,8 +7,11 @@ gradmask_lambda: "Real(10**-3, 10, 'log-uniform')"
 
 # Model
 model:
-  ResNetSmall:
+  ResNet:
     img_size: 28
+    resnet_type: "18"
+    actdiff_lamb: 0
+    gradmask_lamb: "Real(10**-3, 10, 'log-uniform')"
 
 # Optimizer
 optimizer:
