@@ -1,14 +1,21 @@
 import git
 import inspect
+from copy import copy, deepcopy
+
+KEEP = ['seed', 'optimizer', 'batch_size', 'num_epochs', 'epoch', 'transform',
+        'model', 'experiment_name']
 
 def log_experiment(nested=False):
 
     """
-    Decorator of train functions. Will log everything in `mlflow` experiment manager if the correct configuration is setup.
-    To use, simply put `@iia.enas.manager.mlflow.log_experiment()` as a decorator to trains function.
-    The only requirement is that the config (`cfg`) is either the first parameter passed, or is namned `cfg`.
+    Decorator of train functions. Will log everything in `mlflow` experiment
+    manager if the correct configuration is setup. To use, simply put
+    `@ai.semrep.manager.mlflow.log_experiment()` as a decorator to trains
+    function. The only requirement is that the config (`cfg`) is either the
+    first parameter passed, or is namned `cfg`.
 
-    :param nested: If this is a nested experiment or not (i.e. inside an hyperparameter search of not).
+    :param nested: If this is a nested experiment or not (i.e. inside an
+    hyperparameter search of not).
     """
 
     # Flatten all the keys to have something more readable
@@ -22,22 +29,25 @@ def log_experiment(nested=False):
                 items.append((new_key, v))
         return dict(items)
 
+
     def inner_log(func):
         def foo(cfg, **kwargs):
 
-            # Check if an experiment manager needs to be setup. otherwise do nothing.
+            # Check if an experiment manager needs to be setup. otherwise do
+            # nothing.
             if 'manager' not in cfg:
                 return func(cfg, **kwargs)
 
-            # We want to use mlflow, but it's not installed. I'm a merciful god, so I'm letting the experiment run anyway. You're welcome.
+            # We want to use mlflow, but it's not installed. I'm a merciful
+            # god, so I'm letting the experiment run anyway. You're welcome.
             try:
                 import mlflow
             except ImportError:
                 print("Trying to use mlflow, but module not found. No experiment manager will be used for this experiment.")
                 return func(cfg, **kwargs)
-            import mlflow
 
-            # Set the tracking uri (i.e. were we save everything. default is '' (i.e. ./mlruns))
+            # Set the tracking uri (i.e. were we save everything.
+            # Default is '' (i.e. ./mlruns)).
             tracking_uri = cfg['manager'].get('set_tracking_uri', {}).get('uri', '')
             mlflow.set_tracking_uri(tracking_uri)
 
@@ -55,37 +65,43 @@ def log_experiment(nested=False):
             except git.exc.InvalidGitRepositoryError:
                 pass
 
-            # The file.
+            # This file.
             source_name = inspect.getabsfile(func)
 
             # Start the run.
-            with mlflow.start_run(run_id=source_version,
-                                  experiment_id=source_name, nested=nested):
+            with mlflow.start_run(nested=nested):
 
-                # Save the config
-                for key, value in flatten(cfg).items():
+                log_cfg = copy(cfg)
+
+                # Clear config of unwanted categories.
+                for key in cfg.keys():
+                    if key not in KEEP:
+                        log_cfg.pop(key)
+
+                # Save the config.
+                for key, value in flatten(log_cfg).items():
 
                     # A bug in mlflow, can't save empty string. I know, I know.
                     if value == '':
                         value = None
 
                     mlflow.log_param(key, value)
-                mlflow.log_metric('config', cfg)
 
+                # Saving the rest except for the checkpoint state.
+                kwargs_to_log = deepcopy(kwargs)
+                try:
+                    kwargs_to_log.pop('state')
+                except:
+                    pass
 
-                # Saving the rest
-                for key, value in flatten(kwargs).items():
-
+                for key, value in flatten(kwargs_to_log).items():
                     if value == '':
                         value = None
 
                     mlflow.log_param(key, value)
 
-                # Run the real function
+                # Run the real function.
                 result = func(cfg, **kwargs)
-
-                # Save the metric
-                #mlflow.log_metric('best_metric', result)
 
             return result
         return foo
@@ -97,10 +113,9 @@ def log_metric(*keys):
     Log metrics in the current `mlflow` experiment.
     :param keys: The keys of the metric to log, ex: `valid_auc`, `train_loss`.
     The order correspond to the return order.
-    To use simply add `@iia.enas.manager.mlflow.log_metric('metric1', 'metric2')` as a decorator.
+    To use simply add `@ai.semrep.manager.mlflow.log_metric('metric1', 'metric2')` as a decorator.
     :return:
     """
-
     def inner_log_metric(func):
 
         # no keys defined, we do nothing.

@@ -1,426 +1,486 @@
 from collections import OrderedDict
-from loss import compare_activations, get_bre_loss, get_gradmask_loss
-from sklearn.metrics import accuracy_score
-from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import (average_precision_score, accuracy_score,
+                             f1_score, roc_auc_score)
+from skopt.space import Real, Integer, Categorical
 from tqdm import tqdm
-import copy
-import itertools
-import logging
 import manager.mlflow.logger as mlflow_logger
-import notebooks.auto_ipynb as auto_ipynb
-import numpy as np
-import pprint
-import random
-import time, os, sys
-import torch
-import torch.nn as nn
 import utils.configuration as configuration
 import utils.monitoring as monitoring
+import copy
+import logging
+import numpy as np
+import os
+import pickle
+import random
+import skopt
+import sys
+import torch
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 import gc
 
-# Fix backend so one can generate plots without Display set.
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 _LOG = logging.getLogger(__name__)
-VIZ_IDX = 10
 
 
-@mlflow_logger.log_experiment(nested=True)
-@mlflow_logger.log_metric('best_valid_auc', 'best_test_auc')
-def train(cfg, dataset_train=None, dataset_valid=None, dataset_test=None,
-          recompile=True):
+def parse_dict(d_, prefix='', l=[]):
+    """
+    Find the keys in the config dict that are to be optimized.
+    """
+    # Recusively searches embedded dictionaries.
+    if isinstance(d_, dict):
+        for key in d_.keys():
+            temp = parse_dict(d_[key], prefix + '.' + key, [])
+            if temp:
+                l += temp
+        return l
 
-    print("Our config:")
-    pprint.pprint(cfg)
+    # Handles when a key references a list of values in the config.
+    elif isinstance(d_, list):
+        output_list = []
+        for element in d_:
+            temp = parse_dict(element, prefix + '.', [])
+            if temp:
+                # We want to return (key, [elem1, ..., elemn]).
+                output_key, value = temp[0]
+                output_list.append(value)
 
-    # Get information from configuration.
-    seed = cfg['seed']
-    cuda = cfg['cuda']
-    num_epochs = cfg['num_epochs']
-    exp_name = cfg['experiment_name']
-    recon_masked = cfg['recon_masked']
-    recon_continuous = cfg['recon_continuous']
+        if len(output_list) > 0:
+            l.append((output_key, output_list))
 
-    device = 'cuda' if cuda else 'cpu'
+        return l
 
-    # Setting the seed.
+    # Gets individual skopt settings.
+    else:
+        try:
+            x = eval(d_)
+            if isinstance(x, (Real, Integer, Categorical)):
+                l.append((prefix, x))
+        except:
+            pass
+        return l
+
+def set_key(dic, key, value):
+    """
+    Aux function to set the value of a key in a dict.
+    """
+    k1 = key.split(".")
+    k1 = list(filter(lambda l: len(l) > 0, k1))
+    if len(k1) == 1:
+        dic[k1[0]] = value
+    else:
+        set_key(dic[k1[0]], ".".join(k1[1:]), value)
+
+def generate_config(config, args, new_values):
+    """
+    Given a configuration dictionary and a args, an OrderedDict containing
+    skopt-chosen parameters. Handles the case where the parameters are
+    passed as lists.
+    """
+    new_config = copy.deepcopy(config)
+    idx = 0
+
+    for key in list(args.keys()):
+        key_values = []
+
+        # Handles case when the value of this key is a list of n items.
+        if isinstance(args[key], list):
+            n = len(args[key])
+        else:
+            n = 1
+
+        for i in range(n):
+            try:
+                key_values.append(new_values[idx+i].item())
+            except AttributeError:
+                # bool or str objects don't have item attribute
+                key_values.append(new_values[idx+i])
+        idx += n  # Iterate the counter.
+
+        # Single items NOT stored as lists in the dictionary.
+        if len(key_values) == 1:
+            key_values = key_values[0]
+
+        set_key(new_config, key, key_values)
+
+    return new_config
+
+
+def set_seed(seed, cuda=False):
+    """
+    Fix the seed for numpy, python random, and pytorch.
+    Parameters
+    ----------
+    seed: int
+        The seed to use.
+    """
+    print('pytorch/random seed: {}'.format(seed))
+
+    # Numpy, python, pytorch (cpu), pytorch (gpu).
     np.random.seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
     if cuda:
         torch.cuda.manual_seed_all(seed)
 
-    # Dataset
-    # transform
-    tr_train = configuration.setup_transform(cfg, 'train')
-    tr_valid = configuration.setup_transform(cfg, 'valid')
-    tr_test= configuration.setup_transform(cfg, 'test')
 
-    # The dataset
-    if recompile:
-        dataset_train = configuration.setup_dataset(cfg, 'train')(tr_train)
-        dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
-        dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
+def set_seed_state(state):
+    """
+    Loads the saved state for python, numpy, and torch RNG.
+    """
+    torch.random.set_rng_state(state['torch_seed'])
+    np.random.set_state(state['numpy_seed'])
+    random.setstate(state['python_seed'])
 
 
-    # Dataloader
-    train_loader = torch.utils.data.DataLoader(dataset_train,
-                                                batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'],
-                                                num_workers=0, pin_memory=cuda)
-    valid_loader = torch.utils.data.DataLoader(dataset_valid,
-                                                batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'],
-                                                num_workers=0, pin_memory=cuda)
-    test_loader = torch.utils.data.DataLoader(dataset_test,
-                                                batch_size=cfg['batch_size'],
-                                                shuffle=cfg['shuffle'],
-                                                num_workers=0, pin_memory=cuda)
+def report(epoch, losses):
+    """
+    Contains a formatted string of all individual losses and the total
+    loss for this minibatch.
+    """
+    message = epoch
+    for key in losses.keys():
+        message += " {:s}={:4.4f}".format(key, losses[key])
+
+    message += " total={:4.4f}".format(sum(losses.values()))
+
+    return message
 
 
-    model = configuration.setup_model(cfg).to(device)
-    print(model)
+def merge_dicts(dict_list):
+    """Merges a list of dicts into a single dict containing the mean value."""
+    out_dict = {};
+    out_dict = out_dict.fromkeys(dict_list[0].keys(), [])
 
-    optim = configuration.setup_optimizer(cfg)(model.parameters())
-    scheduler = ReduceLROnPlateau(optim, mode='max')
-    print(optim)
+    for key in out_dict.keys():
+        out_dict[key] = np.mean([d[key].item() for d in dict_list])
 
-    criterion = torch.nn.CrossEntropyLoss()
+    return out_dict
 
-    # Stats for the table.
-    best_epoch, best_train_auc, best_valid_auc, best_test_auc = -1, -1, -1, -1
-    metrics = []
-    auc_valid = 0
 
-    # Wrap the function for mlflow (optional).
-    valid_wrap_epoch = mlflow_logger.log_metric('valid_acc')(test_epoch)
-    test_wrap_epoch = mlflow_logger.log_metric('test_acc')(test_epoch)
+def append_to_keys(dictionary, name):
+    """Append name to keys."""
+    keys = list(dictionary.keys())
+    for key in keys:
+        dictionary['{}_{}'.format(name, key)] = dictionary.pop(key)
 
-    img_viz_train = dataset_train[VIZ_IDX]
-    img_viz_valid = dataset_valid[VIZ_IDX]
+    return dictionary
 
-    print("CUDA: ", cuda)
-    for epoch in range(num_epochs):
 
-        # scheduler.step(auc_valid)
-        avg_loss = train_epoch(epoch=epoch,
-                               model=model,
-                               device=device,
-                               optimizer=optim,
-                               train_loader=train_loader,
-                               criterion=criterion,
-                               bre_lambda=cfg['bre_lambda'],
-                               recon_lambda=cfg['recon_lambda'],
-                               actdiff_lambda=cfg['actdiff_lambda'],
-                               gradmask_lambda=cfg['gradmask_lambda'],
-                               recon_masked=recon_masked,
-                               recon_continuous=recon_continuous)
-
-        auc_train = valid_wrap_epoch(name="train",
-                                     epoch=epoch,
-                                     model=model,
-                                     device=device,
-                                     data_loader=train_loader,
-                                     criterion=criterion)
-
-        auc_valid = valid_wrap_epoch(name="valid",
-                                     epoch=epoch,
-                                     model=model,
-                                     device=device,
-                                     data_loader=valid_loader,
-                                     criterion=criterion)
-
-        # Early Stopping: compute best test_auc when we beat best valid score.
-        if auc_valid > best_valid_auc:
-
-            auc_test = test_wrap_epoch(name="test",
-                                   epoch=epoch,
-                                   model=model,
-                                   device=device,
-                                   data_loader=test_loader,
-                                   criterion=criterion)
-
-            best_train_auc = auc_train
-            best_valid_auc = auc_valid
-            best_test_auc = auc_test
-            best_epoch = epoch
-            best_model = copy.deepcopy(model)
-
-        # Update the stat dictionary with each epoch, append to metrics list.
-        stat = {"epoch": epoch,
-                "train_loss": avg_loss,
-                "valid_auc": auc_valid,
-                "train_auc": auc_train,
-                "test_auc": auc_test,
-                "best_train_auc": best_train_auc,
-                "best_valid_auc": best_valid_auc,
-                "best_test_auc": best_test_auc,
-                "best_epoch": best_epoch}
-        stat.update(configuration.process_config(cfg))
-        metrics.append(stat)
-
-    monitoring.log_experiment_csv(cfg, [best_valid_auc])
-
-    results_dict = {'dataset_train': dataset_train,
-                    'dataset_valid': dataset_valid,
-                    'dataset_test': dataset_test}
-
-    # Render gradients from the best model.
-    render_img(
-        "best_train", best_epoch, img_viz_train, best_model, exp_name, cuda)
-    render_img(
-        "best_valid", best_epoch, img_viz_valid, best_model, exp_name, cuda)
-
-    # Write best model to disk.
-    output_dir = os.path.join('checkpoints', exp_name)
+def save_results(results, output_dir):
+    """
+    Saves a .pkl of all training statistics of interest, the best model found,
+    and the last model found.
+    """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Saves maxmasks and seed in the name.
-    output_name = "best_model_{}_{}.pth.tar".format(
-        cfg['seed'], cfg['maxmasks_train'])
-    torch.save(best_model, os.path.join(output_dir, output_name))
+    output_name = "best_model_{}.pth.tar".format(results["seed"])
+    torch.save(results["best_model"], os.path.join(output_dir, output_name))
 
-    # Save latest model as well.
-    output_name = "latest_model_{}_{}.pth.tar".format(
-        cfg['seed'], cfg['maxmasks_train'])
-    torch.save(model, os.path.join(output_dir, output_name))
+    output_name = "last_model_{}.pth.tar".format(results["seed"])
+    torch.save(results["last_model"], os.path.join(output_dir, output_name))
 
-    return (best_valid_auc, best_test_auc, metrics, results_dict)
+    output_name = "stats_{}.pkl".format(results["seed"])
+    with open(os.path.join(output_dir, output_name), 'wb') as hdl:
+        pickle.dump(results["metrics"], hdl, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+@mlflow_logger.log_metric('valid_loss', 'valid_score')
+def evaluate_valid(model, device, data_loader, epoch, exp_name):
+    """Wrapper for valid epoch, for mflow compatibility."""
+    loss, score, metrics = evaluate_epoch(
+        model, device, data_loader,epoch, exp_name, name='valid')
+    metrics = append_to_keys(metrics, "valid")
+
+    return(loss, score, metrics)
+
+
+@mlflow_logger.log_metric('test_loss', 'test_score')
+def evaluate_test(model, device, data_loader, epoch, exp_name):
+    """Wrapper for test epoch, for mflow compatibility."""
+    loss, score, metrics = evaluate_epoch(
+        model, device, data_loader, epoch, exp_name, name='test')
+    metrics = append_to_keys(metrics, "test")
+
+    return(loss, score, metrics)
 
 
 @mlflow_logger.log_metric('train_loss')
-def train_epoch(epoch, model, device, train_loader, optimizer,
-                criterion, bre_lambda=0, recon_lambda=0, actdiff_lambda=0,
-                gradmask_lambda=0, recon_masked=False, recon_continuous=False):
+def train_epoch(model, device, train_loader, optimizer, epoch):
 
     model.train()
 
-    # Simple simages should use recon_criterion=False
-    if recon_continuous:
-        recon_criterion = nn.MSELoss()
-    else:
-        recon_criterion = nn.BCELoss()
-
-    # losses: cross-entropy + reconstruction + bre + actdiff + gradmask
-    avg_clf_loss = []
-    avg_actdiff_loss, avg_recon_loss, avg_bre_loss, avg_gradmask_loss = [], [], [], []
-    avg_loss = []
+    all_loss = []
+    all_losses = []
 
     t = tqdm(train_loader)
-    for batch_idx, (data, target, use_mask) in enumerate(t):
+    for batch_idx, (X, seg, y) in enumerate(t):
 
         optimizer.zero_grad()
 
-        X, seg = data
-        X, seg = X.to(device), seg.to(device)
-        target, use_mask = target.to(device), use_mask.to(device)
-        X.requires_grad = True
-
+        X, y = X.to(device), y.to(device)
         # Get the inverse of the mask (1 *outside* ROI).
         # NB: If no mask for an image, the entire image should start out masked.
         #     The seg will be inverted to be all 0, and therefore the actdiff
         #     and gradmask loss will not be applied.
         seg = torch.abs(seg-1).type(torch.BoolTensor).to(device)
+        X.requires_grad = True
 
-        # Mask the data by shuffling pixels outside of the mask.
-        if actdiff_lambda > 0 or recon_masked:
+        # Expected to return a dictionary of outputs.
+        outputs = model.forward(X, seg)
 
-            X_masked = torch.clone(X)
+        # Expected to return a dictionary of loss terms.
+        losses = model.loss(y, outputs)
 
-            # Loop through batch images individually
-            for b in range(seg.shape[0]):
-
-                # Get all of the relevant values using this mask.
-                b_seg = seg[b, :, :, :]
-                tmp = X[b, b_seg]
-
-                # Randomly permute those values.
-                b_idx = torch.randperm(tmp.nelement())
-                tmp = tmp[b_idx]
-                X_masked[b, b_seg] = tmp
-
-        # Activation Difference loss: activations of model when passed masked X.
-        if actdiff_lambda > 0:
-
-            # Sanity check!!
-            # X_masked = X
-
-            _, _  = model(X_masked)
-            masked_activations = model.all_activations
-        else:
-            actdiff_loss = torch.zeros(1).to(device)
-
-        # Classification loss: Do a forward pass with the data.
-        y_pred, X_recon = model(X)
-        clf_loss = criterion(y_pred, target)
-
-        # Activation difference loss: Calculate l2 norm between the activations
-        # using masked and unmasked data.
-        if actdiff_lambda > 0:
-            actdiff_loss = compare_activations(
-                masked_activations, model.all_activations)
-
-            actdiff_loss *= actdiff_lambda
-
-        # Reconstruction Loss: The target reconstruction can be raw or masked.
-        if recon_lambda > 0:
-
-            if recon_masked:
-                X_target = X_masked.detach()
-            else:
-                X_target = X.detach()
-
-            recon_loss = recon_criterion(X_recon, X_target)
-            recon_loss *= recon_lambda
-        else:
-            recon_loss = torch.zeros(1).to(device)
-
-        # BRE loss. TODO: Remove?
-        if bre_lambda > 0:
-            bre_loss, me_loss, ac_loss, me_stats, ac_stats = get_bre_loss(model)
-            bre_loss *= bre_lambda
-        else:
-            bre_loss = torch.zeros(1).to(device)
-
-        # Gradmask loss: Get all gradients, and mask them for the target class.
-        if gradmask_lambda > 0:
-            input_grads = get_gradmask_loss(X, y_pred, model, target)
-            input_grads = input_grads * seg.float()
-            gradmask_loss = input_grads.abs().sum() * gradmask_lambda
-        else:
-            gradmask_loss = torch.zeros(1).to(device)
-
-        # Final loss is all terms combined.
-        loss = clf_loss + actdiff_loss + recon_loss + bre_loss + gradmask_loss
-
-        # Reporting.
-        avg_clf_loss.append(clf_loss.detach().cpu().numpy())
-        avg_actdiff_loss.append(actdiff_loss.detach().cpu().numpy())
-        avg_recon_loss.append(recon_loss.detach().cpu().numpy())
-        avg_bre_loss.append(bre_loss.detach().cpu().numpy())
-        avg_gradmask_loss.append(gradmask_loss.detach().cpu().numpy())
-        avg_loss.append(loss.detach().cpu().numpy())
-
-        t.set_description((
-            ' train (clf={:4.4f} actdif={:4.4f} recon={:4.4f} bre={:4.4f} grd={:4.4f} tot={:4.4f})'.format(
-                np.mean(avg_clf_loss),
-                np.mean(avg_actdiff_loss),
-                np.mean(avg_recon_loss),
-                np.mean(avg_bre_loss),
-                np.mean(avg_gradmask_loss),
-                np.mean(avg_loss))))
-
-        # Learning.
-        #if np.isnan(loss.detach().cpu().numpy()):
-        #    print('loss is nan!')
-
+        # Optimization.
+        loss = sum(losses.values())
         loss.backward()
         optimizer.step()
         gc.collect()
 
-    return np.mean(avg_loss)
+        # Reporting.
+        all_loss.append(loss.cpu().data.numpy())
+        all_losses.append(losses)
+
+        t.set_description(report('train epoch {} --'.format(epoch), losses))
+
+    all_losses = merge_dicts(all_losses)
+    all_losses = append_to_keys(all_losses, "train")
+
+    return (np.array(all_loss).mean(), all_losses)
 
 
-def test_epoch(name, epoch, model, device, data_loader, criterion):
-
+def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
+    """Evaluates a given model on given data."""
     model.eval()
-    data_loss = 0
 
-    targets = []
-    predictions = []
-    predictions_bin = []  # Keep track of actual predictions.
+    ohe = OneHotEncoder(sparse=False, categories='auto')
+
+    targets, predictions = [], []
+    all_loss = []
+    all_losses = []
 
     with torch.no_grad():
-        for (data, target, use_mask) in data_loader:
+        for batch_idx, (X, seg, y) in enumerate(data_loader):
 
-            x, seg = data[0].to(device), data[1].to(device)
-            target = target.to(device)
-            class_output, _ = model(x)
+            X, y = X.to(device), y.to(device)
+            # Get the inverse of the mask (1 *outside* ROI).
+            # NB: If no mask for an image, the entire image should start out masked.
+            #     The seg will be inverted to be all 0, and therefore the actdiff
+            #     and gradmask loss will not be applied.
+            seg = torch.abs(seg-1).type(torch.BoolTensor).to(device)
+            X.requires_grad = True
 
-            # sum up batch loss
-            data_loss += criterion(class_output, target).sum().item()
+            # Expected to return a dictionary of outputs.
+            outputs = model.forward(X, seg)
 
-            targets.append(target.cpu().data.numpy())
-            predictions.append(class_output.cpu().data.numpy())
-            predictions_bin.append(
-                torch.max(class_output, 1)[1].detach().cpu().numpy())
+            # Sum up batch loss.
+            losses = model.loss(y, outputs)
+            loss = sum(losses.values())
+            all_loss.append(loss.cpu().data.numpy())
+            all_losses.append(losses)
 
-    auc = accuracy_score(np.concatenate(targets),
+            # Save predictions: First output should be the predicted class!
+            targets.append(y.cpu().data.numpy())
+            predictions.append(average_predictions(outputs).cpu().data.numpy())
+
+    # Classification metrics.
+    targets_ohe = ohe.fit_transform(np.concatenate(targets).reshape(-1, 1))
+    acc = accuracy_score(np.concatenate(targets),
                          np.concatenate(predictions).argmax(axis=1))
-    predictions_bin = np.hstack(predictions_bin)
+    ap = average_precision_score(targets_ohe, np.concatenate(predictions))
+    f1 = f1_score(np.concatenate(targets),
+                  np.concatenate(predictions).argmax(axis=1), average='micro')
+    auc = roc_auc_score(targets_ohe, np.concatenate(predictions))
+    metrics = {'acc': acc, 'ap': ap, 'f1': f1, 'auc': auc}
 
-    data_loss /= len(data_loader)
-    print(epoch, 'Average {} loss: {:.4f}, AUC: {:.4f}, pred: {}/{}'.format(
-        name, data_loss, auc,
-        np.sum(predictions_bin==0), np.sum(predictions_bin==1)))
+    # Official score used for monitoring performance.
+    score_name, score = 'auc', auc
+    all_loss = np.array(all_loss).mean()
+    print('epoch {} Mean {} loss: {:.4f}, {}: {:.4f}'.format(
+        epoch, name, all_loss, score_name, score))
 
-    return auc
+    all_losses = merge_dicts(all_losses)
+    metrics.update(all_losses)
+
+    return (all_loss, score, metrics)
 
 
-def render_img(text, i, sample, model, exp_name, cuda=True):
+@mlflow_logger.log_experiment(nested=True)
+@mlflow_logger.log_metric('best_valid_score', 'test_score', 'best_epoch')
+def train(cfg, state=None, save_checkpoints=False, save_performance=True):
     """
-    Video protip: ffmpeg -y -i images/image-test-%d.png -vcodec libx264 aout.mp4
+    Trains a model on a dataset given the supplied configuration.
+    save is by default True and will result in the model's performance being
+    saved to a handy pickle file, as well as the best-performing model being
+    saved. Set this to False when doing an outer loop of hyperparameter
+    optimization.
     """
-    fig, (ax0, ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=4,
-                                             figsize=(12, 48), dpi=72)
-    x, target, use_mask = sample
+    exp_name = cfg['experiment_name']
+    n_epochs = cfg['n_epochs']
+    seed = cfg['seed']
+    CHECKPOINT_FREQ = 20
 
-    if cuda:
-        x_var = torch.autograd.Variable(x[0].unsqueeze(0).cuda(),
-            requires_grad=True)
+    if save_checkpoints:
+        output_dir = os.path.join('results', cfg['experiment_name'])
+        checkpoint = os.path.join(output_dir, 'skopt_checkpoint.pth.tar')
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+    device = 'cuda' if cfg['cuda'] else 'cpu'
+    if cfg['device'] >= 0:
+        torch.cuda.set_device(cfg['device'])
+
+    # Transforms
+    tr_train = configuration.setup_transform(cfg, 'train')
+    tr_valid = configuration.setup_transform(cfg, 'valid')
+    tr_test = configuration.setup_transform(cfg, 'test')
+
+    # dataset
+    dataset_train = configuration.setup_dataset(cfg, 'train')(tr_train)
+    dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
+    dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
+
+    train_loader = torch.utils.data.DataLoader(dataset_train,
+                                               batch_size=cfg['batch_size'],
+                                               shuffle=cfg['shuffle'],
+                                               num_workers=cfg['num_workers'],
+                                               pin_memory=cfg['pin_memory'])
+    valid_loader = torch.utils.data.DataLoader(dataset_valid,
+                                               batch_size=cfg['batch_size'],
+                                               shuffle=cfg['shuffle'],
+                                               num_workers=cfg['num_workers'],
+                                               pin_memory=cfg['pin_memory'])
+    test_loader = torch.utils.data.DataLoader(dataset_test,
+                                              batch_size=cfg['batch_size'],
+                                              shuffle=cfg['shuffle'],
+                                              num_workers=cfg['num_workers'],
+                                              pin_memory=cfg['pin_memory'])
+
+    model = configuration.setup_model(cfg).to(device)
+    optim = configuration.setup_optimizer(cfg)(model.parameters())
+
+    print('model: \n{}'.format(model))
+    print('optimizer: {}'.format(optim))
+
+    # Best_valid_score for early stopping, best_test_score reported then.
+    # Case when we are not using skopt.
+    best_train_loss, best_valid_loss, best_test_loss = np.inf, np.inf, np.inf
+    best_train_score, best_valid_score, best_test_score = 0, 0, 0
+    base_epoch, best_epoch = 0, 0
+    metrics = []
+
+    # If checkpoints exist, load them.
+    if isinstance(state, dict):
+        if not isinstance(state['model'], type(None)):
+            model.load_state_dict(state['model'])
+        if not isinstance(state['optimizer'], type(None)):
+            optim.load_state_dict(state['optimizer'])
+        if not isinstance(state['best_model'], type(None)):
+            best_model = state['best_model']
+        if not isinstance(state['stats'], type(None)):
+            stats = state['stats']
+            base_epoch = stats['this_epoch']
+            best_train_loss = stats['best_train_loss']
+            best_valid_loss = stats['best_valid_loss']
+            best_test_loss = stats['best_test_loss']
+            best_valid_score = stats['best_valid_score']
+            best_test_score = stats['best_test_score']
+            best_epoch = stats['best_epoch']
+        metrics = state['metrics']
+
+    # We're not using skop if state == None.
     else:
-        x_var = torch.autograd.Variable(x[0].unsqueeze(0),
-            requires_grad=True)
+        state = {}
 
-    model.eval()
-    y_prime, x_prime = model(x_var)
-
-    ax0.set_title(str(i) + " Masked Image")
-    img = x[0][0].cpu().numpy()
-    img = img / np.max(img)  # Scales the input image so that the maximum=1.
-    seg = x[1][0].cpu().numpy() #* 0.5  # Makes mask bright, but not too bright.
-    ax0.imshow(img + seg, interpolation='none', cmap='Greys_r')
-    ax0.axis('off')
-
-    ax1.set_title("nonhealthy d|y|/dx")
-    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.),
-                                 "nonhealthy").detach().cpu().numpy()[0][0]
-    ax1.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    ax1.axis('off')
-
-    ax2.set_title("contrast d|y0-y1|/dx")
-    gradmask = get_gradmask_loss(x_var, y_prime, model, torch.tensor(1.),
-                                 "contrast").detach().cpu().numpy()[0][0]
-    ax2.imshow(np.abs(gradmask), cmap="jet", interpolation='none')
-    ax2.axis('off')
-
-    ax3.set_title("Reconstruction")
-    # Fails for models that output a nonsense reconstruction (CNN, ResNet).
-    if isinstance(x_prime, torch.Tensor):
-        ax3.imshow(x_prime[0][0].detach().cpu().numpy(),
-                   interpolation='none', cmap='Greys_r')
-        ax3.axis('off')
+    # If this is the first epoch, reset the seed.
+    if base_epoch == 0:
+        set_seed(cfg['seed'])
     else:
-        ax3.remove()
+        set_seed_state(state)
 
-    plt.tight_layout()
-    output_dir = os.path.join('images', exp_name)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    fig.savefig('{0}/image-{1}-{2:03d}.png'.format(output_dir, text, i),
-                bbox_inches='tight', pad_inches=0)
-    plt.close("all")
+    for epoch in range(base_epoch, n_epochs):
+
+        train_loss, train_losses = train_epoch(
+            model=model, device=device, optimizer=optim,
+            train_loader=train_loader, epoch=epoch)
+
+        valid_loss, valid_score, valid_metrics = evaluate_valid(
+            model=model, device=device, data_loader=valid_loader, epoch=epoch,
+            exp_name=exp_name)
+
+        # Get test score if this is the best valid loss!
+        if valid_loss < best_valid_loss:
+
+            test_loss, test_score, test_metrics = evaluate_test(
+                model=model, device=device, data_loader=test_loader,
+                epoch=epoch, exp_name=exp_name)
+
+            best_train_loss = train_loss        # Loss
+            best_valid_loss = valid_loss        #
+            best_test_loss = test_loss          #
+            best_valid_score = valid_score      # Score
+            best_test_score = test_score        #
+            best_epoch = epoch                  # Epoch
+            best_model = copy.deepcopy(model)   # Model
+
+        # Updated every epoch.
+        stats = {"this_epoch": epoch+1,
+                 "train_loss": train_loss,
+                 "valid_loss": valid_loss,
+                 "best_train_loss": best_train_loss,
+                 "best_valid_loss": best_valid_loss,
+                 "best_test_loss": best_test_loss,
+                 "best_valid_score": best_valid_score,
+                 "best_test_score": best_test_score,
+                 "best_epoch": best_epoch}
+
+        stats.update(configuration.flatten(cfg))  # cfg settings added.
+        stats.update(train_losses)   # Add in the losses from train_epoch.
+        stats.update(valid_metrics)  # Add in all scores from evaluate.
+        metrics.append(stats)
+
+        if valid_loss < best_valid_loss:
+            stats.update(test_metrics)   # Breaks with resume. TODO: better way?
+
+        if save_checkpoints and epoch % CHECKPOINT_FREQ == 0:
+            print('checkpointing at epoch {}'.format(epoch))
+            state['base_epoch'] = epoch+1
+            state['best_valid_score'] = best_valid_score
+            state['best_test_score'] = best_test_score
+            state['best_epoch'] = best_epoch
+            state['torch_seed'] = torch.random.get_rng_state()
+            state['numpy_seed'] = np.random.get_state()
+            state['python_seed'] = random.getstate()
+            state['optimizer'] = optim.state_dict()
+            state['scheduler'] = None  # TODO
+            state['model'] = model.state_dict()
+            state['stats'] =  stats
+            state['metrics'] = metrics
+            state['best_model'] = best_model
+            torch.save(state, checkpoint)
+
+    results = {"exp_name": exp_name,
+               "seed": seed,
+               "metrics": metrics,
+               "best_model": best_model,
+               "last_model": model}
+
+    if save_performance:
+        output_dir = os.path.join('results', exp_name)
+        save_results(results, output_dir)
+
+    monitoring.log_experiment_csv(
+        cfg, [best_valid_score, best_test_score, best_epoch])
+    return (best_valid_score, best_test_score, best_epoch, results, state)
 
 
+@mlflow_logger.log_metric('best_valid_score', 'best_test_score', 'best_epoch')
 @mlflow_logger.log_experiment(nested=False)
-def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
-                new_size, train_function=train):
+def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state):
     """
     Do a Bayesian hyperparameter optimization.
 
@@ -429,89 +489,122 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state,
     :param base_estimator: skopt Optimization procedure.
     :param n_initial_points: Number of random search before starting the optimization.
     :param random_state: seed.
-    :param train_function: The training procedure to optimize. The function should take a dict as input and return a metric maximize.
     :return:
     """
-    import skopt
-    from skopt.space import Real, Integer, Categorical
 
-    # Helper function to help us sparse the yaml config file.
-    def parse_dict(d_, prefix='', l=[]):
-        """
-        Find the keys in the config dict that are to be optimized.
-        """
-        if isinstance(d_, dict):
-            for key in d_.keys():
-                temp = parse_dict(d_[key], prefix + '.' + key, [])
-                if temp:
-                    l += temp
-            return l
-        else:
-            try:
-                x = eval(d_)
-                if isinstance(x, (Real, Integer, Categorical)):
-                    l.append((prefix, x))
-            except:
-                pass
-            return l
+    output_dir = os.path.join('results', cfg['experiment_name'])
+    checkpoint = os.path.join(output_dir, 'skopt_checkpoint.pth.tar')
 
-    # Helper functions to hack in the config and change the right parameter.
-    def set_key(dic, key, value):
-        """
-        Aux function to set the value of a key in a dict
-        """
-        k1 = key.split(".")
-        k1 = list(filter(lambda l: len(l) > 0, k1))
-        if len(k1) == 1:
-            dic[k1[0]] = value
-        else:
-            set_key(dic[k1[0]], ".".join(k1[1:]), value)
+    if os.path.isfile(checkpoint):
 
-    def generate_config(config, keys, new_values):
-        new_config = copy.deepcopy(config)
-        for i, key in enumerate(list(keys.keys())):
-            set_key(new_config, key, new_values[i].item())
-        return new_config
+        resume = True
+        state = torch.load(checkpoint)
+        base_iteration = state['base_iteration']
+        base_epoch = state['base_epoch']
+        hp_opt = state['hp_opt']
+        hp_args = state['hp_args']
+        this_cfg = state['this_cfg']
+        set_seed_state(state)
 
-    # Sparse the parameters that we want to optimize
-    skopt_args = OrderedDict(parse_dict(cfg))
+        # Check whether we are done (edge case where code crashes at the end).
+        # TODO: Assumes that we do early stopping without any patience. If we
+        #       add patience this logic does not work.
+        done_epochs = base_epoch == cfg['n_epochs']
+        done_iterations = base_iteration == n_iter
+        if done_epochs and done_iterations:
+            sys.exit('Resuming a training session that is already complete!')
+    else:
+        resume = False
+        base_iteration = 0
+        best_final_acc = 0
 
-    # Create the optimizer
-    optimizer = skopt.Optimizer(dimensions=skopt_args.values(),
-                                base_estimator=base_estimator,
-                                n_initial_points=n_initial_points,
-                                random_state=random_state)
+        # Parse the parameters that we want to optimize, then flatten list.
+        hp_args = OrderedDict(parse_dict(cfg))
+        all_vals = []
+        for val in hp_args.values():
+            if isinstance(val, list):
+                all_vals.extend(val)
+            else:
+                all_vals.append(val)
 
-    opt_results = None
-    results_dict = {}
-    best_valid_auc = 0
-    best_metrics = None
+        hp_opt = skopt.Optimizer(dimensions=all_vals,
+                         base_estimator=base_estimator,
+                         n_initial_points=n_initial_points,
+                         random_state=random_state)
 
-    for i in range(n_iter):
+        set_seed(cfg['seed'])
 
-        suggestion = optimizer.ask()
-        this_cfg = generate_config(cfg, skopt_args, suggestion)
-        opt_dict = this_cfg['optimizer']
+        # best_valid and best_test score are used inside of train(), best_model
+        # score is only used in train_skopt() for final model selection.
+        state = {'base_iteration': 0,
+                 'base_epoch': 0,
+                 'best_valid_score': 0,
+                 'best_test_score': 0,
+                 'best_model_score': 0,
+                 'best_epoch': 0,
+                 'hp_opt': hp_opt,
+                 'hp_args': hp_args,
+                 'base_cfg': cfg,
+                 'this_cfg': None,
+                 'numpy_seed': None,
+                 'optimizer': None,
+                 'python_seed': None,
+                 'scheduler': None,
+                 'model': None,
+                 'stats': None,
+                 'metrics': [],
+                 'torch_seed': None,
+                 'suggestion': None,
+                 'best_model': None}
 
-        #metrics, metric, metric_test, state = train_function(this_cfg, recompile=state == {}, **state)
-        this_valid_auc, this_test_auc, these_metrics, results_dict = train_function(
-            this_cfg, recompile=results_dict == {}, **results_dict)
+    # Do a bunch of loops.
+    for iteration in range(state['base_iteration'], n_iter+1):
 
-        print("{}: valid auc={}, test auc={}, cfg={}".format(
-            i, this_valid_auc, this_test_auc, this_cfg))
+        # Will not be true if training crashed for an iteration.
+        if isinstance(state['this_cfg'], type(None)):
+            suggestion = hp_opt.ask()
+            state['this_cfg'] = generate_config(cfg, hp_args, suggestion)
+            state['suggestion'] = suggestion
+        try:
+            this_valid_score, this_test_score, this_best_epoch, results, state = train(state['this_cfg'],
+                                                                                       state=state,
+                                                                                       save_checkpoints=True,
+                                                                                       save_performance=False)
 
-        # We minimize the negative accuracy/AUC
-        opt_results = optimizer.tell(suggestion, - this_valid_auc)
+            # Skopt tries to minimize the valid score, so it's inverted.
+            this_metric = this_valid_score * -1
+            hp_opt.tell(state['suggestion'], this_metric)
+        except RuntimeError as e:
+            # Something went wrong, (probably a CUDA error).
+            this_metric = 0.0
+            this_valid_score = 0.0
+            print("Experiment failed:\n{}\nAttempting next config.".format(e))
+            hp_opt.tell(suggestion, this_metric)
 
-        #record metrics to write and plot
-        if this_valid_auc > best_valid_auc:
-            best_valid_auc = this_valid_auc
-            best_test_auc = this_test_auc
-            best_metrics = these_metrics
-            print("{}: **New best valid/test AUC**: {}/{}".format(
-                i, this_valid_auc, this_test_auc))
+        if this_valid_score > state['best_model_score']:
+            print("*** new best model found: score={}".format(this_valid_score))
+            state['best_model_score'] = this_valid_score
+            save_results(results, output_dir)
 
-    print("{}: **Final best valid/test AUC**: {}/{}".format(
-        i, best_valid_auc, best_test_auc))
+        if resume:
+            resume = False
 
-    return best_metrics
+        # Checkpoint the results of this successful run.
+        state['torch_seed'] = torch.random.get_rng_state()
+        state['numpy_seed'] = np.random.get_state()
+        state['python_seed'] = random.getstate()
+        state['optimizer'] = None     # Reset for next iteration.
+        state['best_valid_score'] = 0 #
+        state['best_test_score'] = 0  #
+        state['best_epoch'] = 0       #
+        state['model'] = None         #
+        state['scheduler'] = None     #
+        state['stats'] = None         # Save best-performance information.
+        state['metrics'] = []         # Stores per-epoch information.
+        state['hp_opt'] = hp_opt      # Updated with our most recent results.
+        state['base_iteration'] = iteration+1  # How many skopt runs done.
+
+        torch.save(state, checkpoint)
+
+    # Finally, return the inverse of the best metric.
+    return(state['best_valid_score'], state['best_test_score'], state['best_epoch'])
