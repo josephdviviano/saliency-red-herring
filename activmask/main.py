@@ -18,9 +18,12 @@ def run():
 @click.option('--config', '-cgf',
               type=click.Path(exists=True, resolve_path=True),
               help='Configuration file.')
-def train(config):
+@click.option('--seed',
+              type=int, default=None,
+              help='Set random state to something other than None for reproducible results.')
+def train(config, seed):
     cfg = configuration.load_config(config)
-    training.train(cfg)
+    training.train(cfg, random_state=seed)
 
 
 @run.command()
