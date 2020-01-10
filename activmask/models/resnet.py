@@ -195,7 +195,7 @@ class ResNetModel(nn.Module):
         # Actdiff: save the activations for the masked pass (training only).
         if self.training and self.actdiff_lamb > 0:
             X_masked = shuffle_outside_mask(X, seg)
-            _ = model(X_masked)
+            _ = self.model(X_masked)
             masked_activations = self.model.all_activations
         else:
             masked_activations = []
@@ -212,13 +212,13 @@ class ResNetModel(nn.Module):
         device = y.device
         clf_loss = self.criterion(outputs['y_pred'], y)
 
-        if self.actdiff_lamb > 0:
+        if self.training and self.actdiff_lamb > 0:
             actdiff_loss = compare_activations(
                 outputs['masked_activations'], outputs['activations'])
         else:
             actdiff_loss = torch.zeros(1)[0].to(device)
 
-        if self.gradmask_lamb > 0:
+        if self.training and self.gradmask_lamb > 0:
             gradients = get_grad_contrast(outputs['X'], outputs['y_pred'], y)
             grad_loss = gradients * seg.float()
             grad_loss = grad_loss.abs().sum() * self.gradmask_lambda
