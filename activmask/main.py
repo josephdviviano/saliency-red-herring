@@ -36,15 +36,15 @@ def train(config):
 @click.option('--n-initial-points',
               type=int, default=10,
               help='Number of evaluations of func with initialization points before approximating it with base_estimator.')
-@click.option('--random-state',
+@click.option('--seed',
               type=int, default=1234,
               help='Set random state to something other than None for reproducible results.')
-def train_skopt(config, n_iter, base_estimator, n_initial_points, random_state):
+def train_skopt(config, n_iter, base_estimator, n_initial_points, seed):
     cfg = configuration.load_config(config)
     training.train_skopt(cfg, n_iter=n_iter,
                     base_estimator=base_estimator,
                     n_initial_points=n_initial_points,
-                    random_state=random_state)
+                    random_state=seed)
 
 
 def main():
