@@ -1,10 +1,11 @@
 device: 0
 cuda: True
-num_epochs: 10
+num_epochs: 500
 schedule_steps: 10
 batch_size: 32
 shuffle: True
-num_workers: 8
+new_size: &new_size 28
+num_workers: 4
 pin_memory: True
 
 # Dataset

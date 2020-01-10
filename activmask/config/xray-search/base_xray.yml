@@ -1,10 +1,13 @@
+device: 0
 cuda: True
 num_epochs: 500
 schedule_steps: 10
 batch_size: 32
 shuffle: True
+new_size: &new_size 28
+num_workers: 4
+pin_memory: True
 
-# Dataset
 dataset:
   train:
     XRayDataset:
@@ -37,15 +40,9 @@ dataset:
       seed: 1234
       new_size: 128
 
-# Optimizer
 optimizer:
   Adam:
-    lr:  0.001
-
-model:
-  ResNetSmall:
-    base_size: 4608
-    img_size: 128
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
 
 transform:
         train: {}
