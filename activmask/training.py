@@ -285,7 +285,7 @@ def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
 
             # Save predictions: First output should be the predicted class!
             targets.append(y.cpu().data.numpy())
-            predictions.append(average_predictions(outputs).cpu().data.numpy())
+            predictions.append(outputs['y_pred'].cpu().data.numpy())
 
     # Classification metrics.
     targets_ohe = ohe.fit_transform(np.concatenate(targets).reshape(-1, 1))
