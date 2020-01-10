@@ -39,7 +39,7 @@ hostname
 export LANG=C.UTF-8
 source $HOME/.bashrc
 source activate activmask
-python -u main.py train --config ${file} -seed=${seed} -viz=${viz}
+python -u main.py train --config ${file} --seed=${seed}
 EOF
 
         # Only run jobs that don't already have an output log.
