@@ -102,8 +102,7 @@ class SyntheticDataset(Dataset):
         if self.mask_all:
             img *= seg
 
-        # TODO: fix maxmasks so that the 1 returned here is whether the img mask was selected to be used
-        return (img, seg), int(label), 1
+        return (img, seg int(label))
 
 if __name__ == "__main__":
 

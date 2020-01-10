@@ -175,7 +175,7 @@ class JointDataset():
             except:
                 import IPython; IPython.embed()
 
-        return (img, seg), self.labels[idx], self.masks_selector[idx]
+        return (img, seg, self.labels[idx]) #self.masks_selector[idx]
 
 
 class NIHXrayDataset():
