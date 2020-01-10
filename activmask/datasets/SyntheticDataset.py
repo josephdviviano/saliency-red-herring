@@ -22,7 +22,6 @@ class SyntheticDataset(Dataset):
         self.distract_noise = distract_noise
         self.mask_all = mask_all
         self.maxmasks = maxmasks
-
         self._all_files = [f for f in os.listdir(self.root) if "seg" not in f and ".csv" not in f]
         self._seg_files = [f for f in os.listdir(self.root) if "seg" in f and ".csv" not in f]
 
