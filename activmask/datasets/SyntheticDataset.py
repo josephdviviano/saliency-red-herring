@@ -1,13 +1,12 @@
+from PIL import Image
+from skimage.morphology import square, dilation
 from torch.utils.data import Dataset
+import numpy as np
 import os
 import pandas as pd
-import skimage, skimage.transform
-from skimage.morphology import square
-import numpy as np
-import utils.register as register
-from PIL import Image
 import torch
 import torchvision.transforms.functional as TF
+import utils.register as register
 
 @register.setdatasetname("SyntheticDataset")
 class SyntheticDataset(Dataset):
@@ -80,7 +79,7 @@ class SyntheticDataset(Dataset):
 
         # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (np.max(seg) != 0):
-            seg = skimage.morphology.dilation(seg, selem=square(self.blur))
+            seg = dilation(seg, selem=square(self.blur))
 
         seg = (seg > 0) * 1.
 
@@ -106,15 +105,8 @@ class SyntheticDataset(Dataset):
 
 if __name__ == "__main__":
 
-    import os,sys,inspect
-    sys.path.insert(0,"..")
-    import datasets, datasets.SyntheticDataset
-    import json, medpy, collections, numpy as np, h5py
-    import ntpath
-    import matplotlib.pyplot as plt
-
-    d = datasets.SyntheticDataset.SyntheticDataset(dataroot="../data/synth2/",
-                                                   mode="distractor1",
-                                                   blur=1, nsamples=10)
+    print("loading dataloader as variable 'dataset'")
+    dataset = SyntheticDataset(dataroot="../../data/synth2/",
+                               mode="distractor1", blur=1, nsamples=10)
 
     import IPython; IPython.embed()
