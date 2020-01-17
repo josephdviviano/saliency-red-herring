@@ -311,7 +311,7 @@ def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
 
 @mlflow_logger.log_experiment(nested=True)
 @mlflow_logger.log_metric('best_valid_score', 'test_score', 'best_epoch')
-def train(cfg, state=None, save_checkpoints=False, save_performance=True):
+def train(cfg, random_state=None, state=None, save_checkpoints=False, save_performance=True):
     """
     Trains a model on a dataset given the supplied configuration.
     save is by default True and will result in the model's performance being
@@ -321,7 +321,12 @@ def train(cfg, state=None, save_checkpoints=False, save_performance=True):
     """
     exp_name = cfg['experiment_name']
     n_epochs = cfg['n_epochs']
-    seed = cfg['seed']
+
+    if random_state:
+        seed = random_state
+    else:
+        seed = cfg['seed']
+
     CHECKPOINT_FREQ = 20
 
     if save_checkpoints:
@@ -398,7 +403,7 @@ def train(cfg, state=None, save_checkpoints=False, save_performance=True):
 
     # If this is the first epoch, reset the seed.
     if base_epoch == 0:
-        set_seed(cfg['seed'])
+        set_seed(seed)
     else:
         set_seed_state(state)
 
@@ -480,7 +485,8 @@ def train(cfg, state=None, save_checkpoints=False, save_performance=True):
 
 @mlflow_logger.log_metric('best_valid_score', 'best_test_score', 'best_epoch')
 @mlflow_logger.log_experiment(nested=False)
-def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state):
+def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
+                random_state=None):
     """
     Do a Bayesian hyperparameter optimization.
 
@@ -532,15 +538,18 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points, random_state):
                          n_initial_points=n_initial_points,
                          random_state=random_state)
 
-        set_seed(cfg['seed'])
+        if not random_state:
+            set_seed(cfg['seed'])
+        else:
+            set_seed(random_state)
 
         # best_valid and best_test score are used inside of train(), best_model
         # score is only used in train_skopt() for final model selection.
         state = {'base_iteration': 0,
                  'base_epoch': 0,
-                 'best_valid_score': 0,
-                 'best_test_score': 0,
-                 'best_model_score': 0,
+                 'best_valid_score': -np.inf,
+                 'best_test_score': -np.inf,
+                 'best_model_score': -np.inf,
                  'best_epoch': 0,
                  'hp_opt': hp_opt,
                  'hp_args': hp_args,

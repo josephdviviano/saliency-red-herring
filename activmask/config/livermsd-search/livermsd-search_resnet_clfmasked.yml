@@ -1,7 +1,11 @@
 base: "base_livermsd.yml"
-bre_lambda: 0
-recon_lambda: 0
-actdiff_lambda: 0
+
+model:
+  ResNet:
+    img_size: 28
+    resnet_type: "18"
+    actdiff_lamb: 0
+    gradmask_lamb: 0
 
 dataset:
   train:
