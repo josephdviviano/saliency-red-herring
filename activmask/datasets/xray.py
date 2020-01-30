@@ -19,7 +19,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.models as models
 import torchvision.transforms.functional as TF
-import utils.register as register
+import activmask.utils.register as register
 
 
 def normalize(sample, maxval):

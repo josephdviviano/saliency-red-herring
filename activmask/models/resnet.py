@@ -11,10 +11,10 @@ Code from https://github.com/kuangliu/pytorch-cifar/blob/master/models/resnet.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils.register as register
+import activmask.utils.register as register
 import torchvision
-from models.loss import compare_activations, get_grad_contrast
-from models.utils import shuffle_outside_mask
+from activmask.models.loss import compare_activations, get_grad_contrast
+from activmask.models.utils import shuffle_outside_mask
 
 class BasicBlock(nn.Module):
     expansion = 1

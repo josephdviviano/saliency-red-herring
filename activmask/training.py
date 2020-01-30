@@ -4,9 +4,9 @@ from sklearn.metrics import (average_precision_score, accuracy_score,
                              f1_score, roc_auc_score)
 from skopt.space import Real, Integer, Categorical
 from tqdm import tqdm
-import manager.mlflow.logger as mlflow_logger
-import utils.configuration as configuration
-import utils.monitoring as monitoring
+import activmask.manager.mlflow.logger as mlflow_logger
+import activmask.utils.configuration as configuration
+import activmask.utils.monitoring as monitoring
 import copy
 import logging
 import numpy as np

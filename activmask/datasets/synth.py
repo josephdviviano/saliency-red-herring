@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import torch
 import torchvision.transforms.functional as TF
-import utils.register as register
+import activmask.utils.register as register
 
 @register.setdatasetname("SyntheticDataset")
 class SyntheticDataset(Dataset):

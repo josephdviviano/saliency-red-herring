@@ -1,5 +1,5 @@
-import datasets as datasets
-import models as models
+import activmask.datasets as datasets
+import activmask.models as models
 import collections
 import functools
 import importlib

@@ -1,7 +1,9 @@
+#!/usr/bin/env python
+
 import os
 import click
 import training as training
-import utils.configuration as configuration
+import activmask.utils.configuration as configuration
 
 
 # Enable click
