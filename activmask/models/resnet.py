@@ -13,6 +13,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import utils.register as register
 import torchvision
+from models.loss import compare_activations, get_grad_contrast
+from models.utils import shuffle_outside_mask
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -169,44 +171,61 @@ def test():
     print(y.size())
 
 
-@register.setmodelname("ResNetSmall")
-class ResNetSmall(nn.Module):
+@register.setmodelname("ResNetModel")
+class ResNetModel(nn.Module):
+    def __init__(self, base_size=512, resnet_type="18",  actdiff_lamb=0,
+                 gradmask_lamb=0):
 
-    def __init__(self, img_size=1, base_size=512):
-        super(ResNetSmall, self).__init__()
-        self.model = ResNet18(base_size=base_size, avg_pool_size=4)
+        assert resnet_type in ["18", "34"]
+        assert actdiff_lamb >= 0
+        assert gradmask_lamb >= 0
+
+        super(ResNetModel, self).__init__()
+        if resnet_type == "18":
+            self.model = ResNet18(base_size=base_size, avg_pool_size=4)
+        elif resnet_type == "34":
+            self.model = ResNet34(base_size=base_size, avg_pool_size=4)
         self.all_activations = []
+        self.actdiff_lamb = actdiff_lamb
+        self.gradmask_lamb = gradmask_lamb
+        self.criterion = torch.nn.CrossEntropyLoss()
 
-    def forward(self, x):
-        out = self.model(x)
-        self.all_activations = self.model.all_activations
-        return out, None
+    def forward(self, X, seg):
 
+        # Actdiff: save the activations for the masked pass (training only).
+        if self.training and self.actdiff_lamb > 0:
+            X_masked = shuffle_outside_mask(X, seg)
+            _ = self.model(X_masked)
+            masked_activations = self.model.all_activations
+        else:
+            masked_activations = []
 
-@register.setmodelname("ResNetBig")
-class ResNetBig(nn.Module):
+        y_pred = self.model(X)
+        activations = self.model.all_activations
 
-    def __init__(self, img_size=1, base_size=512):
-        super(ResNetBig, self).__init__()
-        self.model = ResNet34(base_size=base_size, avg_pool_size=4)
-        self.all_activations = []
+        return {'y_pred': y_pred,
+                'X': X,
+                'activations': activations,
+                'masked_activations': masked_activations}
 
-    def forward(self, x):
-        out = self.model(x)
-        self.all_activations = self.model.all_activations
-        return out, None
+    def loss(self, y, outputs):
+        device = y.device
+        clf_loss = self.criterion(outputs['y_pred'], y)
 
+        if self.training and self.actdiff_lamb > 0:
+            actdiff_loss = compare_activations(
+                outputs['masked_activations'], outputs['activations'])
+        else:
+            actdiff_loss = torch.zeros(1)[0].to(device)
 
-@register.setmodelname("ResNetVision")
-class ResNetVision(nn.Module):
+        if self.training and self.gradmask_lamb > 0:
+            gradients = get_grad_contrast(outputs['X'], outputs['y_pred'], y)
+            grad_loss = gradients * seg.float()
+            grad_loss = grad_loss.abs().sum() * self.gradmask_lambda
+        else:
+            grad_loss = torch.zeros(1)[0].to(device)
 
-    def __init__(self, img_size=1, base_size=512):
-        super(ResNetVision, self).__init__()
-        self.model = torchvision.models.resnet34(num_classes=2)
-        self.all_activations = []
+        return {'clf_loss': clf_loss,
+                'actdiff_loss': actdiff_loss,
+                'gradmask_loss': grad_loss}
 
-    def forward(self, x):
-        x = x.repeat(1, 3, 1, 1)
-        out = self.model(x)
-        #self.all_activations = self.model.all_activations
-        return out, None

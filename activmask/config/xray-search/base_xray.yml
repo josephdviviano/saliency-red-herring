@@ -1,23 +1,20 @@
-# General
+device: 0
 cuda: True
 nsamples_train: 500
 maxmasks_train: 256
-#new_size: &new_size 28
 recon_masked: False
 recon_continuous: False
 gradmask_lambda: 0
 seed: 0
-
-# Training
 n_iter: 30
 num_epochs: 500
 schedule_steps: 10
-
-# DataLoader
 batch_size: 32
 shuffle: True
+new_size: &new_size 28
+num_workers: 4
+pin_memory: True
 
-# Dataset
 dataset:
   train:
     XRayDataset:
@@ -54,6 +51,10 @@ model:
   ResNetSmall:
     base_size: 4608
     img_size: 128
+
+optimizer:
+  Adam:
+    lr: "Real(10**-4, 10**-2, 'log-uniform')"
 
 transform:
         train: {}

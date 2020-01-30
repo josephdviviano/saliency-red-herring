@@ -42,7 +42,7 @@ for seed in "${SEEDS[@]}"; do
 hostname
 export LANG=C.UTF-8
 source $HOME/.bashrc
-python -u main.py train-skopt --config ${file} -seed=${seed} -viz=${viz} --n_iter=${N_ITER}
+python -u activmask/main.py train-skopt --config ${file} --seed=${seed} --n_iter=${N_ITER}
 EOF
 
         # Only run jobs that don't already have an output log.

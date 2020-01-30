@@ -1,57 +1,28 @@
 import datasets as datasets
+import models as models
+import collections
+import functools
 import importlib
 import inspect
 import logging
-import models as models
 import os
 import torchvision
 import yaml
-
 _LOG = logging.getLogger(__name__)
 
-def process_config(config):
-    """
-    Here to deconstruct the config file from nested dicts into a flat structure.
-    """
-    output_dict = {}
-    for mode in ['train', 'valid','test']:
-        for key, item in config.items():
-            if type(config[key]) == dict:
-                # if the 'value' is actually a dict, iterate through and
-                # collect train/valid/test values.
-                try:
-                    # config is of the form main_key: train/test/valid:
-                    # key_val: more_key_val_pairs
-                    sub_dict = config[key][mode]
-                    main_key_value = list(sub_dict.keys())[0]
-                    output_dict["{}_{}".format(mode, key)] = main_key_value
 
-                    # e.g. name of optimiser, name of dataset
-                    sub_sub_dict = sub_dict[main_key_value]
-                    for k, i in sub_sub_dict.items():
-                        if type(i) == float:
-                            i = round(i, 4)
-                        # so we don't have e.g. train_dataset_MSD_mode.
-                        output_dict["{}_{}_{}".format(mode, key, k)] = i
-                except:
-                    # config is of the form main_key:
-                    # key_val: more_key_val_pairs e.g. optimiser: Adam: lr: 0.1
-                    sub_dict = config[key]
-                    main_key_value = list(sub_dict.keys())[0]
-                    output_dict[key] = main_key_value
-                    # e.g. name of optimiser, name of dataset.
-                    sub_sub_dict = sub_dict[main_key_value]
-
-                    for k, i in sub_sub_dict.items():
-                        if type(i) == float:
-                            i = round(i, 4)
-                        output_dict["{}_{}".format(key, k)] = i
-            else:
-                # standard key: val pair
-                if type(item) == float:
-                    item = round(item, 4)
-                output_dict[key] = item
-    return output_dict
+def flatten(d, parent_key='', sep='_'):
+    """
+    Will flatten the dictionary d (i.e., config) with all keys merged by `sep`.
+    """
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 
 def merge(source, destination):
@@ -91,11 +62,12 @@ def load_config(config_file):
     any settings shared by the base config and the experiment config,
     training.py will obey the experiment config.
     """
+    # Required by training.py to run.
     default_cfg = {'cuda': True,
                    'seed': 0,
                    'optimizer': {'Adam': {}},
                    'batch_size': 32,
-                   'num_epochs': 10}
+                   'n_epochs': 10}
 
     # Load the experiment-level config.
     with open(config_file, 'r') as f:
@@ -124,7 +96,8 @@ def get_available_classes(mod, mod_path, control_variable):
     :type mod: object
     :param mod_path: path to the module
     :type mod_path: str
-    :param control_variable: module specific attribute name (please refer to the documentation sec XX)
+    :param control_variable: module specific attribute name (please refer to
+                             the documentation sec XX)
     :type control_variable: str
     :return: a dictionary with the associated class objects
     :rtype: dict{str: object}
@@ -140,12 +113,46 @@ def get_available_classes(mod, mod_path, control_variable):
             available_objects[obj.__dict__[control_variable]] = obj
     return available_objects
 
+
+def setup_model(config, yaml_section='model'):
+    """
+    Prepare model according to config file.
+    """
+    available_models = get_available_classes(
+        models, 'models.', '_MODEL_NAME')
+    models_from_module = importlib.import_module('torchvision.models')
+
+    if type(yaml_section) == str and yaml_section != '':
+        yaml_section = [yaml_section]
+    sub_section = functools.reduce(
+        lambda sub_dict, key: sub_dict.get(key), yaml_section, config)
+
+    # Allows us to optionally define models of different types.
+    if not sub_section:
+        return None
+
+    model_name = list(sub_section.keys())[0]
+    model_args = list(sub_section.values())[0]
+
+    _LOG.info('Model {} with arguments {}'.format(model_name, model_args))
+
+    if hasattr(models_from_module , model_name):
+        obj = getattr(models_from_module, model_name)
+    else:
+        obj = available_models[model_name]
+
+    # Create the model
+    model = obj(**model_args)
+    return model
+
+
 def setup_dataset(config, split='train'):
     """
-    Prepare data generators for training set and optionally for validation set
+    Prepare data generators for training set and optionally for validation set.
     """
 
-    available_datasets = get_available_classes(datasets, 'datasets.', '_DG_NAME')
+    available_datasets = get_available_classes(
+        datasets, 'datasets.', '_DG_NAME')
     datasets_from_module = importlib.import_module('torchvision.datasets')
 
     dataset_name = list(config['dataset'][split].keys())[0]
@@ -157,33 +164,8 @@ def setup_dataset(config, split='train'):
     else:
         obj = available_datasets[dataset_name]
 
-    #dataset_args['nsamples'] = config['nsamples']
-    #dataset_args['seed'] = config['seed']
-    #dataset_args['blur'] = config['blur']
-    #dataset_args['maxmasks'] = config['maxmasks']
-    print("dataset_args:", dataset_args)
     dataset = lambda transform: obj(transform=transform, **dataset_args)
     return dataset
-
-
-def setup_model(config, yaml_section='model'):
-    """
-    Prepare model according to config file
-    """
-    available_models = get_available_classes(models, 'models.', '_MODEL_NAME')
-    models_from_module = importlib.import_module('torchvision.models')
-
-    model_name = list(config[yaml_section].keys())[0]
-    model_args = list(config[yaml_section].values())[0]
-
-    _LOG.info('Model {} with arguments {}'.format(model_name, model_args))
-
-    if hasattr(models_from_module , model_name):
-        obj = getattr(models_from_module, model_name)
-    else:
-        obj = available_models[model_name]
-    model = obj(**model_args)
-    return model
 
 
 def setup_optimizer(config, yaml_section='optimizer'):
@@ -193,18 +175,23 @@ def setup_optimizer(config, yaml_section='optimizer'):
 
     optimizer_module = importlib.import_module('torch.optim')
 
-    optimizer_name = list(config[yaml_section].keys())[0]
-    optimizer_args = list(config[yaml_section].values())[0]
+    if type(yaml_section) == str and yaml_section != '':
+        yaml_section = [yaml_section]
+    sub_section = functools.reduce(
+        lambda sub_dict, key: sub_dict.get(key), yaml_section, config)
+    optimizer_name = list(sub_section.keys())[0]
+    optimizer_args = list(sub_section.values())[0]
 
-    _LOG.info('Optimizer {} with arguments {}'.format(optimizer_name, optimizer_args))
+    _LOG.info('Optimizer {} with arguments {}'.format(optimizer_name,
+                                                      optimizer_args))
 
     optimizer_obj = getattr(optimizer_module, optimizer_name)
     optimizer_lambda = lambda param: optimizer_obj(param, **optimizer_args)
 
     return optimizer_lambda
 
-def setup_transform(config, split='train'):
 
+def setup_transform(config, split='train'):
     """
     Prepare transform according to configuration file
     """
@@ -222,4 +209,3 @@ def setup_transform(config, split='train'):
 
     compose_transform = torchvision.transforms.Compose(transforms)
     return compose_transform
-

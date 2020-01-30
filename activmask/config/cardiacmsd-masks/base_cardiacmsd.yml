@@ -1,19 +1,12 @@
-# General
+device: 0
 cuda: True
-n_iter: 30
-nsamples_train: 128
-maxmasks_train: 256
-recon_masked: False
-recon_continuous: True
-gradmask_lambda: 0
-
-# Training
 num_epochs: 500
 schedule_steps: 10
-
-# DataLoader
 batch_size: 32
 shuffle: True
+new_size: &new_size 28
+num_workers: 4
+pin_memory: True
 
 # Dataset
 dataset:
