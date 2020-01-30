@@ -9,7 +9,8 @@ gradmask_lambda: 0
 seed: 0
 
 # Training
-num_epochs: 100
+n_iter: 30
+num_epochs: 500
 schedule_steps: 10
 
 # DataLoader
@@ -20,39 +21,34 @@ shuffle: True
 dataset:
   train:
     XRayDataset:
-      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
-      d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
-      d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
+      d1csv: "/lustre04/scratch/jdv/xray/Data_Entry_2017.csv"
+      d2data: "/lustre04/scratch/jdv/xray/PC/images-128"
+      d2csv: "/lustre04/scratch/jdv/xray/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "train"
       seed: 1234
       new_size: 128
   valid:
     XRayDataset:
-      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
-      d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
-      d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
+      d1csv: "/lustre04/scratch/jdv/xray/ChestXray-NIHCC/Data_Entry_2017.csv"
+      d2data: "/lustre04/scratch/jdv/xray/images-128"
+      d2csv: "/lustre04/scratch/jdv/xray/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "valid"
       seed: 1234
       new_size: 128
   test:
     XRayDataset:
-      d1data: "/lustre04/scratch/cohenjos/NIH/images-128"
-      d1csv: "/lustre03/project/6008064/jpcohen/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/cohenjos/PC/images-128"
-      d2csv: "/lustre03/project/6008064/jpcohen/PADCHEST_SJ/labels_csv/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
+      d1csv: "/lustre04/scratch/jdv/xray/Data_Entry_2017.csv"
+      d2data: "/lustre04/scratch/jdv/xray/PC/images-128"
+      d2csv: "/lustre04/scratch/jdv/xray/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "test"
       seed: 1234
       new_size: 128
-
-# Optimizer
-optimizer:
-  Adam:
-    lr:  0.001
 
 model:
   ResNetSmall:

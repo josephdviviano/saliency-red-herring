@@ -4,7 +4,8 @@ maxmasks_train: 256
 recon_masked: False
 recon_continuous: True
 gradmask_lambda: 0
-num_epochs: 100
+num_epochs: 500
+n_iter: 30
 schedule_steps: 10
 batch_size: 32
 shuffle: True
