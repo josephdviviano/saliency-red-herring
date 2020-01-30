@@ -2,10 +2,11 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="synth-search livermsd-search cardiacmsd-search pancreasmsd-search xray-search"
+#EXPERIMENTS="synth-search livermsd-search cardiacmsd-search pancreasmsd-search xray-search"
+EXPERIMENTS="synth-search livermsd-search pancreasmsd-search"
 SEEDS=(1234)
 #SEEDS=(3232 3221 9856 1290 1987 3200 6400 8888 0451)
-N_ITER=20
+N_ITER=30
 
 for seed in "${SEEDS[@]}"; do
     echo "SEED ${seed}:"
@@ -45,9 +46,9 @@ python -u main.py train-skopt --config ${file} -seed=${seed} -viz=${viz} --n_ite
 EOF
 
         # Only run jobs that don't already have an output log.
-        if [ ! -f cluster_logs/${filename}_out.txt ]; then
-            sbatch ${runscript}
-        fi
+        #if [ ! -f cluster_logs/${filename}_out.txt ]; then
+        sbatch ${runscript}
+        #fi
 
         rm ${runscript}
         done
