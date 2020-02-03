@@ -6,8 +6,7 @@ dataset:
         mask_all: True
 
 model:
-  ResNet:
-    img_size: 28
+  ResNetModel:
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0

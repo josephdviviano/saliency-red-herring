@@ -1,16 +1,10 @@
 batch_size: 32
 cuda: True
 device: 0
-gradmask_lambda: 0
-maxmasks_train: 256
-new_size: &new_size 28
-nsamples_train: 128
 n_iter: 30
 num_epochs: 500
 num_workers: 4
 pin_memory: True
-recon_continuous: True
-recon_masked: False
 schedule_steps: 10
 shuffle: True
 

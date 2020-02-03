@@ -1,17 +1,10 @@
 device: 0
 cuda: True
-nsamples_train: 500
-maxmasks_train: 256
-recon_masked: False
-recon_continuous: False
-gradmask_lambda: 0
-seed: 0
 n_iter: 30
 num_epochs: 500
 schedule_steps: 10
 batch_size: 32
 shuffle: True
-new_size: &new_size 28
 num_workers: 4
 pin_memory: True
 
@@ -29,8 +22,8 @@ dataset:
   valid:
     XRayDataset:
       d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
-      d1csv: "/lustre04/scratch/jdv/xray/ChestXray-NIHCC/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/jdv/xray/images-128"
+      d1csv: "/lustre04/scratch/jdv/xray/Data_Entry_2017.csv"
+      d2data: "/lustre04/scratch/jdv/xray/PC/images-128"
       d2csv: "/lustre04/scratch/jdv/xray/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "valid"
@@ -46,11 +39,6 @@ dataset:
       mode: "test"
       seed: 1234
       new_size: 128
-
-model:
-  ResNetSmall:
-    base_size: 4608
-    img_size: 128
 
 optimizer:
   Adam:
