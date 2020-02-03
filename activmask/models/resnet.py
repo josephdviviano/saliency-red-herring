@@ -206,7 +206,8 @@ class ResNetModel(nn.Module):
         return {'y_pred': y_pred,
                 'X': X,
                 'activations': activations,
-                'masked_activations': masked_activations}
+                'masked_activations': masked_activations,
+                'seg': seg}
 
     def loss(self, y, outputs):
         device = y.device
@@ -220,7 +221,7 @@ class ResNetModel(nn.Module):
 
         if self.training and self.gradmask_lamb > 0:
             gradients = get_grad_contrast(outputs['X'], outputs['y_pred'], y)
-            grad_loss = gradients * seg.float()
+            grad_loss = gradients * outputs['seg'].float()
             grad_loss = grad_loss.abs().sum() * self.gradmask_lambda
         else:
             grad_loss = torch.zeros(1)[0].to(device)
@@ -228,4 +229,3 @@ class ResNetModel(nn.Module):
         return {'clf_loss': clf_loss,
                 'actdiff_loss': actdiff_loss,
                 'gradmask_loss': grad_loss}
-
