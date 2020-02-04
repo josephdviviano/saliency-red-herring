@@ -222,7 +222,7 @@ class ResNetModel(nn.Module):
         if self.training and self.gradmask_lamb > 0:
             gradients = get_grad_contrast(outputs['X'], outputs['y_pred'], y)
             grad_loss = gradients * outputs['seg'].float()
-            grad_loss = grad_loss.abs().sum() * self.gradmask_lambda
+            grad_loss = grad_loss.abs().sum() * self.gradmask_lamb
         else:
             grad_loss = torch.zeros(1)[0].to(device)
 
