@@ -2,6 +2,7 @@ base: "base_cardiacmsd.yml"
 
 model:
   ResNetModel:
+    base_size: 4608
     resnet_type: "18"
     actdiff_lamb: "Real(10**-3, 10, 'log-uniform')"
     gradmask_lamb: "Real(10**-3, 10, 'log-uniform')"

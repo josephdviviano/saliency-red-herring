@@ -126,14 +126,16 @@ class MSDDataset(Dataset):
         self.mask_all = mask_all
         self.maxmasks = maxmasks
 
-        filename = self.dataroot + "msd_gz_new.hdf5"
+        filename = os.path.join(self.dataroot, "msd_gz_new.hdf5")
+
         if not os.path.isfile(filename):
             print("Computing hdf5 file of the data")
-            dataset = json.load(open(self.dataroot + "dataset.json"))
+            dataset = json.load(
+                open(os.path.join(self.dataroot, "dataset.json")))
             files = dataset['training']
             compute_hdf5(self.dataroot, files, filename)
 
-        #store cached reference so we can load the valid and test faster
+        # Store cached reference so we can load the valid and test faster.
         if not dataroot in cached_msd_ref:
             cached_msd_ref[dataroot] = h5py.File(filename,"r")
         self.dataset = cached_msd_ref[dataroot]
@@ -142,8 +144,6 @@ class MSDDataset(Dataset):
 
         all_labels = np.concatenate([self.dataset[i]["labels"] for i in self._all_files])
         print ("Full dataset contains: " + str(collections.Counter(all_labels)))
-
-
 
         np.random.seed(seed)
         np.random.shuffle(self._all_files)

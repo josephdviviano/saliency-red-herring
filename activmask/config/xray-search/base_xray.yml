@@ -5,7 +5,7 @@ num_epochs: 500
 schedule_steps: 10
 batch_size: 32
 shuffle: True
-num_workers: 4
+num_workers: 0
 pin_memory: True
 
 dataset:
