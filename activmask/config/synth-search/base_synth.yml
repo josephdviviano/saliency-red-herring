@@ -2,7 +2,7 @@ batch_size: 32
 cuda: True
 device: 0
 n_iter: 30
-num_epochs: 500
+n_epochs: 500
 num_workers: 0
 pin_memory: True
 schedule_steps: 10

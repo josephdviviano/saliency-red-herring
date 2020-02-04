@@ -1,7 +1,7 @@
 device: 0
 cuda: True
 n_iter: 30
-num_epochs: 500
+n_epochs: 500
 schedule_steps: 10
 batch_size: 32
 shuffle: True
