@@ -538,7 +538,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
                          n_initial_points=n_initial_points,
                          random_state=random_state)
 
-        if not random_state:
+        if isinstance(random_state, type(None)):
             seed = cfg['seed']
         else:
             seed = random_state
