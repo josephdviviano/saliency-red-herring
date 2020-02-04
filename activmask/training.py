@@ -539,9 +539,10 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
                          random_state=random_state)
 
         if not random_state:
-            set_seed(cfg['seed'])
+            seed = cfg['seed']
         else:
-            set_seed(random_state)
+            seed = random_state
+        set_seed(seed)
 
         # best_valid and best_test score are used inside of train(), best_model
         # score is only used in train_skopt() for final model selection.
@@ -585,6 +586,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
             hp_opt.tell(state['suggestion'], this_metric)
         except RuntimeError as e:
             # Something went wrong, (probably a CUDA error).
+            results = {'seed': seed}
             this_metric = 0.0
             this_valid_score = 0.0
             print("Experiment failed:\n{}\nAttempting next config.".format(e))
