@@ -322,16 +322,17 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
     exp_name = cfg['experiment_name']
     n_epochs = cfg['n_epochs']
 
-    if random_state:
-        seed = random_state
-    else:
+    if isinstance(random_state, type(None)):
         seed = cfg['seed']
+    else:
+        seed = random_state
 
     CHECKPOINT_FREQ = 20
 
     if save_checkpoints:
         output_dir = os.path.join('results', cfg['experiment_name'])
-        checkpoint = os.path.join(output_dir, 'skopt_checkpoint.pth.tar')
+        checkpoint = os.path.join(output_dir,
+                                  'skopt_checkpoint_{}.pth.tar'.format(seed))
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -497,9 +498,14 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
     :param random_state: seed.
     :return:
     """
+    if isinstance(random_state, type(None)):
+        seed = cfg['seed']
+    else:
+        seed = random_state
 
     output_dir = os.path.join('results', cfg['experiment_name'])
-    checkpoint = os.path.join(output_dir, 'skopt_checkpoint.pth.tar')
+    checkpoint = os.path.join(output_dir,
+                              'skopt_checkpoint_{}.pth.tar'.format(seed))
 
     if os.path.isfile(checkpoint):
 
@@ -538,10 +544,6 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
                          n_initial_points=n_initial_points,
                          random_state=random_state)
 
-        if isinstance(random_state, type(None)):
-            seed = cfg['seed']
-        else:
-            seed = random_state
         set_seed(seed)
 
         # best_valid and best_test score are used inside of train(), best_model
@@ -578,6 +580,7 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
         try:
             this_valid_score, this_test_score, this_best_epoch, results, state = train(state['this_cfg'],
                                                                                        state=state,
+                                                                                       random_state=seed,
                                                                                        save_checkpoints=True,
                                                                                        save_performance=False)
 
