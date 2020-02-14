@@ -336,9 +336,10 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-    device = 'cuda' if cfg['cuda'] else 'cpu'
-    if cfg['device'] >= 0:
-        torch.cuda.set_device(cfg['device'])
+    # Hard-coded to cuda.
+    device = 'cuda'
+    #if cfg['device'] >= 0:
+    #torch.cuda.set_device(cfg['device'])
 
     # Transforms
     tr_train = configuration.setup_transform(cfg, 'train')
