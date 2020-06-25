@@ -311,7 +311,8 @@ def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
 
 @mlflow_logger.log_experiment(nested=True)
 @mlflow_logger.log_metric('best_valid_score', 'test_score', 'best_epoch')
-def train(cfg, random_state=None, state=None, save_checkpoints=False, save_performance=True):
+def train(cfg, random_state=None, state=None, save_checkpoints=False,
+          save_performance=True):
     """
     Trains a model on a dataset given the supplied configuration.
     save is by default True and will result in the model's performance being
