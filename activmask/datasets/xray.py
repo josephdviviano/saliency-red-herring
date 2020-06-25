@@ -33,7 +33,7 @@ def normalize(sample, maxval):
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
                  seed=0, transform=None, nsamples=None, maxmasks=None,
-                 new_size=None, mask_all=False):
+                 new_size=128, mask_all=False):
 
         splits = np.array([0.5,0.25,0.25])
         assert mode in ['train', 'valid', 'test']

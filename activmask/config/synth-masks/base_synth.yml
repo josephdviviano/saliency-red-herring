@@ -1,17 +1,16 @@
-device: 0
+batch_size: 32
 cuda: True
-nsamples_train: 500
-new_size: &new_size 28
-recon_masked: False
-recon_continuous: False
+device: 0
 gradmask_lambda: 0
 n_iter: 30
+nsamples_train: 500
 num_epochs: 500
-schedule_steps: 10
-batch_size: 32
-shuffle: True
 num_workers: 0
 pin_memory: True
+recon_continuous: False
+recon_masked: False
+schedule_steps: 10
+shuffle: True
 
 # Dataset
 dataset:
@@ -20,7 +19,6 @@ dataset:
       mode: 'distractor1'
       blur: 3
       nsamples: 500
-      new_size: &new_size 28
       dataroot: &dataroot "/home/jdv/code/activmask/data/synth2"
       distract_noise: 0
   valid:
@@ -28,7 +26,6 @@ dataset:
       mode: 'distractor2'
       blur: 3
       nsamples: 128
-      new_size: *new_size
       dataroot: *dataroot
       distract_noise: 1
   test:
@@ -36,7 +33,6 @@ dataset:
       mode: 'distractor3'
       blur: 3
       nsamples: 128
-      new_size: *new_size
       dataroot: *dataroot
       distract_noise: 1
 
