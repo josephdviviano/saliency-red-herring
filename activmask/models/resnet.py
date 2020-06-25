@@ -35,17 +35,19 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(self.expansion*planes)
             )
 
-    def forward(self, x):
-        """Pass through x, saving all pre-activation states."""
+    def forward(self, x, save=False):
+        """Pass through x, optionally saving all pre-activation states."""
         all_activations = []
 
         out = self.bn1(self.conv1(x))
-        all_activations.append(out)
+        if save:
+            all_activations.append(out)
         out = self.activation(out)
 
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
-        all_activations.append(out)
+        if save:
+            all_activations.append(out)
         out = self.activation(out)
         return (out, all_activations)
 
@@ -71,33 +73,42 @@ class Bottleneck(nn.Module):
                 nn.BatchNorm2d(self.expansion*planes)
             )
 
-    def forward(self, x):
+    def forward(self, x, save=False):
+        """Pass through x, optionally saving all pre-activation states."""
         all_activations = []
 
         out = self.bn1(self.conv1(x))
-        all_activations.append(out)
+        if save:
+            all_activations.append(out)
         out = self.activation(out)
 
         out = self.bn2(self.conv2(out))
-        all_activations.append(out)
+        if save:
+            all_activations.append(out)
         out = self.activation(out)
 
         out = self.bn3(self.conv3(out))
         out += self.shortcut(x)
-        all_activations.append(out)
+        if save:
+            all_activations.append(out)
         out = self.activation(out)
         return (out, all_activations)
 
 
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=2, base_size=512,
-                 avg_pool_size=4, avg_pool_stride=1):
+                 avg_pool_size=4, avg_pool_stride=1, save_acts=[0, 1, 2, 3, 4]):
         super(ResNet, self).__init__()
+
+        assert all(i <= 4 for i in save_acts)
+        assert all(i >= 0 for i in save_acts)
+
         self.in_planes = 64
         self.all_activations = []
         self.activation = nn.ReLU()
         self.avg_pool_size = avg_pool_size
         self.avg_pool_stride = avg_pool_stride
+        self.save_acts = save_acts
 
         self.conv1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -105,6 +116,7 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layers(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layers(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layers(block, 512, num_blocks[3], stride=2)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.linear = nn.Linear(base_size*block.expansion, num_classes)
 
     def _make_layers(self, block, planes, num_blocks, stride):
@@ -115,10 +127,10 @@ class ResNet(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.ModuleList(layers)
 
-    def _run_layers(self, layers, out):
+    def _run_layers(self, layers, out, save=False):
         all_activations = []
         for layer in layers:
-            out, activations = layer(out)
+            out, activations = layer(out, save=save)
             all_activations.extend(activations)
 
         return (out, all_activations)
@@ -127,42 +139,52 @@ class ResNet(nn.Module):
         self.all_activations = []  # Reset for all passes of network.
 
         out = self.bn1(self.conv1(x))
-        self.all_activations.append(out)
+        if 0 in self.save_acts:
+            self.all_activations.append(out)
         out = self.activation(out)
 
-        out, activations = self._run_layers(self.layer1, out)
+        out, activations = self._run_layers(self.layer1, out,
+                                            save=1 in self.save_acts)
         self.all_activations.extend(activations)
 
-        out, activations = self._run_layers(self.layer2, out)
+        out, activations = self._run_layers(self.layer2, out,
+                                            save=2 in self.save_acts)
         self.all_activations.extend(activations)
 
-        out, activations = self._run_layers(self.layer3, out)
+        out, activations = self._run_layers(self.layer3, out,
+                                            save=3 in self.save_acts)
         self.all_activations.extend(activations)
 
-        out, activations = self._run_layers(self.layer4, out)
+        out, activations = self._run_layers(self.layer4, out,
+                                            save=4 in self.save_acts)
         self.all_activations.extend(activations)
 
-        #out = F.avg_pool2d(out, self.avg_pool_size, self.avg_pool_stride)
-        out = F.avg_pool2d(out, 4)
-        out = out.view(out.size(0), -1)
+        out = self.avgpool(out)
+        out = torch.flatten(out, 1)
         out = self.linear(out)
+
         return out
 
 
-def ResNet18(base_size=512, avg_pool_size=4):
-    return ResNet(BasicBlock, [2,2,2,2], base_size=base_size)
+def ResNet18(base_size=512, avg_pool_size=4, save_acts=[0, 1, 2, 3, 4]):
+    return ResNet(BasicBlock, [2,2,2,2], base_size=base_size, save_acts=save_acts)
 
-def ResNet34(base_size=512, avg_pool_size=4):
-    return ResNet(BasicBlock, [3,4,6,3], base_size=base_size)
+def ResNet34(base_size=512, avg_pool_size=4, save_acts=[0, 1, 2, 3, 4]):
+    return ResNet(BasicBlock, [3,4,6,3], base_size=base_size, save_acts=save_acts)
 
-def ResNet50(base_size=512, avg_pool_size=4, avg_pool_stride=1):
-    return ResNet(Bottleneck, [3,4,6,3], base_size=base_size, avg_pool_size=avg_pool_size, avg_pool_stride=avg_pool_stride)
+def ResNet50(base_size=512, avg_pool_size=4, avg_pool_stride=1,
+             save_acts=[0, 1, 2, 3, 4]):
+    return ResNet(Bottleneck, [3,4,6,3],
+                  base_size=base_size,
+                  avg_pool_size=avg_pool_size,
+                  avg_pool_stride=avg_pool_stride,
+                  save_acts=save_acts)
 
-def ResNet101(base_size=512, avg_pool_size=4):
-    return ResNet(Bottleneck, [3,4,23,3], base_size=base_size)
+def ResNet101(base_size=512, avg_pool_size=4, save_acts=[0, 1, 2, 3, 4]):
+    return ResNet(Bottleneck, [3,4,23,3], base_size=base_size, save_acts=save_acts)
 
-def ResNet152(base_size=512, avg_pool_size=4):
-    return ResNet(Bottleneck, [3,8,36,3], base_size=base_size)
+def ResNet152(base_size=512, avg_pool_size=4, save_acts=[0, 1, 2, 3, 4]):
+    return ResNet(Bottleneck, [3,8,36,3], base_size=base_size, save_acts=save_acts)
 
 
 def test():
@@ -174,17 +196,21 @@ def test():
 @register.setmodelname("ResNetModel")
 class ResNetModel(nn.Module):
     def __init__(self, base_size=512, resnet_type="18",  actdiff_lamb=0,
-                 gradmask_lamb=0):
+                 gradmask_lamb=0, save_acts=[0, 1, 2, 3, 4]):
+
 
         assert resnet_type in ["18", "34"]
         assert actdiff_lamb >= 0
         assert gradmask_lamb >= 0
 
         super(ResNetModel, self).__init__()
+
         if resnet_type == "18":
-            self.model = ResNet18(base_size=base_size, avg_pool_size=4)
+            self.model = ResNet18(base_size=base_size, avg_pool_size=4,
+                                  save_acts=save_acts)
         elif resnet_type == "34":
-            self.model = ResNet34(base_size=base_size, avg_pool_size=4)
+            self.model = ResNet34(base_size=base_size, avg_pool_size=4,
+                                  save_acts=save_acts)
         self.all_activations = []
         self.actdiff_lamb = actdiff_lamb
         self.gradmask_lamb = gradmask_lamb
@@ -194,7 +220,7 @@ class ResNetModel(nn.Module):
 
         # Actdiff: save the activations for the masked pass (training only).
         if self.training and self.actdiff_lamb > 0:
-            X_masked = shuffle_outside_mask(X, seg)
+            X_masked = shuffle_outside_mask(X, seg).detach()
             _ = self.model(X_masked)
             masked_activations = self.model.all_activations
         else:
