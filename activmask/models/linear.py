@@ -1,7 +1,7 @@
-from ai.semrep.models.utils import generate_feedforward_layers, Dummy
+from activmask.models.utils import generate_feedforward_layers, Dummy
 from copy import copy
 from torch.nn.utils import spectral_norm
-import ai.semrep.utils.register as register
+import activmask.utils.register as register
 import importlib
 import torch
 import torch.nn as nn
@@ -48,7 +48,6 @@ class LinearLayers(nn.Module):
         self.linear = norm_dict[norm]
         self.dropout = nn.Dropout(dropout)
         self.activation = nn.ReLU()
-        self.activations = []
 
         arch = []
         n_layers = len(layers)
@@ -80,35 +79,24 @@ class LinearLayers(nn.Module):
         return self.embed(X)
 
 
-class LinearClassifier(nn.Module):
+class Discriminator(nn.Module):
     """
     A basic feed forward classifier architecture with configurable dropout and
     layer-wise normalization.
     """
-    def __init__(self, layers, num_classes=8, dropout=0, norm='none'):
+    def __init__(self, layers, dropout=0, norm='spectral'):
         """
         A set of linear layers (optionally with dropout) for a uni-modal
         classifier.
         """
-        super(LinearClassifier, self).__init__()
-
-        assert num_classes >= 1
+        super(Discriminator, self).__init__()
 
         self.model = LinearLayers(layers=layers, dropout=dropout, norm=norm)
-        self.fc = nn.Linear(layers[-1], num_classes)
-        self.criterion = torch.nn.CrossEntropyLoss()
-
-    def embed(self, X):
-        return self.model(X)
+        # The final prediction made is bounded to [0 1].
+        self.fc = nn.Sequential(nn.Linear(layers[-1], 1), nn.Sigmoid())
 
     def forward(self, X):
-        h = self.embed(X)
-        y_pred = self.fc(h)
-        return y_pred
-
-    def loss(self, y, y_pred):
-        clf_loss = self.criterion(y_pred, y)
-        return {'clf': clf_loss}
+        return self.fc(self.model(X))
 
 
 class LinearActivationSaver(LinearLayers):
@@ -139,12 +127,4 @@ class LinearActivationSaver(LinearLayers):
 
         return X
 
-
-class Discriminator(LinearClassifier):
-    def __init__(self, layers):
-        super(Discriminator, self).__init__(
-            layers=layers, num_classes=1, dropout=0, norm='spectral')
-
-        # The final prediction made is bounded to [0 1].
-        self.fc = nn.Sequential(nn.Linear(layers[-1], 1), nn.Sigmoid())
 
