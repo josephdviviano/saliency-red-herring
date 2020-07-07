@@ -71,14 +71,14 @@ def load_config(config_file):
 
     # Load the experiment-level config.
     with open(config_file, 'r') as f:
-        experiment_cfg = yaml.load(f)
+        experiment_cfg = yaml.safe_load(f)
 
     # If it is defined, import the base-config for the experiment.
     if 'base' in experiment_cfg.keys() and experiment_cfg['base'] != None:
         basename = os.path.dirname(config_file)
         base_file = os.path.join(basename, experiment_cfg['base'])
         with open(base_file, 'r') as f:
-            base_cfg = yaml.load(f)
+            base_cfg = yaml.safe_load(f)
     else:
         base_cfg = {}
 
