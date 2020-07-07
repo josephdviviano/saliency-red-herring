@@ -5,6 +5,9 @@ base: 'base_synth.yml'
 model:
   ResNetModel:
     resnet_type: "18"
-    actdiff_lamb: 1
+    actdiff_lamb: 0
     gradmask_lamb: 0
-    save_acts: [4]
+    disc_lamb: 10
+    disc_iter: 5
+    disc_lr: 0.001
+    save_acts: [5]

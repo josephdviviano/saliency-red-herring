@@ -4,7 +4,7 @@ device: 0
 gradmask_lambda: 0
 n_iter: 30
 nsamples_train: 500
-n_epochs: 500
+n_epochs: 100
 num_workers: 0
 pin_memory: True
 recon_continuous: False
