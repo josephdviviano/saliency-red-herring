@@ -135,18 +135,25 @@ def set_seed_state(state):
     random.setstate(state['python_seed'])
 
 
-def report(epoch, losses):
+def report(base, losses, noop_losses):
     """
-    Contains a formatted string of all individual losses and the total
-    loss for this minibatch.
+    Contains a formatted string of all individual op losses, noop losses, and
+    the total op loss for this minibatch. "noop" losses are those that are not
+    used by the main optimizer (they could be used by an internal optimizer,
+    inside of the model).
     """
-    message = epoch
+    assert isinstance(base, str)
+    LOSS_FMT = " {:s}={:4.4f}"
+
     for key in losses.keys():
-        message += " {:s}={:4.4f}".format(key, losses[key])
+        base += LOSS_FMT.format(key, losses[key])
 
-    message += " total={:4.4f}".format(sum(losses.values()))
+    for key in noop_losses.keys():
+        base += LOSS_FMT.format(key, noop_losses[key])
 
-    return message
+    base += LOSS_FMT.format('total_op', sum(losses.values()))
+
+    return base
 
 
 def merge_dicts(dict_list):
@@ -233,19 +240,22 @@ def train_epoch(model, device, train_loader, optimizer, epoch):
         outputs = model.forward(X, seg)
 
         # Expected to return a dictionary of loss terms.
-        losses = model.loss(y, outputs)
+        losses, noop_losses = model.loss(y, outputs)
 
         # Optimization.
         loss = sum(losses.values())
-        loss.backward()
-        optimizer.step()
+        if model.op_counter == 0:
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
         gc.collect()
 
         # Reporting.
         all_loss.append(loss.cpu().data.numpy())
         all_losses.append(losses)
 
-        t.set_description(report('train epoch {} --'.format(epoch), losses))
+        t.set_description(
+            report('train epoch {} --'.format(epoch), losses, noop_losses))
 
     all_losses = merge_dicts(all_losses)
     all_losses = append_to_keys(all_losses, "train")
@@ -278,7 +288,7 @@ def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
             outputs = model.forward(X, seg)
 
             # Sum up batch loss.
-            losses = model.loss(y, outputs)
+            losses, _ = model.loss(y, outputs)
             loss = sum(losses.values())
             all_loss.append(loss.cpu().data.numpy())
             all_losses.append(losses)
@@ -369,7 +379,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
                                               pin_memory=cfg['pin_memory'])
 
     model = configuration.setup_model(cfg).to(device)
-    optim = configuration.setup_optimizer(cfg)(model.parameters())
+    optim = configuration.setup_optimizer(cfg)(model.encoder.parameters())
 
     print('model: \n{}'.format(model))
     print('optimizer: {}'.format(optim))
