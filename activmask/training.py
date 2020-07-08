@@ -3,11 +3,13 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import (average_precision_score, accuracy_score,
                              f1_score, roc_auc_score)
 from skopt.space import Real, Integer, Categorical
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from tqdm import tqdm
 import activmask.manager.mlflow.logger as mlflow_logger
 import activmask.utils.configuration as configuration
 import activmask.utils.monitoring as monitoring
 import copy
+import gc
 import logging
 import numpy as np
 import os
@@ -16,8 +18,11 @@ import random
 import skopt
 import sys
 import torch
-from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
-import gc
+
+# Disables all warnings ('UserWarning' during save, mostly.)
+if not sys.warnoptions:
+    import warnings
+    warnings.simplefilter("ignore")
 
 
 _LOG = logging.getLogger(__name__)
@@ -322,7 +327,7 @@ def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
 @mlflow_logger.log_experiment(nested=True)
 @mlflow_logger.log_metric('best_valid_score', 'test_score', 'best_epoch')
 def train(cfg, random_state=None, state=None, save_checkpoints=False,
-          save_performance=True):
+          save_performance=True, burn_in=5):
     """
     Trains a model on a dataset given the supplied configuration.
     save is by default True and will result in the model's performance being
@@ -380,6 +385,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     best_train_score, best_valid_score, best_test_score = 0, 0, 0
     base_epoch, best_epoch = 0, 0
     patience_counter = 0
+    best_model = None
     metrics = []
 
     # If checkpoints exist, load them.
@@ -402,7 +408,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
         patience_counter = state['patience_counter']
         metrics = state['metrics']
 
-    # We're not using skop if state == None.
+    # We're not using skopt if state == None.
     else:
         state = {}
 
@@ -414,6 +420,8 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
 
     for epoch in range(base_epoch, n_epochs):
 
+        is_burned_in = epoch >= burn_in
+
         train_loss, train_losses = train_epoch(
             model=model, device=device, optimizer=optim,
             train_loader=train_loader, epoch=epoch)
@@ -422,10 +430,11 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             model=model, device=device, data_loader=valid_loader, epoch=epoch,
             exp_name=exp_name)
 
-        patience_counter += 1
+        if is_burned_in:
+            patience_counter += 1
 
         # Get test score if this is the best valid loss!
-        if valid_loss < best_valid_loss:
+        if valid_loss < best_valid_loss and is_burned_in:
 
             test_loss, test_score, test_metrics = evaluate_test(
                 model=model, device=device, data_loader=test_loader,
@@ -438,7 +447,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             best_test_score = test_score        #
             best_epoch = epoch                  # Epoch
             best_model = copy.deepcopy(model)   # Model
-            patience_counter = 0
+            patience_counter = 0                # Reset
 
         # Updated every epoch.
         stats = {"this_epoch": epoch+1,
@@ -451,12 +460,12 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
                  "best_test_score": best_test_score,
                  "best_epoch": best_epoch}
 
-        stats.update(configuration.flatten(cfg))  # cfg settings added.
+        stats.update(configuration.flatten(cfg))  # NB: always best (skopt).
         stats.update(train_losses)   # Add in the losses from train_epoch.
         stats.update(valid_metrics)  # Add in all scores from evaluate.
         metrics.append(stats)
 
-        if valid_loss < best_valid_loss:
+        if valid_loss < best_valid_loss and is_burned_in:
             stats.update(test_metrics)   # Breaks with resume. TODO: better way?
 
         if save_checkpoints and epoch % checkpoint_freq == 0:
@@ -502,9 +511,7 @@ def train_skopt(cfg, base_estimator, random_state=None):
     Do a Bayesian hyperparameter optimization.
 
     :param cfg: Configuration file.
-    :param n_iter: Number of Bayesien optimization steps.
     :param base_estimator: skopt Optimization procedure.
-    :param n_initial_points: Number of random search before starting the optimization.
     :param random_state: seed.
     :return:
     """
@@ -591,26 +598,24 @@ def train_skopt(cfg, base_estimator, random_state=None):
             state['this_cfg'] = generate_config(cfg, hp_args, suggestion)
             state['suggestion'] = suggestion
         try:
-            this_valid_score, this_test_score, this_best_epoch, results, state = train(state['this_cfg'],
-                                                                                       state=state,
-                                                                                       random_state=seed,
-                                                                                       save_checkpoints=True,
-                                                                                       save_performance=False)
+            _train = train(state['this_cfg'], state=state, random_state=seed,
+                           save_checkpoints=True, save_performance=False)
+            this_v_score, this_t_score, this_best_epoch, results, state = _train
 
             # Skopt tries to minimize the valid score, so it's inverted.
-            this_metric = this_valid_score * -1
+            this_metric = this_v_score * -1
             hp_opt.tell(state['suggestion'], this_metric)
         except RuntimeError as e:
             # Something went wrong, (probably a CUDA error).
             results = {'seed': seed}
             this_metric = 0.0
-            this_valid_score = 0.0
+            this_v_score = 0.0
             print("Experiment failed:\n{}\nAttempting next config.".format(e))
             hp_opt.tell(suggestion, this_metric)
 
-        if this_valid_score > state['best_model_score']:
-            print("*** new best model found: score={}".format(this_valid_score))
-            state['best_model_score'] = this_valid_score
+        if this_v_score > state['best_model_score']:
+            print("*** new best model found: score={}".format(this_v_score))
+            state['best_model_score'] = this_v_score
             save_results(results, output_dir)
 
         if resume:
@@ -630,6 +635,7 @@ def train_skopt(cfg, base_estimator, random_state=None):
         state['metrics'] = []         # Stores per-epoch information.
         state['hp_opt'] = hp_opt      # Updated with our most recent results.
         state['base_iteration'] = iteration+1  # How many skopt runs done.
+        state['patience_counter'] = 0 #
 
         torch.save(state, checkpoint)
 
