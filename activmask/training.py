@@ -247,7 +247,7 @@ def train_epoch(model, device, train_loader, optimizer, epoch):
         if model.op_counter == 0:
             loss.backward()
             optimizer.step()
-            optimizer.zero_grad()
+            #optimizer.zero_grad()
         gc.collect()
 
         # Reporting.
@@ -332,13 +332,16 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     """
     exp_name = cfg['experiment_name']
     n_epochs = cfg['n_epochs']
+    patience = cfg['patience']
+    checkpoint_freq = cfg['checkpoint_freq']
+    device = 'cuda'
+    #if cfg['device'] >= 0:
+    #torch.cuda.set_device(cfg['device'])
 
     if isinstance(random_state, type(None)):
         seed = cfg['seed']
     else:
         seed = random_state
-
-    CHECKPOINT_FREQ = 20
 
     if save_checkpoints:
         output_dir = os.path.join('results', cfg['experiment_name'])
@@ -346,11 +349,6 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
                                   'skopt_checkpoint_{}.pth.tar'.format(seed))
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-
-    # Hard-coded to cuda.
-    device = 'cuda'
-    #if cfg['device'] >= 0:
-    #torch.cuda.set_device(cfg['device'])
 
     # Transforms
     tr_train = configuration.setup_transform(cfg, 'train')
@@ -362,21 +360,13 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
     dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
 
-    train_loader = torch.utils.data.DataLoader(dataset_train,
-                                               batch_size=cfg['batch_size'],
-                                               shuffle=cfg['shuffle'],
-                                               num_workers=cfg['num_workers'],
-                                               pin_memory=cfg['pin_memory'])
-    valid_loader = torch.utils.data.DataLoader(dataset_valid,
-                                               batch_size=cfg['batch_size'],
-                                               shuffle=cfg['shuffle'],
-                                               num_workers=cfg['num_workers'],
-                                               pin_memory=cfg['pin_memory'])
-    test_loader = torch.utils.data.DataLoader(dataset_test,
-                                              batch_size=cfg['batch_size'],
-                                              shuffle=cfg['shuffle'],
-                                              num_workers=cfg['num_workers'],
-                                              pin_memory=cfg['pin_memory'])
+    loader_kwargs = {
+        'batch_size': cfg['batch_size'], 'shuffle': cfg['shuffle'],
+        'num_workers': cfg['num_workers'], 'pin_memory': cfg['pin_memory']}
+
+    train_loader = torch.utils.data.DataLoader(dataset_train, **loader_kwargs)
+    valid_loader = torch.utils.data.DataLoader(dataset_valid, **loader_kwargs)
+    test_loader = torch.utils.data.DataLoader(dataset_test, **loader_kwargs)
 
     model = configuration.setup_model(cfg).to(device)
     optim = configuration.setup_optimizer(cfg)(model.encoder.parameters())
@@ -389,6 +379,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     best_train_loss, best_valid_loss, best_test_loss = np.inf, np.inf, np.inf
     best_train_score, best_valid_score, best_test_score = 0, 0, 0
     base_epoch, best_epoch = 0, 0
+    patience_counter = 0
     metrics = []
 
     # If checkpoints exist, load them.
@@ -408,6 +399,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             best_valid_score = stats['best_valid_score']
             best_test_score = stats['best_test_score']
             best_epoch = stats['best_epoch']
+        patience_counter = state['patience_counter']
         metrics = state['metrics']
 
     # We're not using skop if state == None.
@@ -430,6 +422,8 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             model=model, device=device, data_loader=valid_loader, epoch=epoch,
             exp_name=exp_name)
 
+        patience_counter += 1
+
         # Get test score if this is the best valid loss!
         if valid_loss < best_valid_loss:
 
@@ -444,6 +438,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             best_test_score = test_score        #
             best_epoch = epoch                  # Epoch
             best_model = copy.deepcopy(model)   # Model
+            patience_counter = 0
 
         # Updated every epoch.
         stats = {"this_epoch": epoch+1,
@@ -464,7 +459,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
         if valid_loss < best_valid_loss:
             stats.update(test_metrics)   # Breaks with resume. TODO: better way?
 
-        if save_checkpoints and epoch % CHECKPOINT_FREQ == 0:
+        if save_checkpoints and epoch % checkpoint_freq == 0:
             print('checkpointing at epoch {}'.format(epoch))
             state['base_epoch'] = epoch+1
             state['best_valid_score'] = best_valid_score
@@ -479,7 +474,11 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             state['stats'] =  stats
             state['metrics'] = metrics
             state['best_model'] = best_model
+            state['patience_counter'] = patience_counter
             torch.save(state, checkpoint)
+
+        if patience_counter >= patience:
+            break
 
     results = {"exp_name": exp_name,
                "seed": seed,

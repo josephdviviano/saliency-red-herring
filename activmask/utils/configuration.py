@@ -67,7 +67,9 @@ def load_config(config_file):
                    'seed': 0,
                    'optimizer': {'Adam': {}},
                    'batch_size': 32,
-                   'n_epochs': 10}
+                   'n_epochs': 20,
+                   'patience': 20,
+                   'checkpoint_freq': 20}
 
     # Load the experiment-level config.
     with open(config_file, 'r') as f:
