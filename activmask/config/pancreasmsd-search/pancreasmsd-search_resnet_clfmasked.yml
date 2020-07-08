@@ -1,13 +1,14 @@
 base: "base_pancreasmsd.yml"
 
+dataset:
+  train:
+    PancreasMSDDataset:
+      mask_all: True
+
 model:
   ResNetModel:
     base_size: 4608
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0
-
-dataset:
-  train:
-    PancreasMSDDataset:
-      mask_all: True
+    save_acts: []

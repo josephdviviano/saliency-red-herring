@@ -1,32 +1,27 @@
 batch_size: 32
-cuda: True
-device: 0
 n_iter: 30
-n_epochs: 500
+n_epochs: 100
 num_workers: 0
 pin_memory: True
-schedule_steps: 10
 shuffle: True
 
 dataset:
   train:
     SyntheticDataset:
       mode: 'distractor1'
-      blur: 7
+      blur: 'Integer(2, 10)'
       nsamples: 500
       dataroot: &dataroot "/home/jdv/code/activmask/data/synth2"
       distract_noise: 0
   valid:
     SyntheticDataset:
       mode: 'distractor2'
-      blur: 7
       nsamples: 128
       dataroot: *dataroot
       distract_noise: 1
   test:
     SyntheticDataset:
       mode: 'distractor3'
-      blur: 7
       nsamples: 128
       dataroot: *dataroot
       distract_noise: 1

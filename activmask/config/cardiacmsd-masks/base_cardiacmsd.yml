@@ -1,11 +1,9 @@
-device: 0
-cuda: True
-n_epochs: 500
-schedule_steps: 10
 batch_size: 32
-shuffle: True
+n_epochs: 100
 num_workers: 0
 pin_memory: True
+shuffle: True
+
 
 # Dataset
 dataset:

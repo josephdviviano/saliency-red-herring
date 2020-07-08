@@ -7,4 +7,4 @@ model:
     resnet_type: "18"
     actdiff_lamb: 1
     gradmask_lamb: 0
-    save_acts: [4]
+    save_acts: [5]

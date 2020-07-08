@@ -1,13 +1,15 @@
 base: "base_livermsd.yml"
 
+dataset:
+  train:
+    LiverMSDDataset:
+      mask_all: True
+
 model:
   ResNetModel:
     base_size: 4608
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0
-
-dataset:
-  train:
-    LiverMSDDataset:
-      mask_all: True
+    disc_lamb: 0
+    save_acts: []
