@@ -1,10 +1,10 @@
 batch_size: 32
 n_iter: 30
+n_initial_points: 10
 n_epochs: 100
-num_workers: 0
+num_workers: 4
 pin_memory: True
 shuffle: True
-
 
 dataset:
   train:

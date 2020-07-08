@@ -1,6 +1,5 @@
 base: 'base_synth.yml'
 
-# Model
 model:
   ResNetModel:
     resnet_type: "18"
