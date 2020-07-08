@@ -497,8 +497,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
 
 @mlflow_logger.log_metric('best_valid_score', 'best_test_score', 'best_epoch')
 @mlflow_logger.log_experiment(nested=False)
-def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
-                random_state=None):
+def train_skopt(cfg, base_estimator, random_state=None):
     """
     Do a Bayesian hyperparameter optimization.
 
@@ -513,6 +512,8 @@ def train_skopt(cfg, n_iter, base_estimator, n_initial_points,
         seed = cfg['seed']
     else:
         seed = random_state
+    n_iter = cfg['n_iter']
+    n_initial_points = cfg['n_initial_points']
 
     output_dir = os.path.join('results', cfg['experiment_name'])
     checkpoint = os.path.join(output_dir,
