@@ -135,18 +135,25 @@ def set_seed_state(state):
     random.setstate(state['python_seed'])
 
 
-def report(epoch, losses):
+def report(base, losses, noop_losses):
     """
-    Contains a formatted string of all individual losses and the total
-    loss for this minibatch.
+    Contains a formatted string of all individual op losses, noop losses, and
+    the total op loss for this minibatch. "noop" losses are those that are not
+    used by the main optimizer (they could be used by an internal optimizer,
+    inside of the model).
     """
-    message = epoch
+    assert isinstance(base, str)
+    LOSS_FMT = " {:s}={:4.4f}"
+
     for key in losses.keys():
-        message += " {:s}={:4.4f}".format(key, losses[key])
+        base += LOSS_FMT.format(key, losses[key])
 
-    message += " total={:4.4f}".format(sum(losses.values()))
+    for key in noop_losses.keys():
+        base += LOSS_FMT.format(key, noop_losses[key])
 
-    return message
+    base += LOSS_FMT.format('total_op', sum(losses.values()))
+
+    return base
 
 
 def merge_dicts(dict_list):
@@ -233,19 +240,22 @@ def train_epoch(model, device, train_loader, optimizer, epoch):
         outputs = model.forward(X, seg)
 
         # Expected to return a dictionary of loss terms.
-        losses = model.loss(y, outputs)
+        losses, noop_losses = model.loss(y, outputs)
 
         # Optimization.
         loss = sum(losses.values())
-        loss.backward()
-        optimizer.step()
+        if model.op_counter == 0:
+            loss.backward()
+            optimizer.step()
+            #optimizer.zero_grad()
         gc.collect()
 
         # Reporting.
         all_loss.append(loss.cpu().data.numpy())
         all_losses.append(losses)
 
-        t.set_description(report('train epoch {} --'.format(epoch), losses))
+        t.set_description(
+            report('train epoch {} --'.format(epoch), losses, noop_losses))
 
     all_losses = merge_dicts(all_losses)
     all_losses = append_to_keys(all_losses, "train")
@@ -278,7 +288,7 @@ def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
             outputs = model.forward(X, seg)
 
             # Sum up batch loss.
-            losses = model.loss(y, outputs)
+            losses, _ = model.loss(y, outputs)
             loss = sum(losses.values())
             all_loss.append(loss.cpu().data.numpy())
             all_losses.append(losses)
@@ -311,7 +321,8 @@ def evaluate_epoch(model, device, data_loader, epoch, exp_name, name='epoch'):
 
 @mlflow_logger.log_experiment(nested=True)
 @mlflow_logger.log_metric('best_valid_score', 'test_score', 'best_epoch')
-def train(cfg, random_state=None, state=None, save_checkpoints=False, save_performance=True):
+def train(cfg, random_state=None, state=None, save_checkpoints=False,
+          save_performance=True):
     """
     Trains a model on a dataset given the supplied configuration.
     save is by default True and will result in the model's performance being
@@ -321,13 +332,16 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
     """
     exp_name = cfg['experiment_name']
     n_epochs = cfg['n_epochs']
+    patience = cfg['patience']
+    checkpoint_freq = cfg['checkpoint_freq']
+    device = 'cuda'
+    #if cfg['device'] >= 0:
+    #torch.cuda.set_device(cfg['device'])
 
     if isinstance(random_state, type(None)):
         seed = cfg['seed']
     else:
         seed = random_state
-
-    CHECKPOINT_FREQ = 20
 
     if save_checkpoints:
         output_dir = os.path.join('results', cfg['experiment_name'])
@@ -335,11 +349,6 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
                                   'skopt_checkpoint_{}.pth.tar'.format(seed))
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-
-    # Hard-coded to cuda.
-    device = 'cuda'
-    #if cfg['device'] >= 0:
-    #torch.cuda.set_device(cfg['device'])
 
     # Transforms
     tr_train = configuration.setup_transform(cfg, 'train')
@@ -351,24 +360,16 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
     dataset_valid = configuration.setup_dataset(cfg, 'valid')(tr_valid)
     dataset_test = configuration.setup_dataset(cfg, 'test')(tr_test)
 
-    train_loader = torch.utils.data.DataLoader(dataset_train,
-                                               batch_size=cfg['batch_size'],
-                                               shuffle=cfg['shuffle'],
-                                               num_workers=cfg['num_workers'],
-                                               pin_memory=cfg['pin_memory'])
-    valid_loader = torch.utils.data.DataLoader(dataset_valid,
-                                               batch_size=cfg['batch_size'],
-                                               shuffle=cfg['shuffle'],
-                                               num_workers=cfg['num_workers'],
-                                               pin_memory=cfg['pin_memory'])
-    test_loader = torch.utils.data.DataLoader(dataset_test,
-                                              batch_size=cfg['batch_size'],
-                                              shuffle=cfg['shuffle'],
-                                              num_workers=cfg['num_workers'],
-                                              pin_memory=cfg['pin_memory'])
+    loader_kwargs = {
+        'batch_size': cfg['batch_size'], 'shuffle': cfg['shuffle'],
+        'num_workers': cfg['num_workers'], 'pin_memory': cfg['pin_memory']}
+
+    train_loader = torch.utils.data.DataLoader(dataset_train, **loader_kwargs)
+    valid_loader = torch.utils.data.DataLoader(dataset_valid, **loader_kwargs)
+    test_loader = torch.utils.data.DataLoader(dataset_test, **loader_kwargs)
 
     model = configuration.setup_model(cfg).to(device)
-    optim = configuration.setup_optimizer(cfg)(model.parameters())
+    optim = configuration.setup_optimizer(cfg)(model.encoder.parameters())
 
     print('model: \n{}'.format(model))
     print('optimizer: {}'.format(optim))
@@ -378,6 +379,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
     best_train_loss, best_valid_loss, best_test_loss = np.inf, np.inf, np.inf
     best_train_score, best_valid_score, best_test_score = 0, 0, 0
     base_epoch, best_epoch = 0, 0
+    patience_counter = 0
     metrics = []
 
     # If checkpoints exist, load them.
@@ -397,6 +399,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
             best_valid_score = stats['best_valid_score']
             best_test_score = stats['best_test_score']
             best_epoch = stats['best_epoch']
+        patience_counter = state['patience_counter']
         metrics = state['metrics']
 
     # We're not using skop if state == None.
@@ -419,6 +422,8 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
             model=model, device=device, data_loader=valid_loader, epoch=epoch,
             exp_name=exp_name)
 
+        patience_counter += 1
+
         # Get test score if this is the best valid loss!
         if valid_loss < best_valid_loss:
 
@@ -433,6 +438,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
             best_test_score = test_score        #
             best_epoch = epoch                  # Epoch
             best_model = copy.deepcopy(model)   # Model
+            patience_counter = 0
 
         # Updated every epoch.
         stats = {"this_epoch": epoch+1,
@@ -453,7 +459,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
         if valid_loss < best_valid_loss:
             stats.update(test_metrics)   # Breaks with resume. TODO: better way?
 
-        if save_checkpoints and epoch % CHECKPOINT_FREQ == 0:
+        if save_checkpoints and epoch % checkpoint_freq == 0:
             print('checkpointing at epoch {}'.format(epoch))
             state['base_epoch'] = epoch+1
             state['best_valid_score'] = best_valid_score
@@ -468,7 +474,11 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False, save_perfo
             state['stats'] =  stats
             state['metrics'] = metrics
             state['best_model'] = best_model
+            state['patience_counter'] = patience_counter
             torch.save(state, checkpoint)
+
+        if patience_counter >= patience:
+            break
 
     results = {"exp_name": exp_name,
                "seed": seed,

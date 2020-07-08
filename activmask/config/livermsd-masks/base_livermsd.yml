@@ -1,17 +1,17 @@
-device: 0
-cuda: True
-nsamples_train: 128
-maxmasks_train: 256
-recon_masked: False
-recon_continuous: True
-gradmask_lambda: 0
-n_iter: 30
-num_epochs: 500
-schedule_steps: 10
 batch_size: 32
-shuffle: True
+cuda: True
+device: 0
+gradmask_lambda: 0
+maxmasks_train: 256
+n_epochs: 500
+n_iter: 30
+nsamples_train: 128
 num_workers: 0
 pin_memory: True
+recon_continuous: True
+recon_masked: False
+schedule_steps: 10
+shuffle: True
 
 # Dataset
 dataset:

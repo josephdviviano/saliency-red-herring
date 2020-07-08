@@ -18,7 +18,6 @@ dataset:
       ratio: 0.9
       mode: "train"
       seed: 1234
-      new_size: 128
   valid:
     XRayDataset:
       d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
@@ -28,7 +27,6 @@ dataset:
       ratio: 0.9
       mode: "valid"
       seed: 1234
-      new_size: 128
   test:
     XRayDataset:
       d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
@@ -38,7 +36,6 @@ dataset:
       ratio: 0.9
       mode: "test"
       seed: 1234
-      new_size: 128
 
 optimizer:
   Adam:
