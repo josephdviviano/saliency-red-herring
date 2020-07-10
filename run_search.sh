@@ -3,7 +3,7 @@
 mkdir cluster_logs
 
 EXPERIMENTS="synth-search" #livermsd-search cardiacmsd-search pancreasmsd-search xray-search"
-SEED=(1234)
+SEED=1234
 
 for exp in ${EXPERIMENTS}; do
     for file in $(ls activmask/config/${exp}/${exp}_*); do
