@@ -2,9 +2,9 @@ base: "base_pancreasmsd.yml"
 
 model:
   ResNetModel:
-    base_size: 4608
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0
     disc_lamb: 0
     save_acts: []
+    #base_size: 4608

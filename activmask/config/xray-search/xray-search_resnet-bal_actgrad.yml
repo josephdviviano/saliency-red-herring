@@ -1,9 +1,0 @@
-# General
-base: "base_xray_balanced.yml"
-
-model:
-  ResNetModel:
-    base_size: 8192
-    resnet_type: "18"
-    actdiff_lamb: "Real(10**-3, 10, 'log-uniform')"
-    gradmask_lamb: "Real(10**-3, 10, 'log-uniform')"

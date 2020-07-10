@@ -1,6 +1,6 @@
 batch_size: 32
-n_iter: 30
-n_initial_points: 10
+n_iter: 50
+n_initial_points: 5
 n_epochs: 100
 num_workers: 4
 pin_memory: True
@@ -9,21 +9,24 @@ shuffle: True
 dataset:
   train:
     LiverMSDDataset:
+      base_path: '/srv/data/msd'
       mode: 'train'
-      blur: 'Integer(2, 40)'
+      blur: 'Integer(2, 20)'
       nsamples: 128
   valid:
     LiverMSDDataset:
+      base_path: '/srv/data/msd'
       mode: 'valid'
       nsamples: 256
   test:
     LiverMSDDataset:
+      base_path: '/srv/data/msd'
       mode: 'test'
       nsamples: 256
 
 optimizer:
   Adam:
-    lr: "Real(10**-4, 10**-2, 'log-uniform')"
+    lr: "Real(10**-5, 10**-2, 'log-uniform')"
 
 transform:
         train: {}

@@ -1,4 +1,5 @@
-base: "base_livermsd.yml"
+# General
+base: "base_xray_balanced.yml"
 
 model:
   ResNetModel:

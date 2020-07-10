@@ -2,9 +2,8 @@ base: "base_livermsd.yml"
 
 model:
   ResNetModel:
-    base_size: 4608
     resnet_type: "18"
-    actdiff_lamb: "Real(10**-3, 10, 'log-uniform')"
+    actdiff_lamb: "Real(10**-4, 10, 'log-uniform')"
     gradmask_lamb: 0
     disc_lamb: 0
     save_acts: [5]
