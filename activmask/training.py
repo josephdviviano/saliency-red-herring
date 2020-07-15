@@ -433,8 +433,8 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
         if is_burned_in:
             patience_counter += 1
 
-        # Get test score if this is the best valid loss!
-        if valid_loss < best_valid_loss and is_burned_in:
+        # Get test score if this is the best valid loss or we complete burn_in.
+        if (valid_loss < best_valid_loss and is_burned_in) or (epoch == burn_in):
 
             test_loss, test_score, test_metrics = evaluate_test(
                 model=model, device=device, data_loader=test_loader,
