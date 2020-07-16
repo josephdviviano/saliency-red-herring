@@ -343,6 +343,9 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     #if cfg['device'] >= 0:
     #torch.cuda.set_device(cfg['device'])
 
+    if burn_in >= 1:  # Corrects for zero indexing.
+        burn_in -= 1
+
     if isinstance(random_state, type(None)):
         seed = cfg['seed']
     else:
@@ -382,7 +385,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     # Best_valid_score for early stopping, best_test_score reported then.
     # Case when we are not using skopt.
     best_train_loss, best_valid_loss, best_test_loss = np.inf, np.inf, np.inf
-    best_train_score, best_valid_score, best_test_score = 0, 0, 0
+    best_train_score, best_valid_score, best_test_score = -np.inf, -np.inf, -np.inf
     base_epoch, best_epoch = 0, 0
     patience_counter = 0
     best_model = None
@@ -433,8 +436,11 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
         if is_burned_in:
             patience_counter += 1
 
+        update_condition = (
+            valid_loss < best_valid_loss and is_burned_in) or (epoch == burn_in)
+
         # Get test score if this is the best valid loss or we complete burn_in.
-        if (valid_loss < best_valid_loss and is_burned_in) or (epoch == burn_in):
+        if update_condition:
 
             test_loss, test_score, test_metrics = evaluate_test(
                 model=model, device=device, data_loader=test_loader,
@@ -458,6 +464,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
                  "best_test_loss": best_test_loss,
                  "best_valid_score": best_valid_score,
                  "best_test_score": best_test_score,
+                 # TODO: best_epoch and this_epoch are not aligned!
                  "best_epoch": best_epoch}
 
         stats.update(configuration.flatten(cfg))  # NB: always best (skopt).
@@ -465,7 +472,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
         stats.update(valid_metrics)  # Add in all scores from evaluate.
         metrics.append(stats)
 
-        if valid_loss < best_valid_loss and is_burned_in:
+        if update_condition:
             stats.update(test_metrics)   # Breaks with resume. TODO: better way?
 
         if save_checkpoints and epoch % checkpoint_freq == 0:
