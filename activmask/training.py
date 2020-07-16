@@ -604,6 +604,7 @@ def train_skopt(cfg, base_estimator, random_state=None):
             suggestion = hp_opt.ask()
             state['this_cfg'] = generate_config(cfg, hp_args, suggestion)
             state['suggestion'] = suggestion
+
         try:
             _train = train(state['this_cfg'], state=state, random_state=seed,
                            save_checkpoints=True, save_performance=False)
@@ -628,21 +629,24 @@ def train_skopt(cfg, base_estimator, random_state=None):
         if resume:
             resume = False
 
-        # Checkpoint the results of this successful run.
+        # Checkpoint the results of this successful run and reset the state!
         state['torch_seed'] = torch.random.get_rng_state()
         state['numpy_seed'] = np.random.get_state()
         state['python_seed'] = random.getstate()
-        state['optimizer'] = None     # Reset for next iteration.
-        state['best_valid_score'] = 0 #
-        state['best_test_score'] = 0  #
-        state['best_epoch'] = 0       #
-        state['model'] = None         #
-        state['scheduler'] = None     #
+        state['base_iteration'] = iteration+1  # How many skopt runs done.
+        state['hp_opt'] = hp_opt      # Updated with our most recent results.
+
+        # Reset for the next iteration!  # TODO TEST THIS!!!
+        state['optimizer'] = None
+        state['best_valid_score'] = 0
+        state['best_test_score'] = 0
+        state['best_epoch'] = 0
+        state['patience_counter'] = 0
+        state['model'] = None
+        state['scheduler'] = None
         state['stats'] = None         # Save best-performance information.
         state['metrics'] = []         # Stores per-epoch information.
-        state['hp_opt'] = hp_opt      # Updated with our most recent results.
-        state['base_iteration'] = iteration+1  # How many skopt runs done.
-        state['patience_counter'] = 0 #
+        state['this_cfg'] = None      # TODO: write a test for this!
 
         torch.save(state, checkpoint)
 
