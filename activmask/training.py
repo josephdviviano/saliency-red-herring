@@ -451,7 +451,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             best_test_loss = test_loss          #
             best_valid_score = valid_score      # Score
             best_test_score = test_score        #
-            best_epoch = epoch                  # Epoch
+            best_epoch = epoch+1                # Epoch
             best_model = copy.deepcopy(model)   # Model
             patience_counter = 0                # Reset
 
