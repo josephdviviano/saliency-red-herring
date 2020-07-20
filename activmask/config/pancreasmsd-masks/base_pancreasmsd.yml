@@ -1,6 +1,6 @@
 batch_size: 32
 n_epochs: 100
-num_workers: 0
+num_workers: 1
 pin_memory: True
 shuffle: True
 
