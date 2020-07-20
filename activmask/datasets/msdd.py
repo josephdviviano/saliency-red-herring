@@ -138,12 +138,8 @@ class MSDDataset(Dataset):
             files = dataset['training']
             compute_hdf5(self.dataroot, files, self.filename)
 
-    def open_hdf5(self):
-        """In order for hdf5 to work in a multiprocess setting, we need to open
-        the HDF5 file once for each process.
-        """
-        self.dataset = h5py.File(self.filename, "r")
-        self._all_files = sorted(list(self.dataset.keys()))
+        self.hdf5 = h5py.File(self.filename, "r")
+        self._all_files = sorted(list(self.hdf5.keys()))
         file_ratio = int(len(self._all_files)*0.3)
 
         # Get the subset of the input niftis.
@@ -160,12 +156,14 @@ class MSDDataset(Dataset):
         np.random.shuffle(self._all_files)
 
         for fname in self.files:
-            for sli in range(len(self.dataset[fname]["slices"])):
+            for sli in range(len(self.hdf5[fname]["slices"])):
                 self.samples.append((fname, sli))
-        self.labels = np.concatenate([self.dataset[i]["labels"] for i in self.files])
+
+        # Labels are in numpy format.
+        self.labels = np.concatenate([self.hdf5[i]["labels"] for i in self.files])
         self.idx = np.arange(self.labels.shape[0])
 
-        # randomly choose based on nsamples
+        # Randomly choose based on nsamples
         n_per_class = self.nsamples//2
         np.random.seed(self.seed)
         class0 = np.where(self.labels == 0)[0]
@@ -188,48 +186,50 @@ class MSDDataset(Dataset):
             self.masks_selector[idx_masks_class0_to_rm] = 0
             self.masks_selector[idx_masks_class1_to_rm] = 0
 
-        print ("This dataloader contains: {}".format(
-            str(collections.Counter(self.labels))))
+        print ("This {} dataloader contains: {}".format(
+            self.mode, str(collections.Counter(self.labels))))
 
         # NB: transform does nothing, only exists for compatibility.
+        # Now build an array of the data for RAM access
+        self.dataset = {'images': None, 'segmentations': None, 'labels': None}
+
+        images, segmentations, labels = [], [], []
+        for i, idx in enumerate(self.idx):
+            key = self.samples[idx]
+            image, seg = self.hdf5[key[0]]["slices"][str(key[1])]
+            label = self.labels[i]
+
+            # Make the segmentation the entire image if it is the negative class
+            # or it is not in the masks_selector.
+            if not self.masks_selector[i] or int(label) == 0:
+                seg = np.ones(seg.shape)
+
+            # If there is a segmentation, blur it a bit.
+            if (self.blur > 0) and (seg.max() != 0):
+                seg = skimage.morphology.dilation(seg, selem=square(self.blur))
+
+            images.append(image)
+            segmentations.append(seg)
+            labels.append(int(label))
+
+        self.dataset['images'] = np.stack(images, axis=0)
+        self.dataset['segmentations'] = np.stack(segmentations, axis=0)
+        self.dataset['labels'] = np.array(labels)
 
     def __len__(self):
-
-        if not hasattr(self, 'dataset'):
-            self.open_hdf5()
-
         return len(self.idx)
 
     def __getitem__(self, index):
-
-        if not hasattr(self, 'dataset'):
-            self.open_hdf5()
-
-        key = self.samples[self.idx[index]]
-        image, seg = self.dataset[key[0]]["slices"][str(key[1])]
-        label = self.labels[index]
+        image = self.dataset['images'][index, ...]
+        seg = self.dataset['segmentations'][index, ...]
+        label = self.dataset['labels'][index]
 
         image = Image.fromarray(image)
 
-        # Make the segmentation the entire image if it isn't in masks_selector.
-        if not self.masks_selector[index]:
-            seg = np.ones(seg.shape)
-
-        # Make the segmentation the entire image if it is the negative class.
-        if int(label) == 0:
-            seg = np.ones(seg.shape)
-
-        # If there is a segmentation, blur it a bit.
-        if (self.blur > 0) and (seg.max() != 0):
-            seg = skimage.morphology.dilation(seg, selem=square(self.blur))
-
-        seg = (seg > 0) * 1.
+        #seg = (seg > 0) * 1.
         seg = Image.fromarray(seg)
 
-        if self.mode == "train":
-            image, seg = transform(image, seg, True, self.new_size)
-        else:
-            image, seg = transform(image, seg, False, self.new_size)
+        image, seg = transform(image, seg, self.mode == 'train', self.new_size)
 
         # Control condition where we mask all data. Used to see if traditional
         # training works.
@@ -237,6 +237,7 @@ class MSDDataset(Dataset):
             image *= seg
 
         return (image, seg, int(label)) #self.masks_selector[index]
+
 
 @register.setdatasetname("LungMSDDataset")
 class LungMSDDataset(MSDDataset):
