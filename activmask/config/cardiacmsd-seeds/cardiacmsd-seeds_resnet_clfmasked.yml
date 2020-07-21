@@ -1,0 +1,21 @@
+base: "base_cardiacmsd.yml"
+
+dataset:
+  train:
+    HeartMSDDataset:
+      mask_all: True
+      blur: 20
+      
+
+model:
+  ResNetModel:
+    resnet_type: "18"
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    disc_lamb: 0
+    save_acts: []
+
+
+optimizer:
+  Adam:
+    lr: 0.010000

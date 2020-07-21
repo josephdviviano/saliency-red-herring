@@ -1,0 +1,28 @@
+batch_size: 32
+n_epochs: 100
+num_workers: 1
+pin_memory: True
+shuffle: True
+
+dataset:
+  train:
+    PancreasMSDDataset:
+      base_path: '/srv/data/msd'
+      mode: 'train'
+      blur: 'Integer(2, 20)'
+      nsamples: 128
+  valid:
+    PancreasMSDDataset:
+      base_path: '/srv/data/msd'
+      mode: 'valid'
+      nsamples: 256
+  test:
+    PancreasMSDDataset:
+      base_path: '/srv/data/msd'
+      mode: 'test'
+      nsamples: 256
+
+transform:
+        train: {}
+        valid: {}
+        test: {}
