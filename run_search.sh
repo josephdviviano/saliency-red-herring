@@ -33,7 +33,6 @@ source $HOME/.bashrc
 python -u activmask/main.py train-skopt --config ${file} --seed=${SEED}
 EOF
 
-    # Only run jobs that don't already have an output log.
     bash ${runscript}
     rm ${runscript}
     done
