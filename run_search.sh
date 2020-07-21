@@ -2,7 +2,7 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="synth-search" #livermsd-search cardiacmsd-search pancreasmsd-search xray-search"
+EXPERIMENTS="synth-search livermsd-search cardiacmsd-search pancreasmsd-search" #xray-search"
 SEED=1234
 
 for exp in ${EXPERIMENTS}; do
