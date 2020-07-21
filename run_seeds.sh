@@ -9,7 +9,7 @@ for seed in "${SEEDS[@]}"; do
     echo "SEED ${seed}:"
 
     for exp in ${EXPERIMENTS}; do
-        for file in $(ls config/${exp}/${exp}_*); do
+        for file in $(ls activmask/config/${exp}/${exp}_*); do
 
             filename=$(basename ${file})
             filename="${filename%.*}"
