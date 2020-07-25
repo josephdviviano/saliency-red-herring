@@ -13,7 +13,7 @@ import skimage, skimage.transform
 import skimage.filters
 import torchvision.transforms
 import torchvision.transforms.functional as TF
-
+import torch
 
 def extract_samples(image_path, label_path):
     """Extracts samples / labels from each .nii"""
@@ -64,50 +64,48 @@ def compute_hdf5(dataroot, files, hdf5_name):
             grp.create_dataset("labels", data=labels)
 
 
-def scale(image, maxval=1024):
+def scale(image, max_range=1024):
     """Assumes that maxvalue and minvalue are the same."""
-    image += maxval # minimum value is now 0
-    image /= maxval*2
+    minimum, maximum = torch.min(image), torch.max(image)
+    image = (image - minimum) / (maximum - minimum)  # [0, 1]
+    image -= 0.5                                     # [-0.5, 0.5]
+    image *= 2*max_range                             # [-max_range, max_range]
 
     return(image)
 
 
 #https://discuss.pytorch.org/t/torchvision-transfors-how-to-perform-identical-transform-on-both-image-and-target/10606
-def transform(image, mask, is_train, new_size):
+def transform(image, mask, is_train, size):
 
         if is_train:
-            # Resize
-            resize = torchvision.transforms.Resize(size=(new_size+10, new_size+10))
+
+            resize = torchvision.transforms.Resize(size=(size+10, size+10))
             image = resize(image)
             mask = resize(mask)
 
             # Random crop
             i, j, h, w = torchvision.transforms.RandomCrop.get_params(
-                image, output_size=(new_size, new_size))
+                image, output_size=(size, size))
             image = TF.crop(image, i, j, h, w)
             mask = TF.crop(mask, i, j, h, w)
 
-            # Random horizontal flipping
             if np.random.random() > 0.5:
                 image = TF.hflip(image)
                 mask = TF.hflip(mask)
 
-            # Random vertical flipping
             if np.random.random() > 0.5:
                 image = TF.vflip(image)
                 mask = TF.vflip(mask)
         else:
-            # Resize
-            resize = torchvision.transforms.Resize(size=(new_size, new_size))
+            resize = torchvision.transforms.Resize(size=(size, size))
             image = resize(image)
             mask = resize(mask)
 
-        # Transform to tensor
         image = TF.to_tensor(image)
         mask = TF.to_tensor(mask)
 
-        # Scale image to (maximum) ~[0 1]
-        #image = scale(image)
+        image = scale(image)  # Scale image to ~[-1024 1024]
+
         return image, mask
 
 
@@ -206,7 +204,10 @@ class MSDDataset(Dataset):
 
             # If there is a segmentation, blur it a bit.
             if (self.blur > 0) and (seg.max() != 0):
-                seg = skimage.morphology.dilation(seg, selem=square(self.blur))
+                #seg = skimage.morphology.dilation(seg, out=seg)
+                seg = skimage.filters.gaussian(seg, self.blur, output=seg)
+                seg /= seg.max()
+                seg = (seg > 0) * 1.
 
             images.append(image)
             segmentations.append(seg)
@@ -226,7 +227,6 @@ class MSDDataset(Dataset):
 
         image = Image.fromarray(image)
 
-        #seg = (seg > 0) * 1.
         seg = Image.fromarray(seg)
 
         image, seg = transform(image, seg, self.mode == 'train', self.new_size)
