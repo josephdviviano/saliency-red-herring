@@ -119,7 +119,8 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layers(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layers(block, 512, num_blocks[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.linear = nn.Linear(base_size*block.expansion, num_classes)
+        # TODO MAGIC NUMBER!!
+        self.linear = nn.Linear(base_size*block.expansion*100, num_classes)
 
     def _make_layers(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -161,7 +162,8 @@ class ResNet(nn.Module):
                                             save=4 in self.save_acts)
         self.all_activations.extend(activations)
 
-        out = self.avgpool(out)
+        #out = self.avgpool(out)     # Is average pooling the problem 4 grads?
+        out = F.avg_pool2d(out, self.avg_pool_size, self.avg_pool_stride)  #
         out = torch.flatten(out, 1)
 
         # Activations of the final layer.
@@ -194,12 +196,6 @@ def ResNet152(base_size=512, avg_pool_size=4, save_acts=[0, 1, 2, 3, 4, 5]):
     return ResNet(Bottleneck, [3,8,36,3], base_size=base_size, save_acts=save_acts)
 
 
-def test():
-    net = ResNet18()
-    y = net(torch.randn(1,3,24,24))
-    print(y.size())
-
-
 @register.setmodelname("ResNetModel")
 class ResNetModel(nn.Module):
     """
@@ -220,14 +216,14 @@ class ResNetModel(nn.Module):
         # Discriminator and actdiff penalty are incompatible.
         assert not all([x > 0 for x in [actdiff_lamb, disc_lamb]])
 
-        super(ResNetModel, self).__init__()
-
         if actdiff_lamb == 0 and disc_lamb == 0:
             save_acts = []  # Disable saving activations when unneeded.
         elif disc_lamb > 0:
             save_acts = [5]
         elif actdiff_lamb > 0:
             assert len(save_acts) > 0
+
+        super(ResNetModel, self).__init__()
 
         if resnet_type == "18":
             self.encoder = ResNet18(base_size=base_size, avg_pool_size=4,
@@ -353,7 +349,7 @@ class ResNetModel(nn.Module):
                 outputs['masked_activations'], outputs['activations'])
 
         if self.training and self.gradmask_lamb > 0:
-            gradients = get_grad_contrast(outputs['X'], outputs['y_pred'], y)
+            gradients = get_grad_contrast(outputs['X'], outputs['y_pred'])
             grad_loss = gradients * outputs['seg'].float()
             grad_loss = grad_loss.abs().sum() * self.gradmask_lamb
 
@@ -374,4 +370,3 @@ class ResNetModel(nn.Module):
             'disc_loss': disc_loss}
 
         return (losses, noop_losses)
-

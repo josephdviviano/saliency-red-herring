@@ -142,9 +142,10 @@ def ac_term(hs, epsilon=1e-3, s=3., binarizer='softsign'):
     return (C, stats)
 
 
-def get_grad_contrast(X, y_pred, y):
+def get_grad_contrast(X, y_pred):
     """Simple Constrast Loss. d(y_0-y_1)/dx"""
     contrast = torch.abs(y_pred[:, 0] - y_pred[:, 1]).sum()
+    # This is always a list of length 1, so we remove the element from the list.
     gradients = torch.autograd.grad(outputs=contrast, inputs=X,
                                     allow_unused=True, create_graph=True)[0]
 
