@@ -1,6 +1,26 @@
+"""Modified ResNet in PyTorch from Torchvison.
+
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
+Deep Residual Learning for Image Recognition. arXiv:1512.03385
+
+Downloaded on Jul 26th 2020 from:
+https://github.com/pytorch/vision/blob/1aef87d01eec2c0989458387fa04baebcc86ea7b/torchvision/models/resnet.py
+"""
+
+try:
+    from torch.hub import load_state_dict_from_url
+except ImportError:
+    from torch.utils.model_zoo import load_url as load_state_dict_from_urlimport torch
+
 import torch
 import torch.nn as nn
-from .utils import load_state_dict_from_url
+import torch.nn as nn
+import torch.nn.functional as F
+import activmask.utils.register as register
+import torchvision
+from activmask.models.loss import compare_activations, get_grad_contrast
+from activmask.models.utils import shuffle_outside_mask, Dummy
+from activmask.models.linear import Discriminator
 
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
@@ -53,11 +73,16 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-    def forward(self, x):
+    def forward(self, x, save=False):
+        """Pass through x, optionally saving all pre-activation states."""
+        all_activations = []
+
         identity = x
 
         out = self.conv1(x)
         out = self.bn1(out)
+        if save:
+            all_activations.append(out)
         out = self.relu(out)
 
         out = self.conv2(out)
@@ -66,10 +91,12 @@ class BasicBlock(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out += identity
+        out += identity  # Skip connection.
+        if save:
+            all_activations.append(out)
         out = self.relu(out)
 
-        return out
+        return (out, all_activations)
 
 
 class Bottleneck(nn.Module):
@@ -98,15 +125,20 @@ class Bottleneck(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-    def forward(self, x):
+    def forward(self, x, save=False):
+        all_activations = []
         identity = x
 
         out = self.conv1(x)
         out = self.bn1(out)
+        if save:
+            all_activations.append(out)
         out = self.relu(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
+        if save:
+            all_activations.append(out)
         out = self.relu(out)
 
         out = self.conv3(out)
@@ -115,18 +147,23 @@ class Bottleneck(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out += identity
+        out += identity  # Skip connection.
+        if save:
+            all_activations.append(out)
         out = self.relu(out)
 
-        return out
+        return (out, all_activations)
 
 
 class ResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None):
+                 norm_layer=None, save_acts=[6]):
         super(ResNet, self).__init__()
+
+        assert all(0 <= i <= 5 for i in save_acts)
+
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -196,22 +233,46 @@ class ResNet(nn.Module):
                                 base_width=self.base_width, dilation=self.dilation,
                                 norm_layer=norm_layer))
 
-        return nn.Sequential(*layers)
+        return nn.ModuleList(layers)
+
+
+    def _run_layers(self, layers, out, save=False):
+        all_activations = []
+        for layer in layers:
+            out, activations = layer(out, save=save)
+            all_activations.extend(activations)
+
+        return (out, all_activations)
+
 
     def _forward_impl(self, x):
+
+        self.all_activations = []  # Reset for all passes of network.
+
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
+        if 0 in self.save_acts:
+            self.all_activations.append(out)
+
         x = self.relu(x)
         x = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        x, acts = self._run_layers(self.layer1, x, save=1 in self.save_acts)
+        self.all_activations.extend(acts)
+        x, acts = self._run_layers(self.layer2, x, save=2 in self.save_acts)
+        self.all_activations.extend(acts)
+        x, acts = self._run_layers(self.layer3, x, save=3 in self.save_acts)
+        self.all_activations.extend(acts)
+        x, acts = self._run_layers(self.layer4, x, save=4 in self.save_acts)
+        self.all_activations.extend(acts)
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+
+        if 5 in self.save_acts:
+            self.all_activations.extend([out])
+
         x = self.fc(x)
 
         return x
@@ -236,6 +297,7 @@ def resnet18(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
                    **kwargs)
@@ -248,6 +310,7 @@ def resnet34(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
@@ -260,6 +323,7 @@ def resnet50(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
@@ -272,6 +336,7 @@ def resnet101(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     return _resnet('resnet101', Bottleneck, [3, 4, 23, 3], pretrained, progress,
                    **kwargs)
@@ -284,6 +349,7 @@ def resnet152(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrained, progress,
                    **kwargs)
@@ -296,6 +362,7 @@ def resnext50_32x4d(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     kwargs['groups'] = 32
     kwargs['width_per_group'] = 4
@@ -310,6 +377,7 @@ def resnext101_32x8d(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     kwargs['groups'] = 32
     kwargs['width_per_group'] = 8
@@ -329,6 +397,7 @@ def wide_resnet50_2(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     kwargs['width_per_group'] = 64 * 2
     return _resnet('wide_resnet50_2', Bottleneck, [3, 4, 6, 3],
@@ -347,7 +416,181 @@ def wide_resnet101_2(pretrained=False, progress=True, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
+        save_acts (list): Save the forward pass pre-activations at specified locations [0, 5].
     """
     kwargs['width_per_group'] = 64 * 2
     return _resnet('wide_resnet101_2', Bottleneck, [3, 4, 23, 3],
                    pretrained, progress, **kwargs)
+
+@register.setmodelname("ResNetModel")
+class ResNetModel(nn.Module):
+    """
+    actdiff: l2 distance b/t masked/unmasked data.
+    gradmask: sum(abs(grad)) outside mask.
+    disc: adversarially-driven invariance to masked/unmasked data.
+
+    """
+    def __init__(self, base_size=512, resnet_type="18",
+                 actdiff_lamb=0, gradmask_lamb=0, disc_lamb=0, disc_lr=0.0001,
+                 disc_iter=0, save_acts=[0, 1, 2, 3, 4, 5]):
+
+        assert resnet_type in ["18", "34"]
+        assert actdiff_lamb >= 0
+        assert gradmask_lamb >= 0
+        assert disc_lamb >= 0
+        assert disc_iter >= 0
+        # Discriminator and actdiff penalty are incompatible.
+        assert not all([x > 0 for x in [actdiff_lamb, disc_lamb]])
+
+        if actdiff_lamb == 0 and disc_lamb == 0:
+            save_acts = []  # Disable saving activations when unneeded.
+        elif disc_lamb > 0:
+            save_acts = [5]
+        elif actdiff_lamb > 0:
+            assert len(save_acts) > 0
+
+        super(ResNetModel, self).__init__()
+
+        if resnet_type == "18":
+            self.encoder = resnet18(save_acts=save_acts)
+        elif resnet_type == "34":
+            self.encoder = resnet34(save_acts=save_acts)
+
+        self.bce = nn.BCELoss()
+        self.device = None
+        self.op_counter = 0
+
+        if disc_lamb > 0:
+            _layers = [self.encoder.linear.in_features, 1024, 1024, 1024]
+            # Self.D is only optimized using the internal optimizer. The grads
+            # for these parameters are only allowed to flow during the forward
+            # pass, so the external optimizer cannot influence the weights of
+            # the discriminator.
+            self.D = Discriminator(layers=_layers)
+            self.D_opt = torch.optim.Adam(self.D.parameters(), lr=disc_lr)
+            self.disc_iter = disc_iter
+        else:
+            self.D = Dummy()
+            self.D_opt = None
+            self.disc_iter = 0
+
+        self.actdiff_lamb = actdiff_lamb
+        self.gradmask_lamb = gradmask_lamb
+        self.disc_lamb = disc_lamb
+        self.criterion = torch.nn.CrossEntropyLoss()
+
+    def _init_device(self):
+        """ Runs only during the first forward pass."""
+        if not self.device:
+            self.device = next(self.parameters()).device
+
+    def _grad_off(self, parameters):
+        for p in parameters:
+            p.requires_grad = False
+
+    def _grad_on(self, parameters):
+        for p in parameters:
+            p.requires_grad = True
+
+    def _assert_no_grads(self):
+        """ Tests whether the model has any gradients attached to the tape."""
+        assert sum([torch.sum(p.grad) for p in self.parameters()]) == 0
+
+    def _iterate_op_counter(self):
+        """ The external optimizer is allowed to backprop when counter=0."""
+        self.op_counter += 1
+        if self.op_counter >= self.disc_iter:
+            self.op_counter = 0
+
+    def _get_disc_loss(self, z_masked, z):
+        """ Gets and estimate of the KLD between the encoded z and z_masked.
+        loss_g can be used to ensure the encoded data from z_masked is more
+        likely to confuse the discriminator. The discriminator D is only
+        optimized by the internal optimizer.
+        """
+        self.D_opt.zero_grad()
+        batch_size = z.shape[0]
+        ones = torch.ones((batch_size, 1)).to(self.device)
+        zero = torch.zeros((batch_size, 1)).to(self.device)
+
+        # Discriminator loss: Real=unmasked, fake=masked, g=unmasked.
+        # Match the fake to the real.
+        real = self.D(z.detach())
+        fake = self.D(z_masked.detach())
+        loss_d = (self.bce(real, ones) + self.bce(fake, zero)) * self.disc_lamb
+        loss_d.backward()
+        self.D_opt.step()
+
+        # Turns gradients of Discriminator off so that the parameters are not
+        # updated by loss_g.
+        self._grad_off(self.D.parameters())
+        real = self.D(z)
+        fake = self.D(z_masked)
+        loss_g = (self.bce(real, zero) + self.bce(fake, ones)) * self.disc_lamb
+        self._grad_on(self.D.parameters())
+
+        return loss_d, loss_g
+
+    def forward(self, X, seg):
+        """ Forward pass of the model.
+        Args:
+          X: the input image [c, w, h].
+          seg: mask of the class-discriminative image region.
+        Returns:
+          output dict of values required to calculate loss.
+        """
+        self._init_device()
+        if self.disc_lamb > 0:
+            self.D_opt.zero_grad()  # Zero grads of my disc optimizer.
+
+        # Actdiff/Discriminator: save the activations for the masked pass.
+        if self.training and any([self.actdiff_lamb > 0, self.disc_lamb > 0]):
+            X_masked = shuffle_outside_mask(X, seg).detach()
+            _ = self.encoder(X_masked)
+            masked_activations = self.encoder.all_activations
+        else:
+            masked_activations = []
+
+        y_pred = self.encoder(X)
+        activations = self.encoder.all_activations
+
+        return {'y_pred': y_pred,
+                'X': X,
+                'activations': activations,
+                'masked_activations': masked_activations,
+                'seg': seg}
+
+    def loss(self, y, outputs):
+        device = y.device
+        clf_loss = self.criterion(outputs['y_pred'], y)
+        actdiff_loss = torch.zeros(1)[0].to(device)
+        grad_loss = torch.zeros(1)[0].to(device)
+        disc_loss = torch.zeros(1)[0].to(device)
+        gen_loss = torch.zeros(1)[0].to(device)
+
+        if self.training and self.actdiff_lamb > 0:
+            actdiff_loss = compare_activations(
+                outputs['masked_activations'], outputs['activations'])
+
+        if self.training and self.gradmask_lamb > 0:
+            gradients = get_grad_contrast(outputs['X'], outputs['y_pred'])
+            grad_loss = gradients * outputs['seg'].float()
+            grad_loss = grad_loss.abs().sum() * self.gradmask_lamb
+
+        if self.training and self.disc_lamb > 0:
+            # TODO: gracefully handle indices (some way to do invariance at
+            # multiple levels?)
+            disc_loss, gen_loss = self._get_disc_loss(
+                outputs['masked_activations'][0], outputs['activations'][0])
+
+        self._iterate_op_counter()
+
+        losses = {
+            'clf_loss': clf_loss,
+            'actdiff_loss': actdiff_loss,
+            'gradmask_loss': grad_loss,
+            'gen_loss': gen_loss}
+        noop_losses = {
+            'disc_loss': disc_loss}
+
+        return (losses, noop_losses)
