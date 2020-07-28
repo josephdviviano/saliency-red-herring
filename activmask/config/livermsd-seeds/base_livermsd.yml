@@ -1,6 +1,7 @@
 batch_size: 32
 n_epochs: 100
-num_workers: 1
+num_workers: 8
+patience: 20
 pin_memory: True
 shuffle: True
 
@@ -9,8 +10,8 @@ dataset:
     LiverMSDDataset:
       base_path: '/srv/data/msd'
       mode: 'train'
-      blur: 'Integer(2, 20)'
-      nsamples: 128
+      blur: 'Real(0, 5)'
+      nsamples: 512
   valid:
     LiverMSDDataset:
       base_path: '/srv/data/msd'

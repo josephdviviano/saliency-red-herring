@@ -5,7 +5,7 @@ model:
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0
-    disc_lamb: "Real(10**-2, 10, 'log-uniform')"
+    disc_lamb: "Real(10**-6, 1, 'log-uniform')"
     disc_iter: 'Integer(2, 10)'
     disc_lr: "Real(10**-4, 10**-2, 'log-uniform')"
     save_acts: [5]

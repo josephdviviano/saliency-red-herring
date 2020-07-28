@@ -1,6 +1,7 @@
 batch_size: 32
 n_epochs: 100
-num_workers: 1
+num_workers: 8
+patience: 20
 pin_memory: True
 shuffle: True
 
@@ -8,7 +9,7 @@ dataset:
   train:
     SyntheticDataset:
       mode: 'distractor1'
-      blur: 'Integer(2, 10)'
+      blur: 'Real(0, 5)'
       nsamples: 500
       dataroot: &dataroot "/home/jdv/code/activmask/data/synth2"
       distract_noise: 0

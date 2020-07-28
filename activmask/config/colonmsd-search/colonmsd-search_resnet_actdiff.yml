@@ -1,5 +1,4 @@
-# General
-base: "base_xray.yml"
+base: "base_colonmsd.yml"
 
 model:
   ResNetModel:

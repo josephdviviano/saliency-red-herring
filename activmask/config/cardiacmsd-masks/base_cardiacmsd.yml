@@ -1,11 +1,10 @@
 batch_size: 32
 n_epochs: 100
-num_workers: 1
+num_workers: 8
+patience: 20
 pin_memory: True
 shuffle: True
 
-
-# Dataset
 dataset:
   train:
     HeartMSDDataset:

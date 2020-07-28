@@ -1,4 +1,9 @@
-base: "base_cardiacmsd.yml"
+base: "base_colonmsd.yml"
+
+dataset:
+  train:
+    ColonMSDDataset:
+      mask_all: True
 
 model:
   ResNetModel:

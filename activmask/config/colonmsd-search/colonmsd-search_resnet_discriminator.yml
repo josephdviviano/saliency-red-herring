@@ -1,4 +1,4 @@
-base: "base_pancreasmsd.yml"
+base: "base_colonmsd.yml"
 
 model:
   ResNetModel:
