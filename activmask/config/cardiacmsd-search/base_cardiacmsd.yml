@@ -2,7 +2,7 @@ batch_size: 32
 n_epochs: 500
 n_initial_points: 5
 n_iter: 50
-num_workers: 8
+num_workers: 4
 patience: 20
 pin_memory: True
 shuffle: True
@@ -12,7 +12,7 @@ dataset:
     HeartMSDDataset:
       base_path: '/srv/data/msd'
       mode: 'train'
-      blur: 'Real(0, 5)'
+      blur: 'Real(0, 2)'
       nsamples: 128
   valid:
     HeartMSDDataset:

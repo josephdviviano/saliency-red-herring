@@ -4,6 +4,6 @@ model:
   ResNetModel:
     resnet_type: "18"
     actdiff_lamb: 0
-    gradmask_lamb: "Real(10**-6, 1, 'log-uniform')"
+    gradmask_lamb: "Real(10**-4, 10, 'log-uniform')"
     disc_lamb: 0
     save_acts: []
