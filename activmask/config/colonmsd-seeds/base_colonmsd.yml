@@ -7,18 +7,17 @@ shuffle: True
 
 dataset:
   train:
-    LiverMSDDataset:
+    ColonMSDDataset:
       base_path: '/srv/data/msd'
       mode: 'train'
-      blur: 'Real(0, 5)'
-      nsamples: 512
+      nsamples: 128
   valid:
-    LiverMSDDataset:
+    ColonMSDDataset:
       base_path: '/srv/data/msd'
       mode: 'valid'
       nsamples: 256
   test:
-    LiverMSDDataset:
+    ColonMSDDataset:
       base_path: '/srv/data/msd'
       mode: 'test'
       nsamples: 256

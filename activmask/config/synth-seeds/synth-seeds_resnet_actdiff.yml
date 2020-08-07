@@ -3,7 +3,7 @@ base: 'base_synth.yml'
 dataset:
   train:
     SyntheticDataset:
-      blur: 9
+      blur: 0.817838  
 
 model:
   ResNetModel:

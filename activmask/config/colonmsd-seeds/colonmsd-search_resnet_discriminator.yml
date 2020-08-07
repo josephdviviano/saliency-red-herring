@@ -1,20 +1,20 @@
-base: "base_cardiacmsd.yml"
+base: "base_colonmsd.yml"
 
 dataset:
   train:
-    HeartMSDDataset:
-      blur: 2.0
+    ColonMSDDataset:
+      blur: 1.141889
 
 model:
   ResNetModel:
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0
-    disc_lamb: 0.002244   
+    disc_lamb: 2.393129
     disc_iter: 2
-    disc_lr: 0.010000
+    disc_lr: 0.009691
     save_acts: [5]
 
 optimizer:
   Adam:
-    lr: 0.000490
+    lr: 0.000068

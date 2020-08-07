@@ -3,7 +3,7 @@ base: "base_livermsd.yml"
 dataset:
   train:
     LiverMSDDataset:
-      blur: 12
+      blur: 1.337767
 
 model:
   ResNetModel:
@@ -16,5 +16,5 @@ model:
 
 optimizer:
   Adam:
-    lr: 0.000165
+    lr: 0.000596
 

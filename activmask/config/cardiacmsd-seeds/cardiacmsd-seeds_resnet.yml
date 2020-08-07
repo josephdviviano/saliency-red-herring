@@ -3,7 +3,7 @@ base: "base_cardiacmsd.yml"
 dataset:
   train:
     HeartMSDDataset:
-      blur: 17
+      blur: 2.0
 
 model:
   ResNetModel:
@@ -17,4 +17,4 @@ model:
 
 optimizer:
   Adam:
-    lr: 0.000039
+    lr: 0.000052

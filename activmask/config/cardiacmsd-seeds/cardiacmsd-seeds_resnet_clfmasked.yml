@@ -4,7 +4,7 @@ dataset:
   train:
     HeartMSDDataset:
       mask_all: True
-      blur: 20
+      blur: 1.987
       
 
 model:
@@ -18,4 +18,4 @@ model:
 
 optimizer:
   Adam:
-    lr: 0.010000
+    lr: 0.002427

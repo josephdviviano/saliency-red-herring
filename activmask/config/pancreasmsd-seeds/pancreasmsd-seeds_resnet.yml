@@ -3,7 +3,7 @@ base: "base_pancreasmsd.yml"
 dataset:
   train:
     PancreasMSDDataset:
-      blur: 2
+      blur: 0
 
 model:
   ResNetModel:
@@ -12,9 +12,7 @@ model:
     gradmask_lamb: 0
     disc_lamb: 0
     save_acts: []
-    #base_size: 4608
-
 
 optimizer:
   Adam:
-    lr: 0.000010
+    lr: 0.000218

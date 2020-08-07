@@ -3,12 +3,12 @@ base: "base_cardiacmsd.yml"
 dataset:
   train:
     HeartMSDDataset:
-      blur: 2
+      blur: 0
 
 model:
   ResNetModel:
     resnet_type: "18"
-    actdiff_lamb: 0.000105
+    actdiff_lamb: 10.000000
     gradmask_lamb: 0
     disc_lamb: 0
     save_acts: [5]
@@ -16,4 +16,4 @@ model:
 
 optimizer:
   Adam:
-    lr: 0.000100
+    lr: 0.000450

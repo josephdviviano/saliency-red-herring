@@ -3,7 +3,7 @@ base: "base_livermsd.yml"
 dataset:
   train:
     LiverMSDDataset:
-      blur: 2
+      blur: 2.000000
       mask_all: True
 
 model:
@@ -16,5 +16,5 @@ model:
 
 optimizer:
   Adam:
-    lr: 0.000056
+    lr: 0.010000
 

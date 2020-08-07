@@ -1,18 +1,18 @@
-base: "base_livermsd.yml"
+base: "base_colonmsd.yml"
 
 dataset:
   train:
-    LiverMSDDataset:
-      blur: 0
+    ColonMSDDataset:
+      blur: 1.986998
 
 model:
   ResNetModel:
     resnet_type: "18"
     actdiff_lamb: 0
-    gradmask_lamb: 0.097484
+    gradmask_lamb: 0.020014
     disc_lamb: 0
     save_acts: []
 
 optimizer:
   Adam:
-    lr: 0.000398
+    lr: 0.000084

@@ -3,16 +3,16 @@ base: 'base_synth.yml'
 dataset:
   train:
     SyntheticDataset:
-      blur: 10
+      blur: 1.0
 
 model:
   ResNetModel:
     resnet_type: "18"
     actdiff_lamb: 0
-    gradmask_lamb: 0.169933
+    gradmask_lamb: 0.203439
     disc_lamb: 0
     save_acts: []
 
 optimizer:
   Adam:
-    lr: 0.002072
+    lr: 0.010000

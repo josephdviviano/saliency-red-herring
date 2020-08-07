@@ -3,19 +3,19 @@ base: "base_pancreasmsd.yml"
 dataset:
   train:
     PancreasMSDDataset:
-      blur: 20
+      blur: 1.285375
 
 model:
   ResNetModel:
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0
-    disc_lamb: 0.017167
-    disc_iter: 2
-    disc_lr: 0.000328
+    disc_lamb: 0.011046
+    disc_iter: 7
+    disc_lr: 0.000661
     save_acts: [5]
 
 
 optimizer:
   Adam:
-    lr: 0.000537
+    lr: 0.000559
