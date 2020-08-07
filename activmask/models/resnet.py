@@ -10,7 +10,7 @@ https://github.com/pytorch/vision/blob/1aef87d01eec2c0989458387fa04baebcc86ea7b/
 try:
     from torch.hub import load_state_dict_from_url
 except ImportError:
-    from torch.utils.model_zoo import load_url as load_state_dict_from_urlimport torch
+    from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
 import torch
 import torch.nn as nn
@@ -157,12 +157,13 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, num_classes=2, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None, save_acts=[6]):
+                 norm_layer=None, n_chan=1, save_acts=[5]):
         super(ResNet, self).__init__()
 
         assert all(0 <= i <= 5 for i in save_acts)
+        assert n_chan >= 1
 
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -170,17 +171,28 @@ class ResNet(nn.Module):
 
         self.inplanes = 64
         self.dilation = 1
+        self.save_acts = save_acts
+
         if replace_stride_with_dilation is None:
             # each element in the tuple indicates if we should replace
             # the 2x2 stride with a dilated convolution instead
             replace_stride_with_dilation = [False, False, False]
+
         if len(replace_stride_with_dilation) != 3:
             raise ValueError("replace_stride_with_dilation should be None "
-                             "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
+                "or a 3-element tuple, got {}".format(
+                    replace_stride_with_dilation))
+
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+
+        # NOTE: Torchvision implementation assumes the following settings --
+        #       kernel_size=7, stride=2, padding=3.
+        #       We found those settings to be detremental to our localization,
+        #       And replaced them with much smaller values, that led to larger
+        #       feature maps throughout the network.
+        self.conv1 = nn.Conv2d(n_chan, self.inplanes, kernel_size=3, stride=1,
+                               padding=1, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -235,7 +247,6 @@ class ResNet(nn.Module):
 
         return nn.ModuleList(layers)
 
-
     def _run_layers(self, layers, out, save=False):
         all_activations = []
         for layer in layers:
@@ -243,7 +254,6 @@ class ResNet(nn.Module):
             all_activations.extend(activations)
 
         return (out, all_activations)
-
 
     def _forward_impl(self, x):
 
@@ -253,10 +263,14 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         if 0 in self.save_acts:
-            self.all_activations.append(out)
+            self.all_activations.extend([x])
 
         x = self.relu(x)
-        x = self.maxpool(x)
+        # Note: Original torchvision implementation has a maxpool operation
+        #       here, but this has a detremental effect on the gradients
+        #       observed using our gradient computation approach, so it was
+        #       removed for all experiments presented in this work.
+        # x = self.maxpool(x)
 
         x, acts = self._run_layers(self.layer1, x, save=1 in self.save_acts)
         self.all_activations.extend(acts)
@@ -271,7 +285,7 @@ class ResNet(nn.Module):
         x = torch.flatten(x, 1)
 
         if 5 in self.save_acts:
-            self.all_activations.extend([out])
+            self.all_activations.extend([x])
 
         x = self.fc(x)
 
@@ -432,7 +446,7 @@ class ResNetModel(nn.Module):
     """
     def __init__(self, base_size=512, resnet_type="18",
                  actdiff_lamb=0, gradmask_lamb=0, disc_lamb=0, disc_lr=0.0001,
-                 disc_iter=0, save_acts=[0, 1, 2, 3, 4, 5]):
+                 disc_iter=0, save_acts=list(range(6))):
 
         assert resnet_type in ["18", "34"]
         assert actdiff_lamb >= 0
@@ -461,7 +475,7 @@ class ResNetModel(nn.Module):
         self.op_counter = 0
 
         if disc_lamb > 0:
-            _layers = [self.encoder.linear.in_features, 1024, 1024, 1024]
+            _layers = [self.encoder.fc.in_features, 1024, 1024, 1024]
             # Self.D is only optimized using the internal optimizer. The grads
             # for these parameters are only allowed to flow during the forward
             # pass, so the external optimizer cannot influence the weights of
@@ -581,7 +595,7 @@ class ResNetModel(nn.Module):
             # TODO: gracefully handle indices (some way to do invariance at
             # multiple levels?)
             disc_loss, gen_loss = self._get_disc_loss(
-                outputs['masked_activations'][0], outputs['activations'][0])
+                outputs['masked_activations'][-1], outputs['activations'][-1])
 
         self._iterate_op_counter()
 
