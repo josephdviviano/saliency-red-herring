@@ -9,7 +9,6 @@ dataset:
   train:
     SyntheticDataset:
       mode: 'distractor1'
-      blur: 'Real(0, 5)'
       nsamples: 500
       dataroot: &dataroot "/home/jdv/code/activmask/data/synth2"
       distract_noise: 0

@@ -2,8 +2,8 @@ base: 'base_synth.yml'
 
 dataset:
   train:
-    SyntheticDataset2:
-      blur: 0.817838  
+    SyntheticDataset:
+      blur: 0.817838
       mask_all: True
 
 model:

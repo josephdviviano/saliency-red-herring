@@ -10,7 +10,6 @@ dataset:
     LiverMSDDataset:
       base_path: '/srv/data/msd'
       mode: 'train'
-      blur: 'Real(0, 5)'
       nsamples: 512
   valid:
     LiverMSDDataset:

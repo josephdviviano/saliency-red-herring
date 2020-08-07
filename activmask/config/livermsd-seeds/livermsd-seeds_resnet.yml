@@ -12,7 +12,6 @@ model:
     gradmask_lamb: 0
     disc_lamb: 0
     save_acts: []
-    #base_size: 4608
 
 optimizer:
   Adam:
