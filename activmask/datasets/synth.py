@@ -1,5 +1,6 @@
 from PIL import Image
 from skimage.morphology import square, dilation
+from skimage.filters import gaussian
 from torch.utils.data import Dataset
 import numpy as np
 import os
@@ -77,7 +78,9 @@ class SyntheticDataset(Dataset):
 
         # If there is a segmentation, blur it a bit.
         if (self.blur > 0) and (np.max(seg) != 0):
-            seg = dilation(seg, selem=square(self.blur))
+            #seg = dilation(seg, selem=square(self.blur))
+            seg = gaussian(seg, self.blur, output=seg)
+            seg /= seg.max()
 
         seg = (seg > 0) * 1.
 
