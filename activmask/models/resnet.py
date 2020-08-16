@@ -605,6 +605,6 @@ class ResNetModel(nn.Module):
             'gradmask_loss': grad_loss,
             'gen_loss': gen_loss}
         noop_losses = {
-            'disc_loss': disc_loss}
+            'disc_loss': disc_loss.detach()}
 
         return (losses, noop_losses)
