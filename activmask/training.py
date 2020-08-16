@@ -252,12 +252,12 @@ def train_epoch(model, device, train_loader, optimizer, epoch):
         if model.op_counter == 0:
             loss.backward()
             optimizer.step()
-            #optimizer.zero_grad()
+            optimizer.zero_grad()
         gc.collect()
 
         # Reporting.
-        all_loss.append(loss.cpu().data.numpy())
-        all_losses.append(losses)
+        all_loss.append(loss.detach().cpu().data.numpy())
+        all_losses.append({k: v.detach().cpu().data.numpy() for (k, v) in losses.items()})
 
         t.set_description(
             report('train epoch {} --'.format(epoch), losses, noop_losses))
