@@ -2,7 +2,7 @@ base: 'base_synth.yml'
 
 dataset:
   train:
-    SyntheticDataset2:
+    SyntheticDataset:
         mask_all: True
 
 model:
