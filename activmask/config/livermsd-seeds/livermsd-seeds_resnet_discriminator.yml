@@ -3,19 +3,18 @@ base: "base_livermsd.yml"
 dataset:
   train:
     LiverMSDDataset:
-      blur: 2.000000
+      blur: 1.993927
 
 model:
   ResNetModel:
     resnet_type: "18"
     actdiff_lamb: 0
     gradmask_lamb: 0
-    disc_lamb: 0.000100
+    disc_lamb: 0.0001
     disc_iter: 2
-    disc_lr: 0.000100
+    disc_lr: 0.000176
     save_acts: [5]
 
 optimizer:
   Adam:
-    lr: 0.000791
-
+    lr: 0.000377
