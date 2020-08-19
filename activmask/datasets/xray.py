@@ -1,4 +1,6 @@
 from PIL import Image
+from PIL import ImageFont
+from PIL import ImageDraw 
 from os.path import join
 from skimage.io import imread, imsave
 import skimage, skimage.transform
@@ -27,6 +29,98 @@ def normalize(sample, maxval):
     sample = (2 * (sample.astype(np.float32) / maxval) - 1.) * 1024
     #sample = sample / np.std(sample)
     return sample
+
+@register.setdatasetname("XRayDatasetText")
+class XRayDatasetTextDataset():
+    def __init__(self, dataset, prob=0.9, mode="train",
+                 seed=0, transform=None, nsamples=None, maxmasks=None,
+                 new_size=224, mask_all=False):
+
+        splits = np.array([0.5,0.25,0.25])
+        assert mode in ['train', 'valid', 'test']
+        assert np.sum(splits) == 1.0
+        assert mask_all in [True, False]
+
+        np.random.seed(seed)  # Reset the seed so all runs are the same.
+
+        self.mask_all = mask_all
+        self.new_size = new_size
+        self.dataset = dataset
+        self.mode = mode
+        self.prob = prob
+
+        all_imageids = np.arange(len(self.dataset))
+        
+        if self.dataset.labels.shape[1] > 1:
+            raise("There must only be one label")
+        all_labels = self.dataset.labels.reshape(-1)
+        all_idx = np.arange(len(all_imageids)).astype(int)
+        np.random.shuffle(all_idx)
+
+        if mode == "train":
+            self.select_idx = all_idx[:int(len(all_idx)*splits[0])]
+        elif mode == "valid":
+            self.select_idx = all_idx[int(len(all_idx)*splits[0]):int(len(all_idx)*splits[0]+len(all_idx)*splits[1])]
+        elif mode == "test":
+            self.select_idx = all_idx[int(len(all_idx)*splits[0]+len(all_idx)*splits[1]):]
+        else:
+            raise Exception("unknown mode")
+
+        self.imageids = all_imageids[self.select_idx]
+        self.labels = all_labels[self.select_idx]
+
+        # Image Resizing.
+        self.convert = XRayConverter()
+        FINAL_SIZE = (self.new_size, self.new_size)
+        self.resize = XRayResizer(FINAL_SIZE)
+
+        # Mask
+        rr, cc = skimage.draw.ellipse(FINAL_SIZE[0]//2, FINAL_SIZE[1]//2,
+                                      FINAL_SIZE[0]/2.5, FINAL_SIZE[1]/2.5)
+        self.seg = np.zeros(FINAL_SIZE)
+        self.seg[rr, cc] = 1
+
+    def __len__(self):
+        return len(self.imageids)
+
+    def __getitem__(self, idx):
+
+        sample = self.dataset[self.imageids[idx]]
+        seg = self.seg[None, :, :]
+
+        # Convert to properly-sized tensors
+        img = self.convert(sample["img"][0])
+        
+        draw_distractor = False
+        
+        if self.mode == "train":
+            if self.labels[idx] == 1:
+                if (np.random.rand() < self.prob):
+                    draw_distractor = True
+        else:
+            if self.labels[idx] == 0:
+                if (np.random.rand() < self.prob):
+                    draw_distractor = True
+        if draw_distractor:  
+            draw = ImageDraw.Draw(img)
+            font = ImageFont.load_default()#.truetype("sans-serif.ttf", 16)
+            draw.text((np.random.randint(5)+10, np.random.randint(5)+10),"R",np.random.randint(10)+245)
+
+        # Enforces that the image is a square.
+        if self.new_size != img.width == img.height:
+            img = self.resize(img)
+
+        # Enforce datatype
+        img = TF.to_tensor(img).float()
+        seg = TF.to_tensor(seg).permute([1, 0, 2]).float()
+
+        if self.mask_all:
+            try:
+                img *= seg
+            except:
+                import IPython; IPython.embed()
+
+        return (img, seg, self.labels[idx]) #self.masks_selector[idx]
 
 
 @register.setdatasetname("XRayDataset")
