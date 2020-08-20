@@ -364,9 +364,9 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     tr_test = configuration.setup_transform(cfg, 'test')
 
     # dataset
-    dataset_train = configuration.setup_dataset(cfg, seed, mode='train')(tr_train)
-    dataset_valid = configuration.setup_dataset(cfg, seed, mode='valid')(tr_valid)
-    dataset_test = configuration.setup_dataset(cfg, seed, mode='test')(tr_test)
+    dataset_train = configuration.setup_dataset(cfg, seed, split='train')(tr_train)
+    dataset_valid = configuration.setup_dataset(cfg, seed, split='valid')(tr_valid)
+    dataset_test = configuration.setup_dataset(cfg, seed, split='test')(tr_test)
 
     loader_kwargs = {
         'batch_size': cfg['batch_size'], 'shuffle': cfg['shuffle'],
