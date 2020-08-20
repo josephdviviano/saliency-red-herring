@@ -69,7 +69,8 @@ def load_config(config_file):
                    'batch_size': 32,
                    'n_epochs': 20,
                    'patience': 20,
-                   'checkpoint_freq': 20}
+                   'checkpoint_freq': 20,
+                   'shuffle': True}
 
     # Load the experiment-level config.
     with open(config_file, 'r') as f:
