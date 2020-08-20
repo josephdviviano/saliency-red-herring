@@ -10,28 +10,28 @@ shuffle: True
 dataset:
   train:
     XRayDataset:
-      d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
-      d1csv: "/lustre04/scratch/jdv/xray/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/jdv/xray/PC/images-128"
-      d2csv: "/lustre04/scratch/jdv/xray/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      d1data: "/srv/fast/scratch/xray/NIH/images-224"
+      d1csv: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      d2data: "/srv/fast/scratch/xray/PC/images-224"
+      d2csv: "/srv/fast/scratch/xray/PC/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "train"
       seed: 1234
   valid:
     XRayDataset:
-      d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
-      d1csv: "/lustre04/scratch/jdv/xray/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/jdv/xray/PC/images-128"
-      d2csv: "/lustre04/scratch/jdv/xray/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      d1data: "/srv/fast/scratch/xray/NIH/images-224"
+      d1csv: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      d2data: "/srv/fast/scratch/xray/PC/images-224"
+      d2csv: "/srv/fast/scratch/xray/PC/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "valid"
       seed: 1234
   test:
     XRayDataset:
-      d1data: "/lustre04/scratch/jdv/xray/NIH/images-128"
-      d1csv: "/lustre04/scratch/jdv/xray/Data_Entry_2017.csv"
-      d2data: "/lustre04/scratch/jdv/xray/PC/images-128"
-      d2csv: "/lustre04/scratch/jdv/xray/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      d1data: "/srv/fast/scratch/xray/NIH/images-224"
+      d1csv: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      d2data: "/srv/fast/scratch/xray/PC/images-224"
+      d2csv: "/srv/fast/scratch/xray/PC/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.9
       mode: "test"
       seed: 1234

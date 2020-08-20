@@ -12,3 +12,11 @@ dataset:
   train:
     XRayDataset:
         mask_all: True
+dataset:
+  valid:
+    XRayDataset:
+        mask_all: True
+dataset:
+  test:
+    XRayDataset:
+        mask_all: True
