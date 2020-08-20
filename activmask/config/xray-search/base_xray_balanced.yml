@@ -1,8 +1,8 @@
-batch_size: 32
+batch_size: 64
 n_epochs: 100
 n_initial_points: 5
 n_iter: 50
-num_workers: 4
+num_workers: 8
 patience: 20
 pin_memory: True
 shuffle: True
@@ -16,7 +16,6 @@ dataset:
       d2csv: "/srv/fast/scratch/xray/PC/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.5
       mode: "train"
-      seed: 1234
   valid:
     XRayDataset:
       d1data: "/srv/fast/scratch/xray/NIH/images-224"
@@ -25,7 +24,6 @@ dataset:
       d2csv: "/srv/fast/scratch/xray/PC/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.5
       mode: "valid"
-      seed: 1234
   test:
     XRayDataset:
       d1data: "/srv/fast/scratch/xray/NIH/images-224"
@@ -34,7 +32,6 @@ dataset:
       d2csv: "/srv/fast/scratch/xray/PC/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
       ratio: 0.5
       mode: "test"
-      seed: 1234
 
 optimizer:
   Adam:
