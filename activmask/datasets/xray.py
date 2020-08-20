@@ -1,6 +1,6 @@
 from PIL import Image
 from PIL import ImageFont
-from PIL import ImageDraw 
+from PIL import ImageDraw
 from os.path import join
 from skimage.io import imread, imsave
 import skimage, skimage.transform
@@ -51,7 +51,7 @@ class XRayDatasetTextDataset():
         self.prob = prob
 
         all_imageids = np.arange(len(self.dataset))
-        
+
         if self.dataset.labels.shape[1] > 1:
             raise("There must only be one label")
         all_labels = self.dataset.labels.reshape(-1)
@@ -91,9 +91,9 @@ class XRayDatasetTextDataset():
 
         # Convert to properly-sized tensors
         img = self.convert(sample["img"][0])
-        
+
         draw_distractor = False
-        
+
         if self.mode == "train":
             if self.labels[idx] == 1:
                 if (np.random.rand() < self.prob):
@@ -102,7 +102,7 @@ class XRayDatasetTextDataset():
             if self.labels[idx] == 0:
                 if (np.random.rand() < self.prob):
                     draw_distractor = True
-        if draw_distractor:  
+        if draw_distractor:
             draw = ImageDraw.Draw(img)
             font = ImageFont.load_default()#.truetype("sans-serif.ttf", 16)
             draw.text((np.random.randint(5)+10, np.random.randint(5)+10),"R",np.random.randint(10)+245)
