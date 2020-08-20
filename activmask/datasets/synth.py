@@ -12,7 +12,7 @@ import activmask.utils.register as register
 @register.setdatasetname("SyntheticDataset")
 class SyntheticDataset(Dataset):
     def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32,
-                 maxmasks=1, transform=None, distract_noise=0, mask_all=False):
+                 maxmasks=1, transform=None, distract_noise=0, mask_all=False, seed=1234):
 
         assert 0 <= maxmasks <= 1
 

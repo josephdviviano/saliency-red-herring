@@ -30,13 +30,14 @@ def normalize(sample, maxval):
     #sample = sample / np.std(sample)
     return sample
 
+
 @register.setdatasetname("XRayDatasetText")
 class XRayDatasetTextDataset():
     def __init__(self, dataset, prob=0.9, mode="train",
-                 seed=0, transform=None, nsamples=None, maxmasks=None,
+                 seed=1234, transform=None, nsamples=None, maxmasks=None,
                  new_size=224, mask_all=False):
 
-        splits = np.array([0.5,0.25,0.25])
+        splits = np.array([0.5, 0.25, 0.25])
         assert mode in ['train', 'valid', 'test']
         assert np.sum(splits) == 1.0
         assert mask_all in [True, False]
@@ -126,7 +127,7 @@ class XRayDatasetTextDataset():
 @register.setdatasetname("XRayDataset")
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
-                 seed=0, transform=None, nsamples=None, maxmasks=None,
+                 seed=1234, transform=None, nsamples=None, maxmasks=None,
                  new_size=128, mask_all=False):
 
         splits = np.array([0.5,0.25,0.25])
@@ -274,7 +275,7 @@ class JointDataset():
 
 class NIHXrayDataset():
 
-    def __init__(self, datadir, csvpath, transform=None, nrows=None, seed=0,
+    def __init__(self, datadir, csvpath, transform=None, nrows=None, seed=1234,
                  pure_labels=False):
 
         np.random.seed(seed)  # Reset the seed so all runs are the same.
@@ -334,7 +335,7 @@ class NIHXrayDataset():
 class PCXRayDataset():
 
     def __init__(self, datadir, csvpath, transform=None, pretrained=False,
-                 flat_dir=True, seed=0):
+                 flat_dir=True, seed=1234):
         # Removed "Dataset" super class...
         #super(PCXRayDataset, self).__init__()
 
@@ -353,7 +354,7 @@ class PCXRayDataset():
         self.csv = self.csv[idx_pa]
 
         # Our two classes.
-        idx_sick = self.csv['Labels'].str.contains('emphysema')
+        idx_sick = self.csv['Labels'].str.contains('cardiomegaly')
         idx_sick[idx_sick.isnull()] = False
         idx_heal = self.csv['Labels'].str.contains('normal')
         idx_heal[idx_heal.isnull()] = False

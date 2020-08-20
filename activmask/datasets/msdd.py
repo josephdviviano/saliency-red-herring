@@ -112,7 +112,7 @@ def transform(image, mask, is_train, size):
 class MSDDataset(Dataset):
 
     def __init__(self, mode, dataroot, blur=0, seed=0, nsamples=32,
-                 maxmasks=1, transform=None, new_size=100, mask_all=False):
+                 maxmasks=1, transform=None, new_size=100, mask_all=False, seed=1234):
 
         assert 0 <= maxmasks <= 1
 

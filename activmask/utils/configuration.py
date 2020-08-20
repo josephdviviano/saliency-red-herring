@@ -149,7 +149,7 @@ def setup_model(config, yaml_section='model'):
     return model
 
 
-def setup_dataset(config, split='train'):
+def setup_dataset(config, seed, split='train'):
     """
     Prepare data generators for training set and optionally for validation set.
     """
@@ -167,7 +167,7 @@ def setup_dataset(config, split='train'):
     else:
         obj = available_datasets[dataset_name]
 
-    dataset = lambda transform: obj(transform=transform, **dataset_args)
+    dataset = lambda transform: obj(transform=transform, seed=seed, **dataset_args)
     return dataset
 
 
