@@ -1,0 +1,17 @@
+# General
+base: "base_xray_balanced.yml"
+
+model:
+  ResNetModel:
+    resnet_type: "18"
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    disc_lamb: 0.000566
+    disc_iter: 4
+    disc_lr: 0.004269
+    save_acts: [5]
+
+
+optimizer:
+  Adam:
+    lr: 0.003820

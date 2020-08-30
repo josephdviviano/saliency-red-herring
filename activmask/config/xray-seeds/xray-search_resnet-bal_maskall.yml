@@ -1,0 +1,27 @@
+base: "base_xray_balanced.yml"
+
+model:
+  ResNetModel:
+    resnet_type: "18"
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    disc_lamb: 0
+    save_acts: []
+
+dataset:
+  train:
+    XRayDataset:
+        mask_all: True
+dataset:
+  valid:
+    XRayDataset:
+        mask_all: True
+dataset:
+  test:
+    XRayDataset:
+        mask_all: True
+
+
+optimizer:
+  Adam:
+    lr: 0.01
