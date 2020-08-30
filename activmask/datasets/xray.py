@@ -211,18 +211,28 @@ class JointDataset():
         print("TEST: neg={}, pos={}".format(len(test_0_neg)+len(test_1_neg),
                                             len(test_0_pos)+len(test_1_pos)))
 
+        def _reduce_nsamples(nsamples, a, b, c, d):
+            if nsamples:
+                a = a[:int(np.floor(nsamples/4))]
+                b = b[:int(np.ceil(nsamples/4))]
+                c = c[:int(np.ceil(nsamples/4))]
+                d = d[:int(np.floor(nsamples/4))]
+
+            return (a, b, c, d)
+
         if mode == "train":
-            self.select_idx = np.concatenate([train_0_neg, train_0_pos,
-                                              train_1_neg, train_1_pos])
+            (a, b, c, d) = _reduce_nsamples(
+                nsamples, train_0_neg, train_0_pos, train_1_neg, train_1_pos)
         elif mode == "valid":
-            self.select_idx = np.concatenate([valid_0_neg, valid_0_pos,
-                                              valid_1_neg, valid_1_pos])
+            (a, b, c, d) = _reduce_nsamples(
+                nsamples, valid_0_neg, valid_0_pos, valid_1_neg, valid_1_pos)
         elif mode == "test":
-            self.select_idx = np.concatenate([test_0_neg, test_0_pos,
-                                              test_1_neg, test_1_pos])
+            (a, b, c, d) = _reduce_nsamples(
+                nsamples, test_0_neg, test_0_pos, test_1_neg, test_1_pos)
         else:
             raise Exception("unknown mode")
 
+        self.select_idx = np.concatenate([a, b, c, d])
         self.imageids = all_imageids[self.select_idx]
         self.labels = all_labels[self.select_idx]
         self.site = all_site[self.select_idx]
