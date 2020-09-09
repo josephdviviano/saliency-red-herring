@@ -2,15 +2,15 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="synth-search livermsd-search cardiacmsd-search pancreasmsd-search" #xray-search"
+EXPERIMENTS="synth-search" #"synth-search cardiacmsd-search livermsd-search pancreasmsd-search colonmsd-search"
 SEED=1234
 
 for exp in ${EXPERIMENTS}; do
-    for file in $(ls activmask/config/${exp}/${exp}_*); do
+    for file in $(ls activmask/config/${exp}/${exp}*); do
 
         filename=$(basename ${file})
         filename="${filename%.*}"
-        filename="${filename}_${seed}"
+        filename="${filename}_${SEED}"
         runscript="${filename}.pbs"
 
         # Generates a job script.

@@ -2,21 +2,20 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="synth-seeds livermsd-seeds cardiacmsd-seeds pancreasmsd-seeds" #xray-seeds"
-SEEDS=(1234 3232 3221 9856 1290 1987 3200 6400 8888 0451)
+EXPERIMENTS="synth-seeds" #"livermsd-seeds synth-seeds colonmsd-seeds cardiacmsd-seeds pancreasmsd-seeds" # xray-seeds"
+SEEDS=(1234 3232 3221 9856 1290 1987 3200 6400 8888 0451)  # (3232 3221 9856 1290 1987)
 
-for seed in "${SEEDS[@]}"; do
-    echo "SEED ${seed}:"
-
-    for exp in ${EXPERIMENTS}; do
-        for file in $(ls activmask/config/${exp}/${exp}_*); do
+for exp in ${EXPERIMENTS}; do
+    for file in $(ls activmask/config/${exp}/${exp}*); do
+        for seed in "${SEEDS[@]}"; do
 
             filename=$(basename ${file})
             filename="${filename%.*}"
             filename="${filename}_${seed}"
-            runscript="${filename}.pbs"
+            echo "*** RUNNING: ${filename} ***"
 
             # Generates a job script.
+            runscript="${filename}.pbs"
             cat << EOF > ${runscript}
 #!/bin/bash
 #SBATCH --job-name=${filename}
@@ -31,7 +30,7 @@ hostname
 export LANG=C.UTF-8
 source $HOME/.bashrc
 source activate activmask
-python -u main.py train --config ${file} --seed=${seed}
+python -u activmask/main.py train --config ${file} --seed=${seed}
 EOF
 
         bash ${runscript}
