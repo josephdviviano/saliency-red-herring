@@ -10,7 +10,7 @@ dataset:
     SyntheticDataset:
       mode: 'distractor1'
       nsamples: 500
-      dataroot: &dataroot "/home/jdv/code/activmask/data/synth2"
+      dataroot: &dataroot "/home/jdv/code/activmask/data/synth_hard"
       distract_noise: 0
   valid:
     SyntheticDataset:

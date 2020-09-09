@@ -4,7 +4,7 @@ base: "base_xray.yml"
 model:
   ResNetModel:
     resnet_type: "18"
-    actdiff_lamb: 100
+    actdiff_lamb: 10
     gradmask_lamb: 0
     disc_lamb: 0
     save_acts: [5]
