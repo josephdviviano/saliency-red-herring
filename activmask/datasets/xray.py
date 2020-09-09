@@ -128,7 +128,7 @@ class XRayDatasetTextDataset():
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
                  seed=1234, transform=None, nsamples=None, maxmasks=None,
-                 new_size=128, mask_all=False):
+                 new_size=128, mask_all=False, verbose=False):
 
         splits = np.array([0.5,0.25,0.25])
         assert mode in ['train', 'valid', 'test']
@@ -153,7 +153,9 @@ class JointDataset():
         idx_sick = all_labels==1
         n_per_category = np.min([sum(idx_sick[all_site==0]),
                                  sum(idx_sick[all_site==1])])
-        print("n_per_category={}".format(n_per_category))
+
+        if verbose:
+            print("n_per_category={}".format(n_per_category))
 
         all_0_neg = all_idx[np.where((all_site==0) & (all_labels==0))]
         all_0_neg = np.random.choice(all_0_neg, n_per_category, replace=False)
@@ -180,8 +182,9 @@ class JointDataset():
         all_1_neg = np.setdiff1d(all_1_neg, train_1_neg)
         all_1_pos = np.setdiff1d(all_1_pos, train_1_pos)
 
-        print("TRAIN: neg={}, pos={}".format(len(train_0_neg)+len(train_1_neg),
-                                             len(train_0_pos)+len(train_1_pos)))
+        if verbose:
+            print("TRAIN: neg={}, pos={}".format(len(train_0_neg)+len(train_1_neg),
+                                                 len(train_0_pos)+len(train_1_pos)))
 
         # VALID
         valid_0_neg = np.random.choice(
@@ -199,8 +202,9 @@ class JointDataset():
         all_1_neg = np.setdiff1d(all_1_neg, valid_1_neg)
         all_1_pos = np.setdiff1d(all_1_pos, valid_1_pos)
 
-        print("VALID: neg={}, pos={}".format(len(valid_0_neg)+len(valid_1_neg),
-                                             len(valid_0_pos)+len(valid_1_pos)))
+        if verbose:
+            print("VALID: neg={}, pos={}".format(len(valid_0_neg)+len(valid_1_neg),
+                                                 len(valid_0_pos)+len(valid_1_pos)))
 
         # TEST
         test_0_neg = all_0_neg
@@ -208,8 +212,9 @@ class JointDataset():
         test_1_neg = all_1_neg
         test_1_pos = all_1_pos
 
-        print("TEST: neg={}, pos={}".format(len(test_0_neg)+len(test_1_neg),
-                                            len(test_0_pos)+len(test_1_pos)))
+        if verbose:
+            print("TEST: neg={}, pos={}".format(len(test_0_neg)+len(test_1_neg),
+                                                len(test_0_pos)+len(test_1_pos)))
 
         def _reduce_nsamples(nsamples, a, b, c, d):
             if nsamples:

@@ -112,7 +112,8 @@ def transform(image, mask, is_train, size):
 class MSDDataset(Dataset):
 
     def __init__(self, mode, dataroot, blur=0, nsamples=32, maxmasks=1,
-                 transform=None, new_size=100, mask_all=False, seed=1234):
+                 transform=None, new_size=100, mask_all=False, seed=1234,
+                 verbose=False):
 
         assert 0 <= maxmasks <= 1
 
@@ -184,8 +185,9 @@ class MSDDataset(Dataset):
             self.masks_selector[idx_masks_class0_to_rm] = 0
             self.masks_selector[idx_masks_class1_to_rm] = 0
 
-        print ("This {} dataloader contains: {}".format(
-            self.mode, str(collections.Counter(self.labels))))
+        if verbose:
+            print ("This {} dataloader contains: {}".format(
+                self.mode, str(collections.Counter(self.labels))))
 
         # NB: transform does nothing, only exists for compatibility.
         # Now build an array of the data for RAM access
