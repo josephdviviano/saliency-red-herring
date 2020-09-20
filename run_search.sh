@@ -2,11 +2,11 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="synth-search" #"synth-search cardiacmsd-search livermsd-search pancreasmsd-search colonmsd-search"
+EXPERIMENTS="cardiacmsd-search livermsd-search pancreasmsd-search colonmsd-search" #"synth-search cardiacmsd-search livermsd-search pancreasmsd-search colonmsd-search"
 SEED=1234
 
 for exp in ${EXPERIMENTS}; do
-    for file in $(ls activmask/config/${exp}/${exp}*); do
+    for file in $(ls activmask/config/${exp}/${exp}*discriminator*); do
 
         filename=$(basename ${file})
         filename="${filename%.*}"
@@ -37,3 +37,4 @@ EOF
     rm ${runscript}
     done
 done
+
