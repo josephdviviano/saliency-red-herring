@@ -205,6 +205,11 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
+        #self.fc = nn.Sequential(
+        #    nn.Linear(512 * 13 * 13 * block.expansion, 1024),
+        #    nn.BatchNorm1d(num_features=1024),
+        #    nn.ReLU(inplace=True),
+        #    nn.Linear(1024, num_classes))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
