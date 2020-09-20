@@ -22,6 +22,8 @@ import torch.nn.functional as F
 import torchvision.models as models
 import torchvision.transforms.functional as TF
 import activmask.utils.register as register
+sys.path.insert(0,"../../../torchxrayvision")
+import torchxrayvision as xrv
 
 
 def normalize(sample, maxval):
@@ -278,6 +280,190 @@ class JointDataset():
         # Enforce datatype
         img = TF.to_tensor(img).float()
         seg = TF.to_tensor(seg).permute([1, 0, 2]).float()
+
+        if self.mask_all:
+            try:
+                img *= seg
+            except:
+                import IPython; IPython.embed()
+
+        return (img, seg, self.labels[idx]) #self.masks_selector[idx]
+    
+@register.setdatasetname("XRayCOVIDDataset")
+class JointXRayCOVIDDataset():
+    def __init__(self, imgpath, csvpath, ratio=0.5, mode="train",
+                 seed=1234, transform=None, nsamples=None, maxmasks=None,
+                 new_size=224, mask_all=False, verbose=False):
+        
+        splits = np.array([0.5,0.25,0.25])
+        assert mode in ['train', 'valid', 'test']
+        assert np.sum(splits) == 1.0
+        assert mask_all in [True, False]
+
+        np.random.seed(seed)  # Reset the seed so all runs are the same.
+
+        self.mask_all = mask_all
+        self.new_size = new_size
+        
+        import torchvision, torchvision.transforms
+        transform = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(),xrv.datasets.XRayResizer(self.new_size)])
+        
+        self.dataset1 = xrv.datasets.COVID19_Dataset(imgpath=imgpath, 
+                                                     csvpath=csvpath, 
+                                                    views=["PA","AP"],
+                                                    semantic_masks=True,
+                                                    transform=transform)
+        
+        self.dataset2 = xrv.datasets.COVID19_Dataset(imgpath=imgpath, 
+                                                     csvpath=csvpath, 
+                                                    views=["AP Supine"],
+                                                    semantic_masks=True,
+                                                    transform=transform)
+        
+        
+
+        all_imageids = np.concatenate([np.arange(len(self.dataset1)),
+                                       np.arange(len(self.dataset2))]).astype(int)
+        all_idx = np.arange(len(all_imageids)).astype(int)
+        
+        #predict survival
+        all_labels = np.concatenate([self.dataset1.csv.survival == "Y",
+                                     self.dataset2.csv.survival == "Y"]).astype(int)
+        
+        all_site = np.concatenate([np.zeros(len(self.dataset1)),
+                                   np.ones(len(self.dataset2))]).astype(int)
+
+        idx_sick = all_labels==1
+        n_per_category = np.min([sum(idx_sick[all_site==0]),
+                                 sum(idx_sick[all_site==1])])
+
+        if verbose:
+            print("n_per_category={}".format(n_per_category))
+
+        all_0_neg = all_idx[np.where((all_site==0) & (all_labels==0))]
+        all_0_neg = np.random.choice(all_0_neg, n_per_category, replace=False)
+        all_0_pos = all_idx[np.where((all_site==0) & (all_labels==1))]
+        all_0_pos = np.random.choice(all_0_pos, n_per_category, replace=False)
+        all_1_neg = all_idx[np.where((all_site==1) & (all_labels==0))]
+        all_1_neg = np.random.choice(all_1_neg, n_per_category, replace=False)
+        all_1_pos = all_idx[np.where((all_site==1) & (all_labels==1))]
+        all_1_pos = np.random.choice(all_1_pos, n_per_category, replace=False)
+
+        # TRAIN
+        train_0_neg = np.random.choice(
+            all_0_neg, int(n_per_category*ratio*splits[0]*2), replace=False)
+        train_0_pos = np.random.choice(
+            all_0_pos, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+        train_1_neg = np.random.choice(
+            all_1_neg, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+        train_1_pos = np.random.choice(
+            all_1_pos, int(n_per_category*ratio*splits[0]*2), replace=False)
+
+        # REDUCE POST-TRAIN
+        all_0_neg = np.setdiff1d(all_0_neg, train_0_neg)
+        all_0_pos = np.setdiff1d(all_0_pos, train_0_pos)
+        all_1_neg = np.setdiff1d(all_1_neg, train_1_neg)
+        all_1_pos = np.setdiff1d(all_1_pos, train_1_pos)
+
+        if verbose:
+            print("TRAIN: neg={}, pos={}".format(len(train_0_neg)+len(train_1_neg),
+                                                 len(train_0_pos)+len(train_1_pos)))
+
+        # VALID
+        valid_0_neg = np.random.choice(
+            all_0_neg, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+        valid_0_pos = np.random.choice(
+            all_0_pos, int(n_per_category*ratio*splits[1]*2), replace=False)
+        valid_1_neg = np.random.choice(
+            all_1_neg, int(n_per_category*ratio*splits[1]*2), replace=False)
+        valid_1_pos = np.random.choice(
+            all_1_pos, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+
+        # REDUCE POST-VALID
+        all_0_neg = np.setdiff1d(all_0_neg, valid_0_neg)
+        all_0_pos = np.setdiff1d(all_0_pos, valid_0_pos)
+        all_1_neg = np.setdiff1d(all_1_neg, valid_1_neg)
+        all_1_pos = np.setdiff1d(all_1_pos, valid_1_pos)
+
+        if verbose:
+            print("VALID: neg={}, pos={}".format(len(valid_0_neg)+len(valid_1_neg),
+                                                 len(valid_0_pos)+len(valid_1_pos)))
+
+        # TEST
+        test_0_neg = all_0_neg
+        test_0_pos = all_0_pos
+        test_1_neg = all_1_neg
+        test_1_pos = all_1_pos
+
+        if verbose:
+            print("TEST: neg={}, pos={}".format(len(test_0_neg)+len(test_1_neg),
+                                                len(test_0_pos)+len(test_1_pos)))
+
+        def _reduce_nsamples(nsamples, a, b, c, d):
+            if nsamples:
+                a = a[:int(np.floor(nsamples/4))]
+                b = b[:int(np.ceil(nsamples/4))]
+                c = c[:int(np.ceil(nsamples/4))]
+                d = d[:int(np.floor(nsamples/4))]
+
+            return (a, b, c, d)
+
+        if mode == "train":
+            (a, b, c, d) = _reduce_nsamples(
+                nsamples, train_0_neg, train_0_pos, train_1_neg, train_1_pos)
+        elif mode == "valid":
+            (a, b, c, d) = _reduce_nsamples(
+                nsamples, valid_0_neg, valid_0_pos, valid_1_neg, valid_1_pos)
+        elif mode == "test":
+            (a, b, c, d) = _reduce_nsamples(
+                nsamples, test_0_neg, test_0_pos, test_1_neg, test_1_pos)
+        else:
+            raise Exception("unknown mode")
+
+        self.select_idx = np.concatenate([a, b, c, d])
+        self.imageids = all_imageids[self.select_idx]
+        self.labels = all_labels[self.select_idx]
+        self.site = all_site[self.select_idx]
+        self.masks_selector = np.ones(len(self.site))
+
+        # Image Resizing.
+#         self.convert = XRayConverter()
+        FINAL_SIZE = (self.new_size, self.new_size)
+#         self.resize = XRayResizer(FINAL_SIZE)
+
+        # Mask
+        self.baseseg = np.zeros(FINAL_SIZE)
+#         self.seg[rr, cc] = 1
+
+    def __len__(self):
+        return len(self.imageids)
+
+    def __getitem__(self, idx):
+
+        if self.site[idx] == 0:
+            dataset = self.dataset1
+        else:
+            dataset = self.dataset2
+
+        sample = dataset[self.imageids[idx]]
+        img = sample["img"]
+        if "Lungs" in sample["semantic_masks"]:
+            seg = sample["semantic_masks"]["Lungs"]
+        else:
+            seg = self.baseseg
+            
+        site = self.site[idx]
+
+        # Convert to properly-sized tensors
+        img = img[0, :, :]
+
+        # Enforces that the image is a square.
+#         if self.new_size != img.width == img.height:
+#             img = self.resize(img)
+
+        # Enforce datatype
+        img = TF.to_tensor(img).float()
+        #seg = TF.to_tensor(seg).permute([1, 0, 2]).float()
 
         if self.mask_all:
             try:
