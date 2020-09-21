@@ -1,0 +1,10 @@
+# General
+base: "base_covid_balanced.yml"
+
+model:
+  DenseNetModel:
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    disc_lamb: "Real(10**-4, 10, 'log-uniform')"
+    disc_iter: 'Integer(2, 10)'
+    disc_lr: "Real(10**-4, 10**-2, 'log-uniform')"

@@ -1,0 +1,37 @@
+batch_size: 64
+n_epochs: 100
+n_initial_points: 5
+n_iter: 20
+num_workers: 8
+patience: 20
+pin_memory: True
+shuffle: True
+
+dataset:
+  train:
+    XRayCOVIDDataset:
+      imgpath: "/srv/fast/scratch/xray/NIH/images-224"
+      csvpath: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      ratio: 0.9
+      mode: "train"
+  valid:
+    XRayCOVIDDataset:
+      imgpath: "/srv/fast/scratch/xray/NIH/images-224"
+      csvpath: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      ratio: 0.9
+      mode: "valid"
+  test:
+    XRayCOVIDDataset:
+      imgpath: "/srv/fast/scratch/xray/NIH/images-224"
+      csvpath: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      ratio: 0.9
+      mode: "test"
+
+optimizer:
+  Adam:
+    lr: "Real(10**-5, 10**-2, 'log-uniform')"
+
+transform:
+        train: {}
+        valid: {}
+        test: {}

@@ -1,0 +1,8 @@
+# General
+base: "base_covid_balanced.yml"
+
+model:
+  DenseNetModel:
+    actdiff_lamb: 0
+    gradmask_lamb: "Real(10**-4, 10, 'log-uniform')"
+    disc_lamb: 0

@@ -1,0 +1,12 @@
+base: "base_covid_balanced.yml"
+
+model:
+  DenseNetModel:
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    disc_lamb: 0
+
+dataset:
+  train:
+    XRayCOVIDDataset:
+        mask_all: True
