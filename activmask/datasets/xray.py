@@ -492,7 +492,7 @@ class JointXRayCOVIDDataset():
     
 @register.setdatasetname("XRayRSNADataset")
 class JointXRayRSNADataset():
-    def __init__(self, imgpath, csvpath, ratio=0.5, mode="train",
+    def __init__(self, imgpath, ratio=0.5, mode="train",
                  seed=1234, transform=None, nsamples=None, maxmasks=None,
                  new_size=224, mask_all=False, verbose=False):
         
