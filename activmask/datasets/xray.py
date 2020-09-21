@@ -306,7 +306,9 @@ class JointXRayCOVIDDataset():
         self.new_size = new_size
         
         import torchvision, torchvision.transforms
-        transform = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(),xrv.datasets.XRayResizer(self.new_size)])
+        transform = torchvision.transforms.Compose(
+            [xrv.datasets.XRayCenterCrop(),
+             xrv.datasets.XRayResizer(self.new_size)])
         
         self.dataset1 = xrv.datasets.COVID19_Dataset(imgpath=imgpath, 
                                                      csvpath=csvpath, 
@@ -319,16 +321,15 @@ class JointXRayCOVIDDataset():
                                                     views=["AP Supine"],
                                                     semantic_masks=True,
                                                     transform=transform)
-        
-        
 
         all_imageids = np.concatenate([np.arange(len(self.dataset1)),
                                        np.arange(len(self.dataset2))]).astype(int)
         all_idx = np.arange(len(all_imageids)).astype(int)
         
         #predict survival
-        all_labels = np.concatenate([self.dataset1.csv.survival == "Y",
-                                     self.dataset2.csv.survival == "Y"]).astype(int)
+        LABEL = "Y"
+        all_labels = np.concatenate([self.dataset1.csv.survival == LABEL,
+                                     self.dataset2.csv.survival == LABEL]).astype(int)
         
         all_site = np.concatenate([np.zeros(len(self.dataset1)),
                                    np.ones(len(self.dataset2))]).astype(int)
@@ -432,7 +433,7 @@ class JointXRayCOVIDDataset():
 #         self.resize = XRayResizer(FINAL_SIZE)
 
         # Mask
-        self.baseseg = np.zeros(FINAL_SIZE)
+        self.baseseg = np.ones(FINAL_SIZE)
 #         self.seg[rr, cc] = 1
 
     def __len__(self):
