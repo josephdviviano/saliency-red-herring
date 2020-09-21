@@ -321,6 +321,12 @@ class JointXRayCOVIDDataset():
                                                     views=["AP Supine"],
                                                     semantic_masks=True,
                                                     transform=transform)
+        
+        self.dataset1 = xrv.datasets.SubsetDataset(self.dataset1,
+                            np.where(self.dataset1.csv.survival.isin(["Y","N"]))[0])
+        
+        self.dataset2 = xrv.datasets.SubsetDataset(self.dataset2,
+                            np.where(self.dataset2.csv.survival.isin(["Y","N"]))[0])
 
         all_imageids = np.concatenate([np.arange(len(self.dataset1)),
                                        np.arange(len(self.dataset2))]).astype(int)
@@ -336,7 +342,9 @@ class JointXRayCOVIDDataset():
 
         idx_sick = all_labels==1
         n_per_category = np.min([sum(idx_sick[all_site==0]),
-                                 sum(idx_sick[all_site==1])])
+                                 sum(idx_sick[all_site==1]),
+                                 sum(~idx_sick[all_site==0]),
+                                 sum(~idx_sick[all_site==1])])
 
         if verbose:
             print("n_per_category={}".format(n_per_category))
