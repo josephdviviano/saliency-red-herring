@@ -1,0 +1,34 @@
+batch_size: 16
+n_epochs: 100
+n_initial_points: 5
+n_iter: 20
+num_workers: 8
+patience: 20
+pin_memory: True
+shuffle: True
+
+dataset:
+  train:
+    XRayRSNADataset:
+      imgpath: "."
+      ratio: 0.9
+      mode: "train"
+  valid:
+    XRayRSNADataset:
+      imgpath: "."
+      ratio: 0.9
+      mode: "valid"
+  test:
+    XRayRSNADataset:
+      imgpath: "."
+      ratio: 0.9
+      mode: "test"
+
+optimizer:
+  Adam:
+    lr: "Real(10**-5, 10**-2, 'log-uniform')"
+
+transform:
+        train: {}
+        valid: {}
+        test: {}

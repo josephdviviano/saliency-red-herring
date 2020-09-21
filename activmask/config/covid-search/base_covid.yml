@@ -1,4 +1,4 @@
-batch_size: 64
+batch_size: 1
 n_epochs: 100
 n_initial_points: 5
 n_iter: 20
@@ -10,20 +10,20 @@ shuffle: True
 dataset:
   train:
     XRayCOVIDDataset:
-      imgpath: "/srv/fast/scratch/xray/NIH/images-224"
-      csvpath: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      imgpath: "/home/cohenjos/workspace/covid-chestxray-dataset/images"
+      csvpath: "/home/cohenjos/workspace/covid-chestxray-dataset/metadata.csv"
       ratio: 0.9
       mode: "train"
   valid:
     XRayCOVIDDataset:
-      imgpath: "/srv/fast/scratch/xray/NIH/images-224"
-      csvpath: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      imgpath: "/home/cohenjos/workspace/covid-chestxray-dataset/images"
+      csvpath: "/home/cohenjos/workspace/covid-chestxray-dataset/metadata.csv"
       ratio: 0.9
       mode: "valid"
   test:
     XRayCOVIDDataset:
-      imgpath: "/srv/fast/scratch/xray/NIH/images-224"
-      csvpath: "/srv/fast/scratch/xray//NIH/Data_Entry_2017.csv"
+      imgpath: "/home/cohenjos/workspace/covid-chestxray-dataset/images"
+      csvpath: "/home/cohenjos/workspace/covid-chestxray-dataset/metadata.csv"
       ratio: 0.9
       mode: "test"
 

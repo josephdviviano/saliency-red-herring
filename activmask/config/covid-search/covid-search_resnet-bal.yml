@@ -2,7 +2,7 @@
 base: "base_covid_balanced.yml"
 
 model:
-  DenseNetModel:
+  ResNetModel:
     actdiff_lamb: 0
     gradmask_lamb: 0
     disc_lamb: 0
