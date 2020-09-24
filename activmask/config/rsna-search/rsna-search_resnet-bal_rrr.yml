@@ -1,0 +1,9 @@
+# General
+base: "base_rsna_balanced.yml"
+
+model:
+  ResNetModel:
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    rrr_lamb: "Real(10**-4, 10, 'log-uniform')"
+    disc_lamb: 0

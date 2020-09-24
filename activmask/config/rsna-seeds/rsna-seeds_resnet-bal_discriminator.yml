@@ -1,0 +1,16 @@
+# General
+base: "base_rsna_balanced.yml"
+
+model:
+  ResNetModel:
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    disc_lamb: 0.0001
+    disc_iter: 6
+    disc_lr: 0.000235 
+    save_acts: [5]
+
+optimizer:
+  Adam:
+    lr: 0.000034
+

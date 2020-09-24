@@ -1,0 +1,30 @@
+batch_size: 16
+n_epochs: 100
+n_initial_points: 5
+n_iter: 20
+num_workers: 8
+patience: 20
+pin_memory: True
+shuffle: True
+
+dataset:
+  train:
+    XRayRSNADataset:
+      imgpath: "/home/cohenjos/projects/rpp-bengioy/jpcohen/kaggle-pneumonia/stage_2_train_images_jpg"
+      ratio: 0.5
+      mode: "train"
+  valid:
+    XRayRSNADataset:
+      imgpath: "/home/cohenjos/projects/rpp-bengioy/jpcohen/kaggle-pneumonia/stage_2_train_images_jpg"
+      ratio: 0.5
+      mode: "valid"
+  test:
+    XRayRSNADataset:
+      imgpath: "/home/cohenjos/projects/rpp-bengioy/jpcohen/kaggle-pneumonia/stage_2_train_images_jpg"
+      ratio: 0.5
+      mode: "test"
+
+transform:
+        train: {}
+        valid: {}
+        test: {}

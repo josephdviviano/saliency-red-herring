@@ -1,0 +1,10 @@
+base: 'base_synth.yml'
+
+model:
+  ResNetModel:
+    resnet_type: "18"
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    rrr_lamb: "Real(10**-4, 10, 'log-uniform')"
+    disc_lamb: 0
+    save_acts: []
