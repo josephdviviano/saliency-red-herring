@@ -15,7 +15,7 @@ import torchvision
 from activmask.models.loss import compare_activations, get_grad_contrast
 from activmask.models.utils import shuffle_outside_mask, Dummy
 from activmask.models.linear import Discriminator
-sys.path.insert(0,"../../../torchxrayvision")
+#sys.path.insert(0,"../../../torchxrayvision")
 import torchxrayvision as xrv
 
 
@@ -28,7 +28,7 @@ class DenseNetModel(nn.Module):
 
     """
     def __init__(self, num_classes=2, actdiff_lamb=0, gradmask_lamb=0, disc_lamb=0, 
-                 disc_lr=0.0001, disc_iter=0):
+                 n_hid=1280, disc_lr=0.0001, disc_iter=0):
 
         assert actdiff_lamb >= 0
         assert gradmask_lamb >= 0
@@ -37,19 +37,21 @@ class DenseNetModel(nn.Module):
         # Discriminator and actdiff penalty are incompatible.
         assert not all([x > 0 for x in [actdiff_lamb, disc_lamb]])
 
-        super(ResNetModel, self).__init__()
+        super(DenseNetModel, self).__init__()
 
         # The features are frozen, we only learn the final clasifier.
         self.encoder = xrv.models.DenseNet(weights="all")
-        self._grad_off(self.encoder.features.parameters)
-        self.fc = nn.Linear(self.encoder.classifier.in_features, num_classes)
+        self._grad_off(self.encoder.features.parameters())
+        self.hid = nn.Linear(self.encoder.classifier.in_features, n_hid)
+        self.fc = nn.Linear(n_hid, num_classes)
 
         self.bce = nn.BCELoss()
         self.device = None
         self.op_counter = 0
 
+        DISC_SIZE = 128
         if disc_lamb > 0:
-            _layers = [self.encoder.classifier.in_features, 1024, 1024, 1024]
+            _layers = [n_hid, DISC_SIZE, DISC_SIZE, DISC_SIZE]
             # Self.D is only optimized using the internal optimizer. The grads
             # for these parameters are only allowed to flow during the forward
             # pass, so the external optimizer cannot influence the weights of
@@ -138,11 +140,13 @@ class DenseNetModel(nn.Module):
         # Actdiff/Discriminator: save the activations for the masked pass.
         if self.training and any([self.actdiff_lamb > 0, self.disc_lamb > 0]):
             X_masked = shuffle_outside_mask(X, seg).detach()
-            masked_activations = [_activate_and_pool(self.features(X_masked))]
+            masked_activations = [self.hid(
+                _activate_and_pool(self.encoder.features(X_masked)))]
         else:
             masked_activations = []
 
-        activations = _activate_and_pool(self.features(X))
+        features = _activate_and_pool(self.encoder.features(X))
+        activations = self.hid(features)
         y_pred = self.fc(activations)
         activations = [activations]
 
