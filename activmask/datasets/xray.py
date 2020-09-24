@@ -496,7 +496,7 @@ class JointXRayRSNADataset():
                  seed=1234, transform=None, nsamples=None, maxmasks=None,
                  new_size=224, mask_all=False, verbose=False):
         
-        splits = np.array([0.5,0.25,0.25])
+        splits = np.array([0.5, 0.25, 0.25])
         assert mode in ['train', 'valid', 'test']
         assert np.sum(splits) == 1.0
         assert mask_all in [True, False]
@@ -511,21 +511,12 @@ class JointXRayRSNADataset():
             [xrv.datasets.XRayCenterCrop(),
              xrv.datasets.XRayResizer(self.new_size)])
         
-#         self.dataset1 = xrv.datasets.COVID19_Dataset(imgpath=imgpath, 
-#                                                      csvpath=csvpath, 
-#                                                     views=["PA"],
-#                                                     semantic_masks=True,
-#                                                     transform=transform)
         #RSNA_Pneumonia_Dataset
-        self.dataset1 = xrv.datasets.RSNA_Pneumonia_Dataset(imgpath="/home/cohenjos/projects/rpp-bengioy/jpcohen/kaggle-pneumonia/stage_2_train_images_jpg", 
-                                            views=["PA"],
-                                            pathology_masks=True,
-                                            transform=transform)
+        self.dataset1 = xrv.datasets.RSNA_Pneumonia_Dataset(
+            imgpath=imgpath, views=["PA"], pathology_masks=True, transform=transform)
 
-        self.dataset2 = xrv.datasets.RSNA_Pneumonia_Dataset(imgpath="/home/cohenjos/projects/rpp-bengioy/jpcohen/kaggle-pneumonia/stage_2_train_images_jpg",
-                                            views=["AP"],
-                                            pathology_masks=True,
-                                            transform=transform)
+        self.dataset2 = xrv.datasets.RSNA_Pneumonia_Dataset(
+            imgpath=imgpath, views=["AP"], pathology_masks=True, transform=transform)
 
         all_imageids = np.concatenate([np.arange(len(self.dataset1)),
                                        np.arange(len(self.dataset2))]).astype(int)
