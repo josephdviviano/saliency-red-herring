@@ -156,11 +156,11 @@ def get_grad_contrast(X, y_pred):
 
 def get_grad_rrr(X, y_pred):
     """Right for the Right Reasons."""
-    y_pred = torch.sum(torch.log(F.softmax(y_pred, dim=1)), 1)
+    EPS = 10e-12
+    y_pred = torch.sum(torch.log(F.softmax(y_pred, dim=1) + EPS))
     # This is always a list of length 1, so we remove the element from the list.
     gradients = torch.autograd.grad(
-        outputs=y_pred, inputs=X, allow_unused=True, create_graph=True,
-        grad_outputs=torch.ones_like(pos_class))[0]
+        outputs=y_pred, inputs=X, allow_unused=True, create_graph=True)[0]
 
     return gradients
 

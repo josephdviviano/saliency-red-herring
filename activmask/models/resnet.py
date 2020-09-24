@@ -495,7 +495,7 @@ class ResNetModel(nn.Module):
 
         self.actdiff_lamb = actdiff_lamb
         self.gradmask_lamb = gradmask_lamb
-        self,rrr_lamb = rrr_lamb
+        self.rrr_lamb = rrr_lamb
         self.disc_lamb = disc_lamb
         self.criterion = torch.nn.CrossEntropyLoss()
 
@@ -585,6 +585,7 @@ class ResNetModel(nn.Module):
         clf_loss = self.criterion(outputs['y_pred'], y)
         actdiff_loss = torch.zeros(1)[0].to(device)
         grad_loss = torch.zeros(1)[0].to(device)
+        rrr_loss = torch.zeros(1)[0].to(device)
         disc_loss = torch.zeros(1)[0].to(device)
         gen_loss = torch.zeros(1)[0].to(device)
 
@@ -599,8 +600,8 @@ class ResNetModel(nn.Module):
 
         if self.training and self.rrr_lamb > 0:
             gradients = get_grad_rrr(outputs['X'], outputs['y_pred'])
-            grad_loss = (gradients * outputs['seg'].float())**2
-            grad_loss = grad_loss.sum() * self.rrr_lamb
+            rrr_loss = (gradients * outputs['seg'].float())**2
+            rrr_loss = rrr_loss.sum() * self.rrr_lamb
 
         if self.training and self.disc_lamb > 0:
             # TODO: gracefully handle indices (some way to do invariance at
@@ -614,6 +615,7 @@ class ResNetModel(nn.Module):
             'clf_loss': clf_loss,
             'actdiff_loss': actdiff_loss,
             'gradmask_loss': grad_loss,
+            'rrr_loss': rrr_loss,
             'gen_loss': gen_loss}
         noop_losses = {
             'disc_loss': disc_loss.detach()}
