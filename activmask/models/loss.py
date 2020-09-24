@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import torch.nn.functional as F
 
 
 def compare_activations(act_a, act_b):
@@ -143,7 +144,7 @@ def ac_term(hs, epsilon=1e-3, s=3., binarizer='softsign'):
 
 
 def get_grad_contrast(X, y_pred):
-    """Simple Constrast Loss. d(y_0-y_1)/dx"""
+    """Gradmask: Simple Constrast Loss. d(y_0-y_1)/dx"""
     contrast = torch.abs(y_pred[:, 0] - y_pred[:, 1])
     # This is always a list of length 1, so we remove the element from the list.
     gradients = torch.autograd.grad(
@@ -154,10 +155,11 @@ def get_grad_contrast(X, y_pred):
 
 
 def get_grad_rrr(X, y_pred):
-    pos_class = y_pred[:, 1]
+    """Right for the Right Reasons."""
+    y_pred = torch.sum(torch.log(F.softmax(y_pred, dim=1)), 1)
     # This is always a list of length 1, so we remove the element from the list.
     gradients = torch.autograd.grad(
-        outputs=pos_class, inputs=X, allow_unused=True, create_graph=True,
+        outputs=y_pred, inputs=X, allow_unused=True, create_graph=True,
         grad_outputs=torch.ones_like(pos_class))[0]
 
     return gradients

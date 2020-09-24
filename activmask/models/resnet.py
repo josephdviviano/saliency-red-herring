@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import activmask.utils.register as register
 import torchvision
-from activmask.models.loss import compare_activations, get_grad_contrast
+from activmask.models.loss import compare_activations, get_grad_contrast, get_grad_rrr
 from activmask.models.utils import shuffle_outside_mask, Dummy
 from activmask.models.linear import Discriminator
 
@@ -445,28 +445,28 @@ def wide_resnet101_2(pretrained=False, progress=True, **kwargs):
 class ResNetModel(nn.Module):
     """
     actdiff: l2 distance b/t masked/unmasked data.
-    gradmask: sum(abs(grad)) outside mask.
+    gradmask: sum(abs(d y1-y0) / dx )) outside mask.
+    rrr: sum( dlogprob / dx **2) outside mask.
     disc: adversarially-driven invariance to masked/unmasked data.
 
     """
     def __init__(self, base_size=512, resnet_type="18",
-                 actdiff_lamb=0, gradmask_lamb=0, disc_lamb=0, disc_lr=0.0001,
-                 disc_iter=0, save_acts=list(range(6))):
+                 actdiff_lamb=0, gradmask_lamb=0, rrr_lamb=0, disc_lamb=0, 
+                 disc_lr=0.0001, disc_iter=0, save_acts=[5]):
 
         assert resnet_type in ["18", "34"]
-        assert actdiff_lamb >= 0
-        assert gradmask_lamb >= 0
-        assert disc_lamb >= 0
-        assert disc_iter >= 0
+        assert all([x >= 0 for x in [actdiff_lamb, gradmask_lamb, 
+                                     rrr_lamb, disc_lamb, disc_iter]])
         # Discriminator and actdiff penalty are incompatible.
         assert not all([x > 0 for x in [actdiff_lamb, disc_lamb]])
 
         if actdiff_lamb == 0 and disc_lamb == 0:
             save_acts = []  # Disable saving activations when unneeded.
         elif disc_lamb > 0:
-            save_acts = [5]
+            save_acts = [5]  # Adversarial loss only compatible with final layer.
         elif actdiff_lamb > 0:
             assert len(save_acts) > 0
+        assert all([0 <= x <= 5 for x in save_acts])  # Valid save_acts locations.
 
         super(ResNetModel, self).__init__()
 
@@ -495,6 +495,7 @@ class ResNetModel(nn.Module):
 
         self.actdiff_lamb = actdiff_lamb
         self.gradmask_lamb = gradmask_lamb
+        self,rrr_lamb = rrr_lamb
         self.disc_lamb = disc_lamb
         self.criterion = torch.nn.CrossEntropyLoss()
 
@@ -595,6 +596,11 @@ class ResNetModel(nn.Module):
             gradients = get_grad_contrast(outputs['X'], outputs['y_pred'])
             grad_loss = gradients * outputs['seg'].float()
             grad_loss = grad_loss.abs().sum() * self.gradmask_lamb
+
+        if self.training and self.rrr_lamb > 0:
+            gradients = get_grad_rrr(outputs['X'], outputs['y_pred'])
+            grad_loss = (gradients * outputs['seg'].float())**2
+            grad_loss = grad_loss.sum() * self.rrr_lamb
 
         if self.training and self.disc_lamb > 0:
             # TODO: gracefully handle indices (some way to do invariance at
