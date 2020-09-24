@@ -368,13 +368,14 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     dataset_valid = configuration.setup_dataset(cfg, seed, split='valid')(tr_valid)
     dataset_test = configuration.setup_dataset(cfg, seed, split='test')(tr_test)
 
+    # 'batch_size': cfg['batch_size'],
     loader_kwargs = {
-        'batch_size': cfg['batch_size'], 'shuffle': cfg['shuffle'],
-        'num_workers': cfg['num_workers'], 'pin_memory': cfg['pin_memory']}
+        'shuffle': cfg['shuffle'], 'num_workers': cfg['num_workers'], 'pin_memory': cfg['pin_memory']}
 
-    train_loader = torch.utils.data.DataLoader(dataset_train, **loader_kwargs)
-    valid_loader = torch.utils.data.DataLoader(dataset_valid, **loader_kwargs)
-    test_loader = torch.utils.data.DataLoader(dataset_test, **loader_kwargs)
+    BATCH_SIZE = 16
+    train_loader = torch.utils.data.DataLoader(dataset_train, batch_size=16, **loader_kwargs)
+    valid_loader = torch.utils.data.DataLoader(dataset_valid, batch_size=16, **loader_kwargs)
+    test_loader = torch.utils.data.DataLoader(dataset_test, batch_size=16, **loader_kwargs)
 
     model = configuration.setup_model(cfg).to(device)
     optim = configuration.setup_optimizer(cfg)(model.encoder.parameters())
