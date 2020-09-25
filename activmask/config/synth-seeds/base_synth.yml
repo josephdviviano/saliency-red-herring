@@ -1,7 +1,7 @@
 batch_size: 32
 n_epochs: 100
 num_workers: 4
-patience: 20
+patience: 100
 pin_memory: True
 shuffle: True
 
@@ -10,7 +10,7 @@ dataset:
     SyntheticDataset:
       mode: 'distractor1'
       nsamples: 500
-      dataroot: &dataroot "/home/jdv/code/activmask/data/synth_hard"
+      dataroot: &dataroot "/home/cohenjos/workspace/activmask/data/synth_hard"
       distract_noise: 0
   valid:
     SyntheticDataset:
