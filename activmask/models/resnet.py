@@ -448,11 +448,10 @@ class ResNetModel(nn.Module):
     gradmask: sum(abs(d y1-y0) / dx )) outside mask.
     rrr: sum( dlogprob / dx **2) outside mask.
     disc: adversarially-driven invariance to masked/unmasked data.
-
     """
     def __init__(self, base_size=512, resnet_type="18",
                  actdiff_lamb=0, gradmask_lamb=0, rrr_lamb=0, disc_lamb=0, 
-                 disc_lr=0.0001, disc_iter=0, save_acts=[5]):
+                 disc_lr=0.0001, disc_iter=0, save_acts=[5], shuffle_all=False):
 
         assert resnet_type in ["18", "34"]
         assert all([x >= 0 for x in [actdiff_lamb, gradmask_lamb, 
@@ -498,6 +497,7 @@ class ResNetModel(nn.Module):
         self.rrr_lamb = rrr_lamb
         self.disc_lamb = disc_lamb
         self.criterion = torch.nn.CrossEntropyLoss()
+        self.shuffle_all = shuffle_all
 
     def _init_device(self):
         """ Runs only during the first forward pass."""
@@ -570,6 +570,10 @@ class ResNetModel(nn.Module):
             masked_activations = self.encoder.all_activations
         else:
             masked_activations = []
+
+        # Control Experiment.
+        if self.training and self.shuffle_all:
+            X = shuffle_outside_mask(X, seg)
 
         y_pred = self.encoder(X)
         activations = self.encoder.all_activations

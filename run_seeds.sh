@@ -2,8 +2,8 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="synth-seeds" #"livermsd-seeds synth-seeds colonmsd-seeds cardiacmsd-seeds pancreasmsd-seeds" # xray-seeds"
-SEEDS=(1234 3232 3221 9856 1290 1987 3200 6400 8888 0451)  # (3232 3221 9856 1290 1987)
+EXPERIMENTS="rsna-seeds synth-seeds xray-seeds" #"livermsd-seeds synth-seeds colonmsd-seeds cardiacmsd-seeds pancreasmsd-seeds" # xray-seeds"
+SEEDS=(1234 3232 3221 9856 1290 1987 1111 6400 8888 0451)  # (3232 3221 9856 1290 1987)
 
 for exp in ${EXPERIMENTS}; do
     for file in $(ls activmask/config/${exp}/${exp}*); do
@@ -12,7 +12,6 @@ for exp in ${EXPERIMENTS}; do
             filename=$(basename ${file})
             filename="${filename%.*}"
             filename="${filename}_${seed}"
-            echo "*** RUNNING: ${filename} ***"
 
             # Generates a job script.
             runscript="${filename}.pbs"
@@ -21,10 +20,11 @@ for exp in ${EXPERIMENTS}; do
 #SBATCH --job-name=${filename}
 #SBATCH --output=cluster_logs/${filename}_out.txt
 #SBATCH --error=cluster_logs/${filename}_err.txt
-#SBATCH --ntasks=1
-#SBATCH --time=3:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=8Gb
-#SBATCH --gres=gpu:titanxp:1
+#SBATCH --account=def-marzyeh
+#SBATCH --gres=gpu:1
+#SBATCH --ntasks-per-node=8
 
 hostname
 export LANG=C.UTF-8
@@ -33,7 +33,7 @@ source activate activmask
 python -u activmask/main.py train --config ${file} --seed=${seed}
 EOF
 
-        bash ${runscript}
+        sbatch ${runscript}
         rm ${runscript}
 
         done
