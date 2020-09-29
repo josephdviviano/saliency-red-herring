@@ -2,11 +2,11 @@
 
 mkdir cluster_logs
 
-EXPERIMENTS="rsna-seeds synth-seeds xray-seeds" #"livermsd-seeds synth-seeds colonmsd-seeds cardiacmsd-seeds pancreasmsd-seeds" # xray-seeds"
+EXPERIMENTS="xray-seeds" #"livermsd-seeds synth-seeds colonmsd-seeds cardiacmsd-seeds pancreasmsd-seeds" # xray-seeds"
 SEEDS=(1234 3232 3221 9856 1290 1987 1111 6400 8888 0451)  # (3232 3221 9856 1290 1987)
 
 for exp in ${EXPERIMENTS}; do
-    for file in $(ls activmask/config/${exp}/${exp}*); do
+    for file in $(ls activmask/config/${exp}/${exp}*bal_actdiff*); do
         for seed in "${SEEDS[@]}"; do
 
             filename=$(basename ${file})
