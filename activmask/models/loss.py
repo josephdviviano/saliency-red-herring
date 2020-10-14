@@ -165,6 +165,16 @@ def get_grad_rrr(X, y_pred):
     return gradients
 
 
+def get_grad_saliency(X, y_pred):
+    """Simple saliency map for the positive class. d(y_1)/dx."""
+    y_pred = y_pred[:, 1].sum()
+    # This is always a list of length 1, so we remove the element from the list.
+    gradients = torch.autograd.grad(
+        outputs=y_pred, inputs=X, allow_unused=True, create_graph=True)[0]
+
+    return gradients
+
+
 def get_gradmask_loss(x, class_output, model, target, penalise_grad="contrast"):
     if penalise_grad == "contrast":
         # d(y_0-y_1)/dx
