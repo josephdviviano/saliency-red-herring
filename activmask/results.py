@@ -177,14 +177,14 @@ def get_last_results_at_epoch(df, epoch, sig_digits=3):
     return df
 
 
-def make_results_table(dfs, sig_digits=3, mode='score', count=False):
+def make_results_table(dfs, sig_digits=3, mode='iou', count=False):
     """
     Merge the best test results for all dataframes submitted.
     Used to make a results table across datasets.
     """
     fmt_str = "${0:." + str(sig_digits) + "f}\pm{1:." + str(sig_digits) + "f}$"
 
-    assert mode in ['score', 'loc']
+    assert mode in ['iou', 'iop', 'iot']
 
     for i, df in enumerate(dfs):
         _df = copy(df)
@@ -201,24 +201,24 @@ def make_results_table(dfs, sig_digits=3, mode='score', count=False):
         auc, iou_input, iou_integrated, iou_occlusion = [], [], [], []
         for a, b, c, d, e, f, g, h in zip(
             _df["best_test_score"], _df["best_test_score_std"],
-            _df["iou_normal"], _df["iou_normal_std"],
-            _df["iou_integrated"], _df["iou_integrated_std"],
-            _df["iou_occlude"], _df["iou_occlude_std"]):
+            _df["{}_normal".format(mode)], _df["{}_normal_std".format(mode)],
+            _df["{}_integrated".format(mode)], _df["{}_integrated_std".format(mode)],
+            _df["{}_occlude".format(mode)], _df["{}_occlude_std".format(mode)]):
             auc.append(fmt_str.format(a, b))
             iou_input.append(fmt_str.format(c, d))
             iou_integrated.append(fmt_str.format(e, f))
             iou_occlusion.append(fmt_str.format(g, h))
 
         _df['test_auc_{}'.format(name)] = auc
-        _df['test_iou_input_{}'.format(name)] = iou_input
-        _df['test_iou_integrated_{}'.format(name)] = iou_integrated
-        _df['test_iou_occlusion_{}'.format(name)] = iou_occlusion
+        _df['test_{}_input_{}'.format(mode, name)] = iou_input
+        _df['test_{}_integrated_{}'.format(mode, name)] = iou_integrated
+        _df['test_{}_occlusion_{}'.format(mode, name)] = iou_occlusion
 
         # Drop the original columns.
         _df = _df.drop(['best_test_score', 'best_test_score_std',
-                        'iou_normal', 'iou_normal_std',
-                        'iou_integrated', 'iou_integrated_std',
-                        'iou_occlude', 'iou_occlude_std'], axis=1)
+                        '{}_normal'.format(mode), '{}_normal_std'.format(mode),
+                        '{}_integrated'.format(mode), '{}_integrated_std'.format(mode),
+                        '{}_occlude'.format(mode), '{}_occlude_std'.format(mode)], axis=1)
 
         # Merge the experiments.
         if i == 0:
