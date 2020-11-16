@@ -194,7 +194,14 @@ def make_results_table(dfs, sig_digits=3, mode='iou', count=False):
         _df['experiment_name'] = _df['experiment_name'].str.replace('{}_'.format(name), '')
 
         # Reformat the table.
-        _df = get_test_results(_df, count=count)
+
+        cols=['best_test_score',
+              '{}_normal'.format(mode),
+              '{}_integrated'.format(mode),
+              '{}_occlude'.format(mode)]
+
+        import IPython; IPython.embed()
+        _df = get_test_results(_df, cols=cols, count=count)
         _df = _df.round(sig_digits)
 
         # Merge mean+/-std into a single column with the experiment name.
