@@ -1,0 +1,13 @@
+# General
+base: "base_rsna.yml"
+
+model:
+  ResNetModel:
+    actdiff_lamb: 0
+    gradmask_lamb: 0
+    rrr_lamb: 1
+    disc_lamb: 0
+
+optimizer:
+  Adam:
+    lr: 0.010000
