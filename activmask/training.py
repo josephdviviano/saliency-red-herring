@@ -368,11 +368,13 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     dataset_valid = configuration.setup_dataset(cfg, seed, split='valid')(tr_valid)
     dataset_test = configuration.setup_dataset(cfg, seed, split='test')(tr_test)
 
+    sys.exit()
+
     # 'batch_size': cfg['batch_size'],
     loader_kwargs = {
         'shuffle': cfg['shuffle'], 'num_workers': cfg['num_workers'], 'pin_memory': cfg['pin_memory']}
 
-    BATCH_SIZE = 128 #16
+    BATCH_SIZE = 16
     train_loader = torch.utils.data.DataLoader(dataset_train, batch_size=BATCH_SIZE, **loader_kwargs)
     valid_loader = torch.utils.data.DataLoader(dataset_valid, batch_size=BATCH_SIZE, **loader_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset_test, batch_size=BATCH_SIZE, **loader_kwargs)
