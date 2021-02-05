@@ -1,12 +1,8 @@
 #!/usr/bin/env python
-import os
-import sys
-#WDIR = '/home/jdv/code/activmask/activmask'
-#sys.path.insert(0, os.path.dirname(WDIR))
-#os.chdir(WDIR)
-
-import pandas as pd
 from activmask.results import *
+import os
+import pandas as pd
+import sys
 import time
 
 
