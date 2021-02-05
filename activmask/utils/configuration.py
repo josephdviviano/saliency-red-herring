@@ -66,7 +66,7 @@ def load_config(config_file):
     default_cfg = {'cuda': True,
                    'seed': 0,
                    'optimizer': {'Adam': {}},
-                   'batch_size': 32,
+                   'batch_size': 16,
                    'n_epochs': 20,
                    'patience': 20,
                    'checkpoint_freq': 20,
