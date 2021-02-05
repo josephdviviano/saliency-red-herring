@@ -33,7 +33,7 @@ source activate activmask
 python -u activmask/main.py train --config ${file} --seed=${seed}
 EOF
 
-        sbatch ${runscript}
+        bash ${runscript}
         rm ${runscript}
 
         done
