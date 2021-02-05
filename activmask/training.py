@@ -339,9 +339,8 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     n_epochs = cfg['n_epochs']
     patience = cfg['patience']
     checkpoint_freq = cfg['checkpoint_freq']
-    device = 'cuda'
-    #if cfg['device'] >= 0:
-    #torch.cuda.set_device(cfg['device'])
+    if cfg['device'] >= 0:
+        torch.cuda.set_device(cfg['device'])
 
     if burn_in >= 1:  # Corrects for zero indexing.
         burn_in -= 1
@@ -364,20 +363,22 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
     tr_test = configuration.setup_transform(cfg, 'test')
 
     # dataset
-    dataset_train = configuration.setup_dataset(cfg, seed, split='train')(tr_train)
-    dataset_valid = configuration.setup_dataset(cfg, seed, split='valid')(tr_valid)
-    dataset_test = configuration.setup_dataset(cfg, seed, split='test')(tr_test)
+    dataset_train = configuration.setup_dataset(
+        cfg, seed, split='train')(tr_train)
+    dataset_valid = configuration.setup_dataset(
+        cfg, seed, split='valid')(tr_valid)
+    dataset_test = configuration.setup_dataset(
+        cfg, seed, split='test')(tr_test)
 
-    sys.exit()
-
-    # 'batch_size': cfg['batch_size'],
     loader_kwargs = {
-        'shuffle': cfg['shuffle'], 'num_workers': cfg['num_workers'], 'pin_memory': cfg['pin_memory']}
+        'batch_size': cfg['batch_size'],
+        'shuffle': cfg['shuffle'],
+        'num_workers': cfg['num_workers'],
+        'pin_memory': cfg['pin_memory']}
 
-    BATCH_SIZE = 16
-    train_loader = torch.utils.data.DataLoader(dataset_train, batch_size=BATCH_SIZE, **loader_kwargs)
-    valid_loader = torch.utils.data.DataLoader(dataset_valid, batch_size=BATCH_SIZE, **loader_kwargs)
-    test_loader = torch.utils.data.DataLoader(dataset_test, batch_size=BATCH_SIZE, **loader_kwargs)
+    train_loader = torch.utils.data.DataLoader(dataset_train, **loader_kwargs)
+    valid_loader = torch.utils.data.DataLoader(dataset_valid, **loader_kwargs)
+    test_loader = torch.utils.data.DataLoader(dataset_test, **loader_kwargs)
 
     model = configuration.setup_model(cfg).to(device)
     optim = configuration.setup_optimizer(cfg)(model.encoder.parameters())
@@ -454,12 +455,12 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
             best_test_loss = test_loss          #
             best_valid_score = valid_score      # Score
             best_test_score = test_score        #
-            best_epoch = epoch+1                # Epoch
+            best_epoch = epoch + 1              # Epoch
             best_model = copy.deepcopy(model)   # Model
             patience_counter = 0                # Reset
 
         # Updated every epoch.
-        stats = {"this_epoch": epoch+1,
+        stats = {"this_epoch": epoch + 1,
                  "train_loss": train_loss,
                  "valid_loss": valid_loss,
                  "best_train_loss": best_train_loss,
@@ -467,7 +468,6 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
                  "best_test_loss": best_test_loss,
                  "best_valid_score": best_valid_score,
                  "best_test_score": best_test_score,
-                 # TODO: best_epoch and this_epoch are not aligned!
                  "best_epoch": best_epoch}
 
         stats.update(configuration.flatten(cfg))  # NB: always best (skopt).
@@ -476,7 +476,7 @@ def train(cfg, random_state=None, state=None, save_checkpoints=False,
         metrics.append(stats)
 
         if update_condition:
-            stats.update(test_metrics)   # Breaks with resume. TODO: better way?
+            stats.update(test_metrics)   # TODO: better way?
 
         if save_checkpoints and epoch % checkpoint_freq == 0:
             print('checkpointing at epoch {}'.format(epoch))
@@ -548,8 +548,6 @@ def train_skopt(cfg, base_estimator, random_state=None):
         set_seed_state(state)
 
         # Check whether we are done (edge case where code crashes at the end).
-        # TODO: Assumes that we do early stopping without any patience. If we
-        #       add patience this logic does not work.
         done_epochs = base_epoch == cfg['n_epochs']
         done_iterations = base_iteration == n_iter
         if done_epochs and done_iterations:
