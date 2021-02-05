@@ -130,7 +130,7 @@ class XRayDatasetTextDataset():
 class JointDataset():
     def __init__(self, d1data, d1csv, d2data, d2csv, ratio=0.5, mode="train",
                  seed=1234, transform=None, nsamples=None, maxmasks=None,
-                 new_size=128, mask_all=False, verbose=False):
+                 new_size=128, mask_all=False, verbose=True):
 
         splits = np.array([0.5,0.25,0.25])
         assert mode in ['train', 'valid', 'test']
@@ -170,13 +170,13 @@ class JointDataset():
 
         # TRAIN
         train_0_neg = np.random.choice(
-            all_0_neg, int(n_per_category*ratio*splits[0]*2), replace=False)
+            all_0_neg, int(n_per_category*ratio*splits[0]), replace=False)
         train_0_pos = np.random.choice(
-            all_0_pos, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+            all_0_pos, int(n_per_category*(1-ratio)*splits[0]), replace=False)
         train_1_neg = np.random.choice(
-            all_1_neg, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+            all_1_neg, int(n_per_category*(1-ratio)*splits[0]), replace=False)
         train_1_pos = np.random.choice(
-            all_1_pos, int(n_per_category*ratio*splits[0]*2), replace=False)
+            all_1_pos, int(n_per_category*ratio*splits[0]), replace=False)
 
         # REDUCE POST-TRAIN
         all_0_neg = np.setdiff1d(all_0_neg, train_0_neg)
@@ -190,13 +190,13 @@ class JointDataset():
 
         # VALID
         valid_0_neg = np.random.choice(
-            all_0_neg, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+            all_0_neg, int(n_per_category*ratio*splits[1]), replace=False)
         valid_0_pos = np.random.choice(
-            all_0_pos, int(n_per_category*ratio*splits[1]*2), replace=False)
+            all_0_pos, int(n_per_category*(1-ratio)*splits[1]), replace=False)
         valid_1_neg = np.random.choice(
-            all_1_neg, int(n_per_category*ratio*splits[1]*2), replace=False)
+            all_1_neg, int(n_per_category*(1-ratio)*splits[1]), replace=False)
         valid_1_pos = np.random.choice(
-            all_1_pos, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+            all_1_pos, int(n_per_category*ratio*splits[1]), replace=False)
 
         # REDUCE POST-VALID
         all_0_neg = np.setdiff1d(all_0_neg, valid_0_neg)
@@ -494,7 +494,7 @@ class JointXRayCOVIDDataset():
 class JointXRayRSNADataset():
     def __init__(self, imgpath, ratio=0.5, mode="train",
                  seed=1234, transform=None, nsamples=None, maxmasks=None,
-                 new_size=224, mask_all=False, verbose=False):
+                 new_size=224, mask_all=False, verbose=True):
         
         splits = np.array([0.5, 0.25, 0.25])
         assert mode in ['train', 'valid', 'test']
@@ -550,13 +550,13 @@ class JointXRayRSNADataset():
 
         # TRAIN
         train_0_neg = np.random.choice(
-            all_0_neg, int(n_per_category*ratio*splits[0]*2), replace=False)
+            all_0_neg, int(n_per_category*ratio*splits[0]), replace=False)
         train_0_pos = np.random.choice(
-            all_0_pos, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+            all_0_pos, int(n_per_category*(1-ratio)*splits[0]), replace=False)
         train_1_neg = np.random.choice(
-            all_1_neg, int(n_per_category*(1-ratio)*splits[0]*2), replace=False)
+            all_1_neg, int(n_per_category*(1-ratio)*splits[0]), replace=False)
         train_1_pos = np.random.choice(
-            all_1_pos, int(n_per_category*ratio*splits[0]*2), replace=False)
+            all_1_pos, int(n_per_category*ratio*splits[0]), replace=False)
 
         # REDUCE POST-TRAIN
         all_0_neg = np.setdiff1d(all_0_neg, train_0_neg)
@@ -570,13 +570,13 @@ class JointXRayRSNADataset():
 
         # VALID
         valid_0_neg = np.random.choice(
-            all_0_neg, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+            all_0_neg, int(n_per_category*ratio*splits[1]), replace=False)
         valid_0_pos = np.random.choice(
-            all_0_pos, int(n_per_category*ratio*splits[1]*2), replace=False)
+            all_0_pos, int(n_per_category*(1-ratio)*splits[1]), replace=False)
         valid_1_neg = np.random.choice(
-            all_1_neg, int(n_per_category*ratio*splits[1]*2), replace=False)
+            all_1_neg, int(n_per_category*(1-ratio)*splits[1]), replace=False)
         valid_1_pos = np.random.choice(
-            all_1_pos, int(n_per_category*(1-ratio)*splits[1]*2), replace=False)
+            all_1_pos, int(n_per_category*ratio*splits[1]), replace=False)
 
         # REDUCE POST-VALID
         all_0_neg = np.setdiff1d(all_0_neg, valid_0_neg)

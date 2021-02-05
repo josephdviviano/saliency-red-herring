@@ -1,0 +1,15 @@
+# General
+base: "base_xray.yml"
+
+model:
+  ResNetModel:
+    resnet_type: "18"
+    actdiff_lamb:  0.00000000000000010000
+    gradmask_lamb: 0
+    disc_lamb: 0
+    save_acts: [5]
+
+
+optimizer:
+  Adam:
+    lr: 0.000564 

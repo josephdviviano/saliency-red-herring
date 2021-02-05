@@ -2,13 +2,13 @@
 
 mkdir -p cluster_logs
 
-EXPERIMENTS="synth-search rsna-search xray-search" #"synth-search cardiacmsd-search livermsd-search pancreasmsd-search colonmsd-search"
+EXPERIMENTS="rsna-search" #"synth-search cardiacmsd-search livermsd-search pancreasmsd-search colonmsd-search"
 SEED=1234
 BASE_DIR="/home/cohenjos/scratch"
 
 
 for exp in ${EXPERIMENTS}; do
-    for file in $(ls activmask/config/${exp}/${exp}*rrr*); do
+    for file in $(ls activmask/config/${exp}/${exp}*resnet-bal_actdiffwide.yml); do
 
         filename=$(basename ${file})
         filename="${filename%.*}"
