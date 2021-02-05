@@ -450,11 +450,11 @@ class ResNetModel(nn.Module):
     disc: adversarially-driven invariance to masked/unmasked data.
     """
     def __init__(self, base_size=512, resnet_type="18",
-                 actdiff_lamb=0, gradmask_lamb=0, rrr_lamb=0, disc_lamb=0, 
+                 actdiff_lamb=0, gradmask_lamb=0, rrr_lamb=0, disc_lamb=0,
                  disc_lr=0.0001, disc_iter=0, save_acts=[5], shuffle_all=False):
 
         assert resnet_type in ["18", "34"]
-        assert all([x >= 0 for x in [actdiff_lamb, gradmask_lamb, 
+        assert all([x >= 0 for x in [actdiff_lamb, gradmask_lamb,
                                      rrr_lamb, disc_lamb, disc_iter]])
         # Discriminator and actdiff penalty are incompatible.
         assert not all([x > 0 for x in [actdiff_lamb, disc_lamb]])
