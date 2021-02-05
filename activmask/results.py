@@ -1,39 +1,35 @@
-import os
-import sys
-
-#WDIR = '/home/jdv/code/activmask/activmask'
-#sys.path.insert(0, os.path.dirname(WDIR))
-#os.chdir(WDIR)
-
 from activmask.datasets.synth import SyntheticDataset
 from activmask.datasets.xray import JointDataset, JointXRayRSNADataset
 from activmask.models.loss import compare_activations, get_grad_saliency
 from activmask.models.resnet import ResNetModel
+from captum.attr import (IntegratedGradients, DeepLift, GuidedBackprop,
+                         Occlusion, ShapleyValueSampling)
 from collections import OrderedDict
 from copy import copy
 from glob import glob
 from skimage import io
+from skimage.filters import gaussian
 from textwrap import wrap
 import argparse
 import datetime
+import gc
 import itertools
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
 import pickle
 import pprint
 import random
 import seaborn as sns
+import sys
 import time
 import torch
 import torch.nn as nn
-import yaml
-import gc
-from skimage.filters import gaussian
-from captum.attr import IntegratedGradients, DeepLift, GuidedBackprop, Occlusion, ShapleyValueSampling
-
 import warnings
+import yaml
+
 warnings.filterwarnings("ignore")
 
 # GLOBALS
@@ -200,7 +196,6 @@ def make_results_table(dfs, sig_digits=3, mode='iou', count=False):
               '{}_integrated'.format(mode),
               '{}_occlude'.format(mode)]
 
-        import IPython; IPython.embed()
         _df = get_test_results(_df, cols=cols, count=count)
         _df = _df.round(sig_digits)
 
@@ -272,15 +267,6 @@ def get_test_results(df, cols=['best_test_score',
     df = df_deduplicate(df)
     groups = ['experiment_name']
     return get_results(df, groups, cols, count=count, mode='mean')
-
-
-#def seed_finder(df, experiment_name):
-#    test = df[df.epoch == EPOCH]
-#    test = test[test['experiment_name'] == experiment_name]
-#
-#    for seed in SEEDS:
-#        if seed not in np.array(test['seed']):
-#            print("{} missing {}".format(experiment_name, seed))
 
 
 def threshold(x, percentile):
@@ -581,9 +567,11 @@ def calc_loc_scores(dataset, model, img_size, absoloute=True, grad_type='normal'
 
 
 def render_mean_grad_wrapper(dataset_name, n_samples, exp_name, title, size, model_name,
-                             model_type='resnet', absoloute=True, crop_mask=0, grad_type='normal'):
+                             model_type='resnet', absoloute=True, crop_mask=0,
+                             grad_type='normal', plot='all', individual=False, notebook=True):
 
     assert grad_type in ['normal', 'integrated', 'deeplift', 'guided', 'occlude', 'shapely']
+    assert plot in ['all', 'correct', 'incorrect']
 
     base_mdls = glob(os.path.join(RESULTS_DIR, "{}_{}/best_model_*".format(exp_name, model_type)))
     mask_mdls = glob(os.path.join(RESULTS_DIR, "{}_{}_clfshuffle/best_model_*".format(exp_name, model_type)))
@@ -592,20 +580,175 @@ def render_mean_grad_wrapper(dataset_name, n_samples, exp_name, title, size, mod
     grad_mdls = glob(os.path.join(RESULTS_DIR, "{}_{}_gradmask/best_model_*".format(exp_name, model_type)))
     rrr_mdls = glob(os.path.join(RESULTS_DIR, "{}_{}_rrr/best_model_*".format(exp_name, model_type)))
 
-    render_mean_grad(dataset_name, n_samples,
-                     base_mdls, mask_mdls, disc_mdls, actd_mdls, grad_mdls, rrr_mdls,
-                     title, img_size=size, absoloute=absoloute, crop_mask=crop_mask,
-                     grad_type=grad_type, input_size=size)
+    start_time = time.time()
+    if individual:
+        render_indv_grad(dataset_name, n_samples,
+                         base_mdls, mask_mdls, disc_mdls, actd_mdls, grad_mdls, rrr_mdls,
+                         title, img_size=size, absoloute=absoloute,
+                         grad_type=grad_type, input_size=size, plot=plot, notebook=notebook)
+    else:
+        render_mean_grad(dataset_name, n_samples,
+                         base_mdls, mask_mdls, disc_mdls, actd_mdls, grad_mdls, rrr_mdls,
+                         title, img_size=size, absoloute=absoloute, crop_mask=crop_mask,
+                         grad_type=grad_type, input_size=size, plot=plot, notebook=notebook)
+
+    print('rendered {} {} {} in {} MIN'.format(
+        dataset_name, grad_type, plot, (time.time()-start_time)/60))
 
 
-def render_mean_grad(dataset_name, nsamples, base_mdls, mask_mdls, disc_mdls,
+def render_indv_grad(dataset_name, nsamples, base_mdls, mask_mdls, disc_mdls,
                      actd_mdls, grad_mdls, rrr_mdls, exp_name, img_size=100,
-                     absoloute=True, crop_mask=0, grad_type='normal', input_size=224):
+                     absoloute=True, n_rendered=5, grad_type='normal',
+                     input_size=224, plot='all', individual=False, notebook=True):
     """
     Renders the mean saliency map across all inputs in the dataset, from the
     input models for visual comparison.
     """
     assert grad_type in ['normal', 'integrated', 'deeplift', 'guided', 'occlude', 'shapely']
+    assert plot in ['all', 'correct', 'incorrect']
+
+    fig, axs = plt.subplots(
+        nrows=n_rendered, ncols=6, figsize=(20.5, 3.5*n_rendered), dpi=150)
+    datasets = {}  # Dict to cache our datasets per seed.
+    images, models = OrderedDict(), OrderedDict()
+    names = ["A: Baseline", "B: Masked",
+             "C: Adversarial", "D: ActDiff", "E: GradMask", "F: RRR"]
+
+    for name in names:
+        # first index: 0=image, 1=grads.
+        images[name] = np.zeros((2, n_rendered, img_size, img_size))
+
+    models['A: Baseline'] = base_mdls
+    models['B: Masked'] = mask_mdls
+    models['C: Adversarial'] = disc_mdls
+    models['D: ActDiff'] = actd_mdls
+    models['E: GradMask'] = grad_mdls
+    models['F: RRR'] = rrr_mdls
+
+    def _get_seed(filename):
+        return int(os.path.splitext(
+            os.path.splitext(
+                os.path.basename(filename))[0])[0].split('_')[-1])
+
+    i = 0
+    for model_name, models in models.items():
+
+        # get n_rendered unique examples, one from each model.
+        idx = np.arange(nsamples)
+        np.random.shuffle(idx)
+        counter = 0
+        i += 1
+        while counter < n_rendered:
+
+            model = models[counter]
+            seed = _get_seed(model)
+            model = load_model(model)
+
+            # Fetches the dataset, either from disk or cache.
+            dataset_key = "{}+{}".format(dataset_name, seed)
+            if dataset_key not in datasets:
+                datasets[dataset_key] = load_dataset(
+                    dataset_name, seed, nsamples=nsamples)
+
+            dataset = datasets[dataset_key]
+
+            x, seg, y = dataset[i]
+            x = torch.tensor(x).to('cuda' if CUDA else 'cpu')
+            seg = torch.tensor(seg).to('cuda' if CUDA else 'cpu')
+            y = torch.tensor(y).to('cuda' if CUDA else 'cpu')
+
+            # Only plot the positive cases.
+            if y == 0:
+                i += 1
+                continue
+
+            # Only plot correct/incorrect images.
+            if plot in ['correct', 'incorrect']:
+                with torch.no_grad():
+                    outputs = model(x.unsqueeze(0), seg)
+                    y_hat = torch.argmax(outputs['y_pred'])
+                    is_correct = y_hat == y
+
+                    if is_correct and plot == 'incorrect':
+                        i += 1
+                        continue
+                    elif not is_correct and plot == 'correct':
+                        i += 1
+                        continue
+
+            images[model_name][0, counter, ...] = torch.clone(x).detach().cpu().numpy()[0]
+
+            # Add the gradients for each sample.
+            if grad_type == 'normal':
+                x_var = torch.autograd.Variable(
+                    torch.clone(x).unsqueeze(0), requires_grad=True)
+                outputs = model(x_var, seg)
+                images[model_name][1, counter, ...] = get_saliency(
+                    x_var, outputs['y_pred'], 0, absoloute=absoloute, blur=True)
+
+            else:
+                if grad_type in ['integrated', 'deeplift', 'guided']:
+                    do_blur = True
+                else:
+                    do_blur = False
+
+                images[model_name][1, counter, ...] = get_captum_saliency(
+                    model, x, seg, y, grad_type, percentile=0,
+                    absoloute=absoloute, blur=do_blur, input_size=input_size)
+
+                counter += 1
+                i += 1
+
+    gradient_cmap = plt.cm.jet
+    gradient_cmap.set_under('k', alpha=0)
+
+    SALIENCY_NAMES = {'normal': 'G',
+                      'integrated': 'IG',
+                      'occlude': 'O'}
+
+    for i in range(len(names)):
+
+        name = names[i]
+        image = images[name]
+
+        for j in range(n_rendered):
+
+            if j == 0:
+                axs[j][i].set_title(name, size=24)
+
+            axs[j][i].imshow(image[0, j, ...], interpolation='none', cmap='Greys_r')
+
+            plot_name = "{}: {}".format(exp_name, SALIENCY_NAMES[grad_type])
+            if i == 0 and j == n_rendered//2:
+                axs[j][i].set_ylabel(plot_name, size=24)
+
+            # Plot gradients with image as background.
+            axs[j][i].imshow(
+                threshold(image[1, j, ...], GRADMASK_THRESHOLD), interpolation='none',
+                cmap=gradient_cmap, clim=[LO, image[1, j, ...].max()+(2*LO)], alpha=ALPHA)
+
+            axs[j][i].get_xaxis().set_visible(False)
+            axs[j][i].get_yaxis().set_ticks([])  # So label remains.
+
+    plt.tight_layout()
+    if notebook:
+        plt.show()
+    else:
+        plt.savefig('notebooks/img/grads_indiv_{}_{}_{}.png'.format(
+            dataset_name, grad_type, plot))
+
+
+
+def render_mean_grad(dataset_name, nsamples, base_mdls, mask_mdls, disc_mdls,
+                     actd_mdls, grad_mdls, rrr_mdls, exp_name, img_size=100,
+                     absoloute=True, crop_mask=0, grad_type='normal', input_size=224,
+                     plot='all', individual=False, notebook=True):
+    """
+    Renders the mean saliency map across all inputs in the dataset, from the
+    input models for visual comparison.
+    """
+    assert grad_type in ['normal', 'integrated', 'deeplift', 'guided', 'occlude', 'shapely']
+    assert plot in ['all', 'correct', 'incorrect']
 
     fig, axs = plt.subplots(nrows=1, ncols=7, figsize=(24, 6), dpi=150)
     axs = axs.ravel()
@@ -657,6 +800,18 @@ def render_mean_grad(dataset_name, nsamples, base_mdls, mask_mdls, disc_mdls,
                 # Only plot the positive cases.
                 if y == 0:
                     continue
+
+                # Only plot correct/incorrect images.
+                if plot in ['correct', 'incorrect']:
+                    with torch.no_grad():
+                        outputs = model(x.unsqueeze(0), seg)
+                        y_hat = torch.argmax(outputs['y_pred'])
+                        is_correct = y_hat == y
+
+                        if is_correct and plot == 'incorrect':
+                            continue
+                        elif not is_correct and plot == 'correct':
+                            continue
 
                 _mask += seg.detach().cpu().numpy()[0]
                 images["Image"] += torch.clone(x).detach().cpu().numpy()[0]
@@ -718,7 +873,11 @@ def render_mean_grad(dataset_name, nsamples, base_mdls, mask_mdls, disc_mdls,
 
     #plt.suptitle()
     plt.tight_layout()
-    plt.show()
+    if notebook:
+        plt.show()
+    else:
+        plt.savefig('notebooks/img/grads_{}_{}_{}.png'.format(
+            dataset_name, grad_type, plot))
 
 
 def plot_search_space(pattern, title, seed, bal=False):
@@ -861,6 +1020,7 @@ def ax_lineplot(ax, df_filter, y_min, title, legend=False, remove=''):
     g.set_ylim(y_min, 1.05)
     g.set_xlabel('Epoch')
     g.set_ylabel('Valid AUC')
+
 
 def plot_curves(names):
 
