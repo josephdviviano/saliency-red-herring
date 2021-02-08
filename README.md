@@ -1,5 +1,7 @@
-activmask
----------
+saliency-red-herring
+--------------------
+
+**NB: I NEED TO UPDATE THIS README**
 
 **installation**:
 
