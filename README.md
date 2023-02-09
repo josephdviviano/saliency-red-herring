@@ -5,6 +5,8 @@ saliency-red-herring
 
 **installation**:
 
+`conda env create -n activmask --file environment.yml`
+
 `source install.sh`.
 
 

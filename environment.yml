@@ -1,4 +1,3 @@
-name: activmask
 channels:
   - conda-forge
   - pytorch
